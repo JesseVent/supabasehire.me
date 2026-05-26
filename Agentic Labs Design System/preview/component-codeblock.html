@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Code block</title>
+<link rel="stylesheet" href="_preview.css">
+<link rel="stylesheet" href="../ui_kits/docs/docs.css">
+<style>body.card { background: var(--agl-bg); }</style>
+</head>
+<body class="card">
+  <div style="max-width:560px">
+    <div class="label" style="margin-bottom:8px">Code block · multi-tab with copy button</div>
+    <div class="codeblock">
+      <div class="codeblock-tabs">
+        <button class="codeblock-tab is-active">npm</button>
+        <button class="codeblock-tab">pnpm</button>
+        <button class="codeblock-tab">yarn</button>
+        <div class="codeblock-actions">
+          <button class="codeblock-copy">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            Copy
+          </button>
+        </div>
+      </div>
+      <pre class="codeblock-pre"><code><span class="c-c"># Install both packages</span>
+<span class="c-k">npm</span> install @agentic/prism @agentic/prism-data
+
+<span class="c-c"># With dev type defs</span>
+<span class="c-k">npm</span> install -D @types/react</code></pre>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Accordion FAQ</title>
+<link rel="stylesheet" href="_preview.css">
+<style>
+  details { border-bottom:1px solid var(--agl-border);overflow:hidden; }
+  details:first-child { border-top:1px solid var(--agl-border); }
+  summary { list-style:none;cursor:pointer;display:flex;align-items:center;padding:14px 16px;font-family:var(--font-sans);font-size:15px;font-weight:600;color:var(--agl-fg); }
+  summary::-webkit-details-marker { display:none; }
+  summary .chev { margin-left:auto;color:var(--agl-fg-faint);transition:transform var(--dur-base) var(--ease-out); }
+  details[open] summary .chev { transform:rotate(180deg); }
+  details > div { padding:0 16px 14px;color:var(--agl-fg-muted);font-size:14px;line-height:1.55;max-width:540px; }
+</style></head>
+<body class="card">
+  <div class="col" style="gap:6px">
+    <div class="label" style="margin-bottom:6px">FAQ accordion · LaunchKit pattern</div>
+    <details open>
+      <summary>How do I use this template? <span class="chev">▾</span></summary>
+      <div>Clone the repo, replace the placeholder text with your copy, upload your images, and wire up the buttons. Done.</div>
+    </details>
+    <details>
+      <summary>How do I adjust the color theme? <span class="chev">▾</span></summary>
+      <div>Update <code>--agl-accent</code> in <code>colors_and_type.css</code> — every dependent token is recalculated via OKLCH.</div>
+    </details>
+    <details>
+      <summary>How do I publish? <span class="chev">▾</span></summary>
+      <div>Static files. Drop it on Netlify, Vercel, Firebase, GitHub Pages, or your own server.</div>
+    </details>
+  </div>
+</body>
+</html>

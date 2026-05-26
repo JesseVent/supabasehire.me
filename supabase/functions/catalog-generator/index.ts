@@ -1,0 +1,110 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+interface ColumnProfile {
+  name: string;
+  type: string;
+  nullable: boolean;
+  nullPct: number;
+  distinctCount: number | null;
+  sampleValues: unknown[];
+}
+
+interface RequestPayload {
+  tableName: string;
+  schemaName: string;
+  rowCount: number;
+  columns: ColumnProfile[];
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    const openaiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!openaiKey) {
+      return new Response(
+        JSON.stringify({ error: "OPENAI_API_KEY not configured. Set it via: supabase secrets set OPENAI_API_KEY=sk-..." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const payload: RequestPayload = await req.json();
+    const { tableName, schemaName, rowCount, columns } = payload;
+
+    const columnLines = columns.map((c) => {
+      const samples = c.sampleValues.slice(0, 5).join(", ");
+      const distinct = c.distinctCount !== null ? `~${c.distinctCount} distinct` : "unknown distinct";
+      return `  - ${c.name} (${c.type}, ${c.nullPct.toFixed(1)}% null, ${distinct}${samples ? `, samples: ${samples}` : ""})`;
+    }).join("\n");
+
+    const userPrompt = `Table: ${schemaName}.${tableName} (${rowCount.toLocaleString()} rows)
+Columns:
+${columnLines}
+
+Return a JSON object with:
+1. "tableDescription": 1-2 sentence plain English description of what this table stores and its business purpose.
+2. "columnDescriptions": an object mapping each column name to a 1-sentence description of its purpose and content.
+
+Focus on business meaning, not technical details. JSON only, no markdown.`;
+
+    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${openaiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are a data catalog assistant. Generate concise, business-focused descriptions for database tables and columns. Always respond with valid JSON only.",
+          },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.3,
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (!openaiRes.ok) {
+      const errText = await openaiRes.text();
+      return new Response(
+        JSON.stringify({ error: `OpenAI error (${openaiRes.status}): ${errText}` }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const openaiData = await openaiRes.json();
+    const content = openaiData.choices?.[0]?.message?.content;
+
+    if (!content) {
+      return new Response(
+        JSON.stringify({ error: "Empty response from OpenAI" }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const parsed = JSON.parse(content);
+
+    return new Response(
+      JSON.stringify({
+        tableDescription: parsed.tableDescription || null,
+        columnDescriptions: parsed.columnDescriptions || {},
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ error: `Unexpected error: ${err instanceof Error ? err.message : String(err)}` }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});
