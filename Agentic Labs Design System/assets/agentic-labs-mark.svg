@@ -1,0 +1,10 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="14" height="14" transform="matrix(0.866025 0.5 -0.866025 0.5 14.124 2)" fill="currentColor" opacity="0.95"></rect>
+  <rect width="14" height="14" transform="matrix(0.866025 0.5 0 1 2 9)" fill="currentColor" opacity="0.7"></rect>
+  <rect width="14" height="14" transform="matrix(0.866025 -0.5 0 1 14.124 16)" fill="currentColor" opacity="0.45"></rect>
+  <g style="mix-blend-mode:overlay">
+    <rect width="14" height="14" transform="matrix(0.866025 0.5 -0.866025 0.5 14.124 2)" fill="var(--agl-accent, #2A6FDB)"></rect>
+    <rect width="14" height="14" transform="matrix(0.866025 0.5 0 1 2 9)" fill="var(--agl-accent, #2A6FDB)"></rect>
+    <rect width="14" height="14" transform="matrix(0.866025 -0.5 0 1 14.124 16)" fill="var(--agl-accent, #2A6FDB)"></rect>
+  </g>
+</svg>

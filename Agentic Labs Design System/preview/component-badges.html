@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Badges &amp; avatars</title>
+<link rel="stylesheet" href="_preview.css">
+<style>
+  /* Every badge uses the SAME Harmony level pair: bg = -100, text = -700.
+   * APCA contrast is identical across every hue — the row reads as one
+   * family even though the colors are visually distinct. */
+  .badge { display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border-radius:6px;font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:0.02em; }
+
+  .badge-neutral { background:var(--slate-100);   color:var(--slate-700); }
+  .badge-llm     { background:var(--purple-100);  color:var(--purple-700); }
+  .badge-agent   { background:var(--indigo-100);  color:var(--indigo-700); }
+  .badge-tool    { background:var(--orange-100);  color:var(--orange-700); }
+  .badge-chain   { background:var(--teal-100);    color:var(--teal-700); }
+  .badge-retr    { background:var(--cyan-100);    color:var(--cyan-700); }
+  .badge-emb     { background:var(--emerald-100); color:var(--emerald-700); }
+  .badge-guard   { background:var(--red-100);     color:var(--red-700); }
+  .badge-cost    { background:var(--blue-100);    color:var(--blue-700); }
+  .badge-ok      { background:var(--emerald-100); color:var(--emerald-700); }
+  .badge-err     { background:var(--red-100);     color:var(--red-700); }
+
+  /* Avatars at -400: same lightness across every hue → equal visual weight.
+   * Foreground letter at -950 (deep) so the letter reads on every fill. */
+  .avatar { width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:14px;font-weight:600;letter-spacing:0; }
+  .av-llm   { background:var(--purple-400);  color:var(--purple-950, oklch(28% 0.14 303)); }
+  .av-agent { background:var(--indigo-400);  color:var(--blue-950); }
+  .av-tool  { background:var(--orange-400);  color:oklch(26% 0.08 36); }
+  .av-chain { background:var(--teal-400);    color:oklch(28% 0.05 188); }
+  .av-retr  { background:var(--cyan-400);    color:oklch(30% 0.06 230); }
+  .av-emb   { background:var(--emerald-400); color:oklch(26% 0.05 173); }
+  .av-guard { background:var(--red-400);     color:oklch(26% 0.09 26); }
+</style></head>
+<body class="card">
+  <div class="col" style="gap:14px">
+    <div>
+      <div class="label" style="margin-bottom:6px">Badges · all at Harmony level 100 / 700 — equal APCA contrast</div>
+      <div class="row" style="gap:6px">
+        <span class="badge badge-neutral">42K</span>
+        <span class="badge badge-neutral">v2.0</span>
+        <span class="badge badge-llm">LLM</span>
+        <span class="badge badge-agent">AGENT</span>
+        <span class="badge badge-tool">TOOL</span>
+        <span class="badge badge-chain">CHAIN</span>
+        <span class="badge badge-retr">RETRIEVAL</span>
+        <span class="badge badge-emb">EMBED</span>
+        <span class="badge badge-guard">GUARDRAIL</span>
+        <span class="badge badge-ok">200 OK</span>
+        <span class="badge badge-err">500</span>
+        <span class="badge badge-cost">$0.042</span>
+      </div>
+    </div>
+    <div>
+      <div class="label" style="margin-bottom:6px">Avatars · all at level 400 — equal lightness, equal weight</div>
+      <div class="row" style="gap:8px">
+        <div class="avatar av-llm">A</div>
+        <div class="avatar av-agent">G</div>
+        <div class="avatar av-tool">T</div>
+        <div class="avatar av-chain">C</div>
+        <div class="avatar av-retr">R</div>
+        <div class="avatar av-emb">E</div>
+        <div class="avatar av-guard">!</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

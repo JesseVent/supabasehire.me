@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Span row</title>
+<link rel="stylesheet" href="_preview.css">
+<style>
+  .span-row { display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;height:32px;padding:0 10px;border-radius:6px;cursor:pointer;font-family:var(--font-sans); }
+  .span-row:hover { background:var(--agl-surface); }
+  .span-row.sel { background:var(--agl-accent-soft); }
+  .indent { display:inline-block;width:20px;border-left:1px dashed var(--agl-border-strong); }
+  .span-title { font-size:13px;color:var(--agl-fg);display:flex;gap:8px;align-items:center;min-width:0; }
+  .span-title .a { width:18px;height:18px;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:600;font-family:var(--font-mono); }
+  .span-bar { position:relative;height:14px;background:var(--agl-surface);border-radius:3px;min-width:120px;flex:1; }
+  .span-bar > span { position:absolute;top:0;bottom:0;background:var(--agl-cat-llm);border-radius:3px;opacity:0.85; }
+  .dur { font-family:var(--font-mono);font-size:11px;color:var(--agl-fg-muted);width:48px;text-align:right; }
+</style></head>
+<body class="card">
+  <div class="col" style="gap:2px">
+    <div class="label" style="margin-bottom:8px">Span row · the heart of agent-prism</div>
+    <div class="span-row sel">
+      <div class="span-title"><div class="a" style="background:var(--agl-cat-agent)">G</div><b style="font-weight:500">research_agent.invoke</b></div>
+      <div class="span-bar"><span style="left:2%;width:96%;background:var(--agl-cat-agent)"></span></div>
+      <div class="dur">3.42 s</div>
+    </div>
+    <div class="span-row">
+      <div class="span-title"><span class="indent"></span><div class="a" style="background:var(--agl-cat-llm)">A</div><b style="font-weight:500">anthropic.messages.create</b></div>
+      <div class="span-bar"><span style="left:6%;width:38%;background:var(--agl-cat-llm)"></span></div>
+      <div class="dur">1.21 s</div>
+    </div>
+    <div class="span-row">
+      <div class="span-title"><span class="indent"></span><div class="a" style="background:var(--agl-cat-tool)">T</div><b style="font-weight:500">web_search</b></div>
+      <div class="span-bar"><span style="left:38%;width:18%;background:var(--agl-cat-tool)"></span></div>
+      <div class="dur">540 ms</div>
+    </div>
+    <div class="span-row">
+      <div class="span-title"><span class="indent"></span><div class="a" style="background:var(--agl-cat-retrieval)">R</div><b style="font-weight:500">vector_db.query</b></div>
+      <div class="span-bar"><span style="left:55%;width:8%;background:var(--agl-cat-retrieval)"></span></div>
+      <div class="dur">86 ms</div>
+    </div>
+  </div>
+</body>
+</html>

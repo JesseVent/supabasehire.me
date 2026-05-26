@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Inputs</title>
+<link rel="stylesheet" href="_preview.css">
+<style>
+  .input { width:280px;height:36px;border-radius:var(--radius-sm);border:1px solid var(--agl-border);background:var(--agl-bg);padding:0 12px;font-family:var(--font-sans);font-size:14px;color:var(--agl-fg);box-sizing:border-box;outline:none;transition:border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+  .input:focus, .input.is-focus { border-color:var(--agl-accent); box-shadow:0 0 0 3px color-mix(in oklch, var(--agl-accent) 28%, transparent); }
+  .input.is-error { border-color:var(--agl-error); box-shadow:0 0 0 3px color-mix(in oklch, var(--agl-error) 24%, transparent); }
+  .input::placeholder { color:var(--agl-fg-faint); }
+  .field-label { font-size:12px;color:var(--agl-fg-muted);margin-bottom:4px;display:block;font-family:var(--font-sans);font-weight:500; }
+  .search { display:flex;align-items:center;gap:6px;width:280px;height:32px;border-radius:var(--radius-sm);border:1px solid var(--agl-border);background:var(--agl-surface);padding:0 10px; }
+  .search input { flex:1;border:none;background:transparent;outline:none;font-family:var(--font-sans);font-size:13px;color:var(--agl-fg); }
+  .search svg { color:var(--agl-fg-faint); }
+</style></head>
+<body class="card">
+  <div class="col" style="gap:14px">
+    <div>
+      <label class="field-label">Email · idle</label>
+      <input class="input" placeholder="you@agentic.dev">
+    </div>
+    <div>
+      <label class="field-label">API key · focused</label>
+      <input class="input is-focus" value="ag_sk_*****b3f1">
+    </div>
+    <div>
+      <label class="field-label">Webhook URL · error</label>
+      <input class="input is-error" value="not-a-url">
+    </div>
+    <div>
+      <label class="field-label">Search</label>
+      <div class="search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input placeholder="Filter spans…">
+      </div>
+    </div>
+  </div>
+</body>
+</html>
