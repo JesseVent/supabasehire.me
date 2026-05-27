@@ -135,14 +135,16 @@ function TableCard({ table, onReProfile, onGenerateAI, onCommit, isReprofiling, 
           {open ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
         </button>
 
-        {/* Table name */}
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <Badge variant="outline" className="text-[10px] font-mono px-1 py-0 h-4 shrink-0 hidden sm:inline-flex">
-            {table.schema_name}
-          </Badge>
-          <span className="font-mono text-xs font-medium truncate">{table.table_name}</span>
+        {/* Table name + description */}
+        <div className="flex flex-col min-w-0 flex-1">
+          <div className="flex items-center gap-2 min-w-0">
+            <Badge variant="outline" className="text-[10px] font-mono px-1 py-0 h-4 shrink-0 hidden sm:inline-flex">
+              {table.schema_name}
+            </Badge>
+            <span className="font-mono text-xs font-medium truncate">{table.table_name}</span>
+          </div>
           {table.ai_description && (
-            <span className="text-xs text-muted-foreground truncate hidden md:block">{table.ai_description}</span>
+            <p className="text-xs text-muted-foreground truncate hidden md:block leading-tight mt-0.5">{table.ai_description}</p>
           )}
         </div>
 
