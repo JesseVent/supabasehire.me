@@ -29,15 +29,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get a valid JWT (exchanges publishable key if needed)
-    const validKey = await getValidApiKey(connection.supabaseUrl, connection.anonKey);
+    // Edge functions require a real JWT — use serviceRoleKey if available,
+    // otherwise attempt to exchange the anon key for a JWT.
+    const bearerToken = connection.serviceRoleKey
+      ? connection.serviceRoleKey
+      : await getValidApiKey(connection.supabaseUrl, connection.anonKey);
 
     // Build the URL for the edge function
     const url = `${connection.supabaseUrl}/functions/v1/${functionName}`;
 
     const requestHeaders: Record<string, string> = {
       apikey: connection.anonKey,
-      Authorization: `Bearer ${validKey}`,
+      Authorization: `Bearer ${bearerToken}`,
       "Content-Type": "application/json",
       ...customHeaders,
     };
