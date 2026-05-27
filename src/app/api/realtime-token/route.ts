@@ -53,17 +53,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ token: anonKey });
     }
 
-    // 2. Try grant_type=anonymous (requires anonymous auth to be enabled)
+    // 2. signInAnonymously uses POST /signup with empty body (not grant_type=anonymous)
     try {
-      const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=anonymous`, {
+      const res = await fetch(`${supabaseUrl}/auth/v1/signup`, {
         method: 'POST',
         headers: { apikey: anonKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ data: {}, gotrue_meta_security: {} }),
       });
       if (res.ok) {
-        const data = await res.json() as { access_token?: string };
-        if (data.access_token?.startsWith('eyJ')) {
-          return NextResponse.json({ token: data.access_token });
+        const data = await res.json() as { access_token?: string; session?: { access_token?: string } };
+        const token = data.access_token ?? data.session?.access_token;
+        if (token?.startsWith('eyJ')) {
+          return NextResponse.json({ token });
         }
       }
     } catch {
