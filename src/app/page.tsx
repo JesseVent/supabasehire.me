@@ -718,7 +718,7 @@ export default function Home() {
       )}
 
       {/* Main content area */}
-      <main className="flex-1 overflow-y-auto container mx-auto px-4 py-6">
+      <main className="flex-1 overflow-y-auto container mx-auto px-4 pt-2 pb-6">
         {!activeConnectionId ? (
           /* Welcome / empty state with animated gradient background */
           <div className="relative flex flex-col items-center justify-center py-20 text-center overflow-hidden animated-gradient-bg">
