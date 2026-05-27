@@ -5,6 +5,27 @@ function extractRef(url: string): string {
   return m ? m[1] : '';
 }
 
+// Build a minimal Supabase anon JWT from a raw JWT secret using Web Crypto.
+async function buildAnonJwt(ref: string, jwtSecret: string): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const payload = { iss: 'supabase', ref, role: 'anon', iat: now, exp: now + 3600 };
+
+  const enc = (obj: object) =>
+    Buffer.from(JSON.stringify(obj)).toString('base64url');
+
+  const data = `${enc(header)}.${enc(payload)}`;
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(jwtSecret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data));
+  return `${data}.${Buffer.from(sig).toString('base64url')}`;
+}
+
 // POST /api/realtime-token
 // Server-side JWT exchange for Realtime WebSocket authentication.
 // The Supabase Realtime gateway requires a JWT in the apikey param — new-format
@@ -13,7 +34,8 @@ function extractRef(url: string): string {
 // Strategy (in order):
 //   1. Key is already a JWT → return as-is
 //   2. grant_type=anonymous with anon key (works if anonymous auth is enabled)
-//   3. Management API /v1/projects/{ref}/api-keys → returns legacy JWT anon key
+//   3. Management API /v1/projects/{ref}/api-keys → legacy JWT anon key
+//   4. Management API /v1/projects/{ref}/config/postgrest → jwt_secret → generate JWT
 export async function POST(request: NextRequest) {
   try {
     const { supabaseUrl, anonKey, accessToken } = await request.json() as {
@@ -45,27 +67,40 @@ export async function POST(request: NextRequest) {
         }
       }
     } catch {
-      // fall through to Management API
+      // fall through
     }
 
-    // 3. Management API fallback — get legacy JWT-format anon key
-    if (accessToken) {
-      const ref = extractRef(supabaseUrl);
+    const ref = extractRef(supabaseUrl);
+
+    // 3. Management API: try to get legacy JWT-format anon key from api-keys list
+    if (accessToken && ref) {
+      try {
+        const res = await fetch(`https://api.supabase.com/v1/projects/${ref}/api-keys`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (res.ok) {
+          const keys = await res.json() as Array<{ name: string; api_key: string }>;
+          for (const entry of keys) {
+            if (entry.api_key?.startsWith('eyJ')) {
+              return NextResponse.json({ token: entry.api_key });
+            }
+          }
+        }
+      } catch {
+        // fall through
+      }
+
+      // 4. Management API: get jwt_secret from PostgREST config, generate JWT ourselves
       if (ref) {
         try {
-          const res = await fetch(`https://api.supabase.com/v1/projects/${ref}/api-keys`, {
+          const res = await fetch(`https://api.supabase.com/v1/projects/${ref}/config/postgrest`, {
             headers: { Authorization: `Bearer ${accessToken}` },
           });
           if (res.ok) {
-            const keys = await res.json() as Array<{ name: string; api_key: string }>;
-            const anonEntry = keys.find((k) => k.name === 'anon');
-            if (anonEntry?.api_key?.startsWith('eyJ')) {
-              return NextResponse.json({ token: anonEntry.api_key });
-            }
-            // Also check service_role key as fallback
-            const srEntry = keys.find((k) => k.name === 'service_role');
-            if (srEntry?.api_key?.startsWith('eyJ')) {
-              return NextResponse.json({ token: srEntry.api_key });
+            const config = await res.json() as { jwt_secret?: string };
+            if (config.jwt_secret) {
+              const token = await buildAnonJwt(ref, config.jwt_secret);
+              return NextResponse.json({ token });
             }
           }
         } catch {
@@ -77,7 +112,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          'Could not obtain a JWT for Realtime. Enable Anonymous Authentication in your Supabase project (Authentication → Providers → Anonymous), or ensure a Management API access token is configured.',
+          'Could not obtain a Realtime JWT. Options: (a) enable Anonymous Authentication in your Supabase project, or (b) add your Management API access token to the connection.',
       },
       { status: 502 }
     );
