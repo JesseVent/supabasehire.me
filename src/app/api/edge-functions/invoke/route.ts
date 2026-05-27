@@ -29,11 +29,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Edge functions require a real JWT — use serviceRoleKey if available,
-    // otherwise attempt to exchange the anon key for a JWT.
-    const bearerToken = connection.serviceRoleKey
-      ? connection.serviceRoleKey
-      : await getValidApiKey(connection.supabaseUrl, connection.anonKey);
+    // Edge functions require a real eyJ... JWT — new sb_secret_/sb_publishable_ keys
+    // are opaque and rejected with UNAUTHORIZED_INVALID_JWT_FORMAT.
+    // Exchange whichever key we have for a JWT via anonymous sign-in.
+    const keyToExchange = connection.serviceRoleKey ?? connection.anonKey;
+    const bearerToken = await getValidApiKey(connection.supabaseUrl, keyToExchange);
 
     // Build the URL for the edge function
     const url = `${connection.supabaseUrl}/functions/v1/${functionName}`;
