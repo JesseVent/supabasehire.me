@@ -64,7 +64,7 @@ function ColumnRow({ col }: { col: CatalogColumn }) {
   const nullPct = col.null_pct !== null ? `${Number(col.null_pct).toFixed(1)}%` : null
 
   return (
-    <div className="grid grid-cols-[160px_1fr] gap-3 py-2 border-b border-border/40 last:border-0">
+    <div className="grid grid-cols-[160px_1fr] gap-3 px-3 py-2 border-b border-border/40 last:border-0">
       <div className="flex flex-col gap-0.5 min-w-0">
         <span className="font-mono text-xs font-medium truncate">{col.column_name}</span>
         <div className="flex flex-wrap gap-1 mt-0.5">
@@ -196,7 +196,7 @@ function TableCard({ table, onReProfile, onGenerateAI, onCommit, isReprofiling, 
 
       {/* Column details — expandable */}
       {open && cols.length > 0 && (
-        <div className="border-t mx-0">
+        <div className="border-t">
           {cols.map((col) => (
             <ColumnRow key={col.id} col={col} />
           ))}
