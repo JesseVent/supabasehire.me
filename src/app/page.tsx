@@ -476,7 +476,7 @@ export default function Home() {
   }, [selectedTable, tables, rlsStatuses])
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
       {/* Top navigation bar */}
       <header className="bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 header-gradient" style={{ background: 'var(--surface-1)', backdropFilter: 'var(--background-blur)', WebkitBackdropFilter: 'var(--background-blur)' }}>
         <div className="container mx-auto flex h-14 items-center justify-between px-4">
@@ -718,7 +718,7 @@ export default function Home() {
       )}
 
       {/* Main content area */}
-      <main className="flex-1 overflow-y-auto container mx-auto px-4 pt-2 pb-6">
+      <main className="flex-1 overflow-y-auto min-h-0 container mx-auto px-4 py-4">
         {!activeConnectionId ? (
           /* Welcome / empty state with animated gradient background */
           <div className="relative flex flex-col items-center justify-center py-20 text-center overflow-hidden animated-gradient-bg">
