@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getValidApiKey } from "@/lib/supabase-helpers";
 import type { SupabaseConnection } from "@/lib/supabase-types";
 
 // POST /api/edge-functions/invoke — Invoke an edge function
@@ -29,15 +28,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get a valid JWT (exchanges publishable key if needed)
-    const validKey = await getValidApiKey(connection.supabaseUrl, connection.anonKey);
+    // Edge functions deployed with --no-verify-jwt validate the apikey header
+    // themselves. New-format keys (sb_publishable_/sb_secret_) are not JWTs
+    // and cannot pass platform-level JWT verification. Use serviceRoleKey when
+    // available so the function's manual auth check passes.
+    const apiKey = connection.serviceRoleKey ?? connection.anonKey;
 
     // Build the URL for the edge function
     const url = `${connection.supabaseUrl}/functions/v1/${functionName}`;
 
     const requestHeaders: Record<string, string> = {
-      apikey: connection.anonKey,
-      Authorization: `Bearer ${validKey}`,
+      apikey: apiKey,
       "Content-Type": "application/json",
       ...customHeaders,
     };

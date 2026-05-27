@@ -99,13 +99,15 @@ export async function exchangePublishableKeyForJWT(
   publishableKey: string
 ): Promise<string | null> {
   try {
-    const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=apikey`, {
+    // Anonymous sign-in returns a proper eyJ... JWT the edge runtime accepts.
+    // grant_type=apikey doesn't exist; grant_type=anonymous is the correct path
+    // for obtaining a JWT from an sb_publishable_ or sb_secret_ opaque key.
+    const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=anonymous`, {
       method: "POST",
       headers: {
         apikey: publishableKey,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ apikey: publishableKey }),
     });
 
     if (!response.ok) return null;
@@ -134,29 +136,23 @@ export async function getValidApiKey(
     return apiKey;
   }
 
-  // New publishable key format — exchange for JWT
-  if (apiKey.startsWith('sb_publishable_')) {
+  // New key formats (sb_publishable_ and sb_secret_) are opaque — not JWTs.
+  // Edge functions reject them with UNAUTHORIZED_INVALID_JWT_FORMAT.
+  // Exchange via anonymous sign-in to get a real eyJ... JWT.
+  if (apiKey.startsWith('sb_publishable_') || apiKey.startsWith('sb_secret_')) {
     const cacheKey = `${supabaseUrl}:${apiKey}`;
     const cached = jwtCache.get(cacheKey);
-    
-    // Use cached JWT if still valid (5 min buffer)
+
     if (cached && cached.expires > Date.now()) {
       return cached.jwt;
     }
 
     const jwt = await exchangePublishableKeyForJWT(supabaseUrl, apiKey);
     if (jwt) {
-      // Cache for 55 minutes (JWTs typically last 1 hour)
       jwtCache.set(cacheKey, { jwt, expires: Date.now() + 55 * 60 * 1000 });
       return jwt;
     }
 
-    // If exchange fails, return the key as-is (might still work in some cases)
-    return apiKey;
-  }
-
-  // Secret key format — works directly as Bearer token, no exchange needed
-  if (apiKey.startsWith('sb_secret_')) {
     return apiKey;
   }
 
