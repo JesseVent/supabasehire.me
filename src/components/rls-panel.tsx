@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
 import {
   Shield,
@@ -47,7 +47,7 @@ import type { TableRLSInfo, RLSPolicy, RLSTestResult } from '@/lib/supabase-type
 import { SecurityScore } from '@/components/security-score'
 import { PolicyGenerator } from '@/components/policy-generator'
 import { AuthSimulator } from '@/components/auth-simulator'
-import { DEMO_CONNECTION_ID } from '@/lib/demo-data'
+import { DEMO_CONNECTION_ID, DEMO_RLS_STATUSES } from '@/lib/demo-data'
 
 type RLSSubTab = 'policies' | 'score' | 'generator' | 'simulator'
 
@@ -74,6 +74,15 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
     if (!activeConnectionId) return
     setIsLoadingRLS(true)
     setRlsError(null)
+
+    if (activeConnectionId === DEMO_CONNECTION_ID) {
+      await new Promise((r) => setTimeout(r, 300))
+      setRlsStatuses(DEMO_RLS_STATUSES)
+      if (!selectedTable) setSelectedTable(DEMO_RLS_STATUSES[0].tableName)
+      setIsLoadingRLS(false)
+      return
+    }
+
     try {
       const res = await fetch('/api/rls', {
         method: 'POST',
@@ -85,7 +94,6 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
         setRlsError(data.error)
       } else {
         setRlsStatuses(data.tables || [])
-        // Auto-select first table if none selected
         if (!selectedTable && data.tables?.length > 0) {
           setSelectedTable(data.tables[0].tableName)
         }
@@ -96,6 +104,10 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
       setIsLoadingRLS(false)
     }
   }, [activeConnectionId, activeConnection, setRlsStatuses, selectedTable])
+
+  useEffect(() => {
+    if (activeConnectionId && rlsStatuses.length === 0) fetchRLSInfo()
+  }, [activeConnectionId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const deletePolicy = useCallback(async (tableName: string, policyName: string) => {
     if (!activeConnection) return
@@ -135,16 +147,18 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
     if (activeConnectionId === DEMO_CONNECTION_ID) {
       await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 300))
       const currentRls = rlsStatuses.find((r) => r.tableName === selectedTable)
+      const rlsDisabled = !currentRls?.rlsEnabled
       const hasMatchingPolicy = currentRls?.policies.some(
         (p) => p.cmd === testOperation || p.cmd === 'ALL'
       )
+      const success = rlsDisabled || testRole === 'authenticated' || (testRole === 'anon' && !!hasMatchingPolicy)
       const demoResult: RLSTestResult = {
-        success: testRole === 'authenticated' || (testRole === 'anon' && hasMatchingPolicy),
+        success,
         operation: testOperation as RLSTestResult['operation'],
         role: testRole as RLSTestResult['role'],
         tableName: selectedTable,
-        rowCount: testRole === 'authenticated' ? Math.floor(Math.random() * 50) + 1 : (hasMatchingPolicy ? Math.floor(Math.random() * 10) : 0),
-        data: testRole === 'authenticated' || hasMatchingPolicy
+        rowCount: !success ? 0 : rlsDisabled ? Math.floor(Math.random() * 200) + 50 : (testRole === 'authenticated' ? Math.floor(Math.random() * 50) + 1 : Math.floor(Math.random() * 10) + 1),
+        data: success
           ? [{ id: 'demo-id', name: 'Demo Data', created_at: new Date().toISOString() }]
           : [],
       }
