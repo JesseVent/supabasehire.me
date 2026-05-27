@@ -68,3 +68,4 @@ supabase/.temp/
 [0-9]*
 -p
 --port
+.agents/skills/
