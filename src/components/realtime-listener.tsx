@@ -260,8 +260,10 @@ export function RealtimeListener() {
       const nextDelay = 2000 + Math.random() * 3000
       intervalRef.current = setTimeout(generateEvent, nextDelay) as unknown as ReturnType<typeof setInterval>
     } else if (activeConnection) {
-      // Real connection: subscribe via Supabase JS client
-      const client = createSupabaseClient(activeConnection, !!activeConnection.serviceRoleKey)
+      // Real connection: subscribe via Supabase JS client.
+      // createSupabaseClient is async — it exchanges new-format keys for a JWT
+      // before creating the client so the WebSocket apikey param is a real JWT.
+      createSupabaseClient(activeConnection, !!activeConnection.serviceRoleKey).then((client) => {
       const channel = client
         .channel(`devtool-${tableToListen}-${Date.now()}`)
         .on(
@@ -290,6 +292,7 @@ export function RealtimeListener() {
           }
         })
       channelRef.current = channel
+      })
     }
   }, [effectiveTable, isDemoMode, activeConnection, addEvent])
 
