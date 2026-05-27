@@ -536,7 +536,7 @@ function SchemaDiagramInner({
   }
 
   return (
-    <div className="w-full h-full min-h-[500px] bg-white dark:bg-zinc-950" style={{ height: '100%' }}>
+    <div className="w-full h-full min-h-[500px]" style={{ height: '100%', backgroundColor: '#ffffff' }}>
       <ReactFlow
         nodes={nodesWithSelection}
         edges={displayEdges}
@@ -553,7 +553,7 @@ function SchemaDiagramInner({
         attributionPosition="bottom-left"
         proOptions={{ hideAttribution: true }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={16} size={1.2} color="var(--border)" className="!bg-white dark:!bg-zinc-950" />
+        <Background variant={BackgroundVariant.Dots} gap={16} size={1.2} color="var(--border)" style={{ backgroundColor: '#ffffff' }} />
         <Controls position="bottom-right" />
         <Panel position="top-left">
           <Button
