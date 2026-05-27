@@ -64,7 +64,7 @@ function ColumnRow({ col }: { col: CatalogColumn }) {
   const nullPct = col.null_pct !== null ? `${Number(col.null_pct).toFixed(1)}%` : null
 
   return (
-    <div className="grid grid-cols-[160px_1fr] gap-3 py-2 border-b border-border/40 last:border-0">
+    <div className="grid grid-cols-[160px_1fr] gap-3 px-3 py-2 border-b border-border/40 last:border-0">
       <div className="flex flex-col gap-0.5 min-w-0">
         <span className="font-mono text-xs font-medium truncate">{col.column_name}</span>
         <div className="flex flex-wrap gap-1 mt-0.5">
@@ -123,9 +123,9 @@ function TableCard({ table, onReProfile, onGenerateAI, onCommit, isReprofiling, 
     : null
 
   return (
-    <div className="border-b border-border/50 last:border-0">
-      {/* Main row */}
-      <div className="flex items-center gap-3 px-3 py-2 hover:bg-muted/30 transition-colors group">
+    <div className="border rounded-md bg-card group">
+      {/* Header row */}
+      <div className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/30 transition-colors">
         {/* Expand toggle */}
         <button
           onClick={() => cols.length > 0 && setOpen(!open)}
@@ -140,10 +140,7 @@ function TableCard({ table, onReProfile, onGenerateAI, onCommit, isReprofiling, 
           <Badge variant="outline" className="text-[10px] font-mono px-1 py-0 h-4 shrink-0 hidden sm:inline-flex">
             {table.schema_name}
           </Badge>
-          <span className="font-mono text-xs font-medium truncate">{table.table_name}</span>
-          {table.ai_description && (
-            <span className="text-xs text-muted-foreground truncate hidden md:block">{table.ai_description}</span>
-          )}
+          <span className="font-mono text-xs font-semibold truncate">{table.table_name}</span>
         </div>
 
         {/* Meta */}
@@ -190,9 +187,16 @@ function TableCard({ table, onReProfile, onGenerateAI, onCommit, isReprofiling, 
         </TooltipProvider>
       </div>
 
+      {/* AI description — shown below header when present */}
+      {table.ai_description && (
+        <div className="px-3 pb-2.5 -mt-1">
+          <p className="text-xs text-muted-foreground leading-relaxed">{table.ai_description}</p>
+        </div>
+      )}
+
       {/* Column details — expandable */}
       {open && cols.length > 0 && (
-        <div className="ml-8 mr-3 mb-2 border rounded-md overflow-hidden">
+        <div className="border-t">
           {cols.map((col) => (
             <ColumnRow key={col.id} col={col} />
           ))}
@@ -711,7 +715,7 @@ export function DataCatalogPanel({
         </Card>
       ) : (
         <ScrollArea className="h-[calc(100vh-340px)]">
-          <div className="border rounded-md overflow-hidden">
+          <div className="space-y-2 pr-1">
             {filteredTables.map((table) => (
               <TableCard
                 key={table.id}

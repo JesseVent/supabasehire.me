@@ -185,6 +185,7 @@ export function RealtimeListener() {
   })
   const [events, setEvents] = useState<RealtimeEvent[]>([])
   const [isListening, setIsListening] = useState(false)
+  const [subscribeError, setSubscribeError] = useState<string | null>(null)
   const [autoScroll, setAutoScroll] = useState(true)
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -228,6 +229,7 @@ export function RealtimeListener() {
     if (!tableToListen) return
 
     setIsListening(true)
+    setSubscribeError(null)
 
     if (isDemoMode) {
       // Demo mode: generate random events every 2-5 seconds
@@ -258,8 +260,10 @@ export function RealtimeListener() {
       const nextDelay = 2000 + Math.random() * 3000
       intervalRef.current = setTimeout(generateEvent, nextDelay) as unknown as ReturnType<typeof setInterval>
     } else if (activeConnection) {
-      // Real connection: subscribe via Supabase JS client
-      const client = createSupabaseClient(activeConnection, !!activeConnection.serviceRoleKey)
+      // Real connection: subscribe via Supabase JS client.
+      // createSupabaseClient is async — it exchanges new-format keys for a JWT
+      // before creating the client so the WebSocket apikey param is a real JWT.
+      createSupabaseClient(activeConnection, false).then((client) => {
       const channel = client
         .channel(`devtool-${tableToListen}-${Date.now()}`)
         .on(
@@ -281,8 +285,14 @@ export function RealtimeListener() {
             )
           },
         )
-        .subscribe()
+        .subscribe((status, err) => {
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            setSubscribeError(`Subscription ${status.toLowerCase()}${err ? `: ${err.message}` : ''}`)
+            setIsListening(false)
+          }
+        })
       channelRef.current = channel
+      })
     }
   }, [effectiveTable, isDemoMode, activeConnection, addEvent])
 
@@ -323,6 +333,16 @@ export function RealtimeListener() {
           <Radio className="size-4 text-amber-600 dark:text-amber-400" />
           <AlertDescription className="text-amber-700 dark:text-amber-300">
             No active connection. Select a connection or use &quot;Try Demo&quot; to see simulated realtime events.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Subscription error */}
+      {subscribeError && (
+        <Alert className="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30">
+          <Radio className="size-4 text-red-600 dark:text-red-400" />
+          <AlertDescription className="text-red-700 dark:text-red-300 font-mono text-xs">
+            {subscribeError}
           </AlertDescription>
         </Alert>
       )}
