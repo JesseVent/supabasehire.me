@@ -66,36 +66,82 @@ const DEMO_SQL_RESULTS: Record<string, Array<Record<string, unknown>>> = {
     { table_name: 'notifications', table_type: 'BASE TABLE' },
   ],
   'pg_policies': [
-    { schemaname: 'public', tablename: 'users', policyname: 'Users can view own profile', permissive: 'PERMISSIVE', roles: '{authenticated}', cmd: 'SELECT' },
-    { schemaname: 'public', tablename: 'users', policyname: 'Users can update own profile', permissive: 'PERMISSIVE', roles: '{authenticated}', cmd: 'UPDATE' },
-    { schemaname: 'public', tablename: 'posts', policyname: 'Anyone can view posts', permissive: 'PERMISSIVE', roles: '{authenticated,anon}', cmd: 'SELECT' },
-    { schemaname: 'public', tablename: 'comments', policyname: 'Authenticated users can view comments', permissive: 'PERMISSIVE', roles: '{authenticated}', cmd: 'SELECT' },
-    { schemaname: 'public', tablename: 'likes', policyname: 'Authenticated users can view likes', permissive: 'PERMISSIVE', roles: '{authenticated}', cmd: 'SELECT' },
+    { schemaname: 'public', tablename: 'users', policyname: 'Users can view own profile', permissive: 'PERMISSIVE', roles: '{authenticated}', cmd: 'SELECT', qual: '(auth.uid() = id)', with_check: null },
+    { schemaname: 'public', tablename: 'users', policyname: 'Users can update own profile', permissive: 'PERMISSIVE', roles: '{authenticated}', cmd: 'UPDATE', qual: '(auth.uid() = id)', with_check: '(auth.uid() = id)' },
+    { schemaname: 'public', tablename: 'posts', policyname: 'Anyone can view posts', permissive: 'PERMISSIVE', roles: '{authenticated,anon}', cmd: 'SELECT', qual: 'true', with_check: null },
+    { schemaname: 'public', tablename: 'comments', policyname: 'Authenticated users can view comments', permissive: 'PERMISSIVE', roles: '{authenticated}', cmd: 'SELECT', qual: 'true', with_check: null },
+    { schemaname: 'public', tablename: 'likes', policyname: 'Authenticated users can view likes', permissive: 'PERMISSIVE', roles: '{authenticated}', cmd: 'SELECT', qual: 'true', with_check: null },
   ],
   'pg_stat_user_tables': [
-    { schemaname: 'public', table_name: 'users', row_count: 1247 },
-    { schemaname: 'public', table_name: 'posts', row_count: 8432 },
-    { schemaname: 'public', table_name: 'comments', row_count: 23456 },
-    { schemaname: 'public', table_name: 'likes', row_count: 45678 },
-    { schemaname: 'public', table_name: 'categories', row_count: 15 },
-    { schemaname: 'public', table_name: 'post_categories', row_count: 3456 },
-    { schemaname: 'public', table_name: 'audit_logs', row_count: 89234 },
-    { schemaname: 'public', table_name: 'notifications', row_count: 5678 },
+    { schemaname: 'public', relname: 'users', n_live_tup: 1247 },
+    { schemaname: 'public', relname: 'posts', n_live_tup: 8432 },
+    { schemaname: 'public', relname: 'comments', n_live_tup: 23456 },
+    { schemaname: 'public', relname: 'likes', n_live_tup: 45678 },
+    { schemaname: 'public', relname: 'categories', n_live_tup: 15 },
+    { schemaname: 'public', relname: 'post_categories', n_live_tup: 3456 },
+    { schemaname: 'public', relname: 'audit_logs', n_live_tup: 89234 },
+    { schemaname: 'public', relname: 'notifications', n_live_tup: 5678 },
+  ],
+  'table_sizes': [
+    { table_name: 'audit_logs', total_size: '8192 kB', table_size: '7168 kB', index_size: '1024 kB' },
+    { table_name: 'likes', total_size: '4096 kB', table_size: '3584 kB', index_size: '512 kB' },
+    { table_name: 'comments', total_size: '2048 kB', table_size: '1792 kB', index_size: '256 kB' },
+    { table_name: 'posts', total_size: '1024 kB', table_size: '896 kB', index_size: '128 kB' },
+    { table_name: 'notifications', total_size: '512 kB', table_size: '448 kB', index_size: '64 kB' },
+    { table_name: 'users', total_size: '256 kB', table_size: '224 kB', index_size: '32 kB' },
+    { table_name: 'post_categories', total_size: '128 kB', table_size: '112 kB', index_size: '16 kB' },
+    { table_name: 'categories', total_size: '32 kB', table_size: '24 kB', index_size: '8 kB' },
+  ],
+  'index_usage': [
+    { schemaname: 'public', table_name: 'users', index_name: 'users_pkey', index_scans: 45231, tuples_read: 45231, tuples_fetched: 45231 },
+    { schemaname: 'public', table_name: 'posts', index_name: 'posts_pkey', index_scans: 23890, tuples_read: 23890, tuples_fetched: 23890 },
+    { schemaname: 'public', table_name: 'posts', index_name: 'posts_user_id_idx', index_scans: 18432, tuples_read: 82340, tuples_fetched: 18432 },
+    { schemaname: 'public', table_name: 'comments', index_name: 'comments_pkey', index_scans: 12045, tuples_read: 12045, tuples_fetched: 12045 },
+    { schemaname: 'public', table_name: 'comments', index_name: 'comments_post_id_idx', index_scans: 9823, tuples_read: 45123, tuples_fetched: 9823 },
+    { schemaname: 'public', table_name: 'likes', index_name: 'likes_pkey', index_scans: 8901, tuples_read: 8901, tuples_fetched: 8901 },
+    { schemaname: 'public', table_name: 'notifications', index_name: 'notifications_user_id_idx', index_scans: 3456, tuples_read: 15234, tuples_fetched: 3456 },
+    { schemaname: 'public', table_name: 'audit_logs', index_name: 'audit_logs_pkey', index_scans: 1234, tuples_read: 1234, tuples_fetched: 1234 },
+  ],
+  'foreign_keys': [
+    { table_name: 'posts', column_name: 'user_id', foreign_table_name: 'users', foreign_column_name: 'id' },
+    { table_name: 'comments', column_name: 'post_id', foreign_table_name: 'posts', foreign_column_name: 'id' },
+    { table_name: 'comments', column_name: 'user_id', foreign_table_name: 'users', foreign_column_name: 'id' },
+    { table_name: 'likes', column_name: 'post_id', foreign_table_name: 'posts', foreign_column_name: 'id' },
+    { table_name: 'likes', column_name: 'user_id', foreign_table_name: 'users', foreign_column_name: 'id' },
+    { table_name: 'post_categories', column_name: 'post_id', foreign_table_name: 'posts', foreign_column_name: 'id' },
+    { table_name: 'post_categories', column_name: 'category_id', foreign_table_name: 'categories', foreign_column_name: 'id' },
+    { table_name: 'audit_logs', column_name: 'user_id', foreign_table_name: 'users', foreign_column_name: 'id' },
+    { table_name: 'notifications', column_name: 'user_id', foreign_table_name: 'users', foreign_column_name: 'id' },
+  ],
+  'active_connections': [
+    { pid: 12345, usename: 'supabase_admin', application_name: 'psql', client_addr: '10.0.0.1', state: 'active', query: 'SELECT * FROM users WHERE id = $1', query_start: new Date(Date.now() - 120000).toISOString() },
+    { pid: 12346, usename: 'authenticated', application_name: 'PostgREST', client_addr: '10.0.0.2', state: 'active', query: 'SELECT posts.* FROM posts ORDER BY created_at DESC LIMIT 10', query_start: new Date(Date.now() - 45000).toISOString() },
   ],
 }
 
 function getDemoSQLResult(query: string): SQLQueryResult {
   const q = query.toLowerCase()
-  if (q.includes('pg_policies') || q.includes('rls') || q.includes('policy')) {
+  if (q.includes('pg_policies') || (q.includes('rls') && q.includes('policy'))) {
     return { success: true, data: DEMO_SQL_RESULTS['pg_policies'] }
   }
-  if (q.includes('pg_stat_user_tables') || q.includes('row_count') || q.includes('n_live_tup')) {
+  if (q.includes('pg_statio_user_tables') || (q.includes('total_size') && q.includes('table_size'))) {
+    return { success: true, data: DEMO_SQL_RESULTS['table_sizes'] }
+  }
+  if (q.includes('pg_stat_user_indexes') || q.includes('index_scans') || q.includes('idx_scan')) {
+    return { success: true, data: DEMO_SQL_RESULTS['index_usage'] }
+  }
+  if (q.includes('pg_stat_activity') || q.includes('active connections')) {
+    return { success: true, data: DEMO_SQL_RESULTS['active_connections'] }
+  }
+  if (q.includes('pg_stat_user_tables') || q.includes('n_live_tup')) {
     return { success: true, data: DEMO_SQL_RESULTS['pg_stat_user_tables'] }
   }
-  if (q.includes('information_schema.tables') || q.includes('table_name') && q.includes('table_type')) {
+  if (q.includes('information_schema.table_constraints') || q.includes('foreign_table_name') || (q.includes('constraint_type') && q.includes('foreign key'))) {
+    return { success: true, data: DEMO_SQL_RESULTS['foreign_keys'] }
+  }
+  if (q.includes('information_schema.tables') || (q.includes('table_name') && q.includes('table_type'))) {
     return { success: true, data: DEMO_SQL_RESULTS['information_schema.tables'] }
   }
-  // Generic demo result for any other query
   return {
     success: true,
     data: [
@@ -112,7 +158,7 @@ const QUICK_TEMPLATES: Record<string, string> = {
   'List foreign keys': `SELECT \n  tc.table_name, \n  kcu.column_name, \n  ccu.table_name AS foreign_table_name, \n  ccu.column_name AS foreign_column_name \nFROM information_schema.table_constraints AS tc \nJOIN information_schema.key_column_usage AS kcu \n  ON tc.constraint_name = kcu.constraint_name \nJOIN information_schema.constraint_column_usage AS ccu \n  ON ccu.constraint_name = tc.constraint_name \nWHERE tc.constraint_type = 'FOREIGN KEY' \n  AND tc.table_schema = 'public';`,
   'Table row count': `SELECT \n  schemaname,\n  relname AS table_name,\n  n_live_tup AS row_count\nFROM pg_stat_user_tables\nORDER BY n_live_tup DESC;`,
   'Index usage': `SELECT\n  schemaname,\n  relname AS table_name,\n  indexrelname AS index_name,\n  idx_scan AS index_scans,\n  idx_tup_read AS tuples_read,\n  idx_tup_fetch AS tuples_fetched\nFROM pg_stat_user_indexes\nORDER BY idx_scan DESC;`,
-  'Table sizes': `SELECT\n  relname AS table_name,\n  pg_size_pretty(pg_total_relation_size(relid)) AS total_size,\n  pg_size_pretty(pg_relation_size(relid)) AS table_size,\n  pg_size_pretty(pg_total_relation_size(relid) - pg_relation_size(relid)) AS index_size,\n  n_live_tup AS row_count\nFROM pg_catalog.pg_statio_user_tables\nORDER BY pg_total_relation_size(relid) DESC;`,
+  'Table sizes': `SELECT\n  relname AS table_name,\n  pg_size_pretty(pg_total_relation_size(relid)) AS total_size,\n  pg_size_pretty(pg_relation_size(relid)) AS table_size,\n  pg_size_pretty(pg_total_relation_size(relid) - pg_relation_size(relid)) AS index_size\nFROM pg_statio_user_tables\nORDER BY pg_total_relation_size(relid) DESC;`,
   'Active connections': `SELECT\n  pid,\n  usename,\n  application_name,\n  client_addr,\n  state,\n  query,\n  query_start\nFROM pg_stat_activity\nWHERE state != 'idle'\nORDER BY query_start DESC;`,
 }
 

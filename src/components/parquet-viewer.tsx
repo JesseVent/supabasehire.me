@@ -20,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -98,10 +99,22 @@ async function getDuckDB() {
 
 const PAGE_SIZE = 100
 
-function formatCellValue(val: unknown): string {
+function formatCellValue(val: unknown, colType?: string): string {
   if (val === null || val === undefined) return 'NULL'
   if (typeof val === 'bigint') return val.toString()
-  if (val instanceof Date) return val.toISOString()
+  if (val instanceof Date) return val.toISOString().replace('T', ' ').slice(0, 19)
+  // Arrow returns Date32/Timestamp values as milliseconds since epoch
+  if (typeof val === 'number' && Number.isFinite(val) && colType) {
+    const t = colType.toLowerCase()
+    if (t.includes('date') || t.includes('timestamp')) {
+      const d = new Date(val)
+      if (!isNaN(d.getTime())) {
+        return t.includes('date') && !t.includes('timestamp')
+          ? d.toISOString().slice(0, 10)
+          : d.toISOString().replace('T', ' ').slice(0, 19)
+      }
+    }
+  }
   if (typeof val === 'object') return JSON.stringify(val)
   return String(val)
 }
@@ -143,8 +156,14 @@ export function ParquetViewer({ open, onClose, connection, bucket, filePath, fil
         body: JSON.stringify({ connection, bucket, path: filePath }),
       })
       if (!res.ok) {
-        const d = await res.json()
-        throw new Error(d.error || 'Download failed')
+        let errMsg = 'Download failed'
+        try {
+          const d = await res.json()
+          errMsg = d.error || errMsg
+        } catch {
+          errMsg = `Download failed with status ${res.status}`
+        }
+        throw new Error(errMsg)
       }
       const buffer = await res.arrayBuffer()
 
@@ -245,6 +264,9 @@ export function ParquetViewer({ open, onClose, connection, bucket, filePath, fil
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent showCloseButton={false} style={{ width: '90vw', maxWidth: '90vw' }} className="max-h-[90vh] flex flex-col p-0 gap-0">
+        <DialogDescription className="sr-only">
+          Preview and query Parquet file contents
+        </DialogDescription>
         <DialogHeader className="px-4 py-3 border-b flex-row items-center justify-between space-y-0">
           <div className="flex items-center gap-2 min-w-0">
             <FileIcon className="size-4 text-primary shrink-0" />
@@ -323,7 +345,7 @@ export function ParquetViewer({ open, onClose, connection, bucket, filePath, fil
                       {previewResult.rows.map((row, i) => (
                         <TableRow key={i}>
                           {previewResult.columns.map(col => {
-                            const raw = formatCellValue(row[col.name])
+                            const raw = formatCellValue(row[col.name], col.type)
                             const isNull = raw === 'NULL'
                             return (
                               <TooltipProvider key={col.name} delayDuration={300}>
@@ -333,7 +355,7 @@ export function ParquetViewer({ open, onClose, connection, bucket, filePath, fil
                                       {raw}
                                     </TableCell>
                                   </TooltipTrigger>
-                                  {raw.length > 30 && (
+                                  {raw.length > 20 && (
                                     <TooltipContent side="bottom" className="max-w-[400px] break-all font-mono text-xs">
                                       {raw}
                                     </TooltipContent>
@@ -434,7 +456,7 @@ export function ParquetViewer({ open, onClose, connection, bucket, filePath, fil
                           <TableRow key={i}>
                             {customResult.columns.map(col => (
                               <TableCell key={col.name} className="text-xs font-mono py-1.5 whitespace-nowrap max-w-[240px] truncate">
-                                {formatCellValue(row[col.name])}
+                                {formatCellValue(row[col.name], col.type)}
                               </TableCell>
                             ))}
                           </TableRow>
