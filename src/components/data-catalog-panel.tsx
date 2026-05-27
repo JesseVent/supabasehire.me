@@ -136,7 +136,7 @@ function TableCard({ table, onReProfile, onGenerateAI, onCommit, isReprofiling, 
         </button>
 
         {/* Table name + description */}
-        <div className="flex flex-col min-w-0 flex-1">
+        <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
           <div className="flex items-center gap-2 min-w-0">
             <Badge variant="outline" className="text-[10px] font-mono px-1 py-0 h-4 shrink-0 hidden sm:inline-flex">
               {table.schema_name}
