@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getValidApiKey } from "@/lib/supabase-helpers";
 import type { SupabaseConnection } from "@/lib/supabase-types";
 
 // POST /api/edge-functions/invoke — Invoke an edge function
@@ -29,18 +28,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Edge functions require a real eyJ... JWT — new sb_secret_/sb_publishable_ keys
-    // are opaque and rejected with UNAUTHORIZED_INVALID_JWT_FORMAT.
-    // Exchange whichever key we have for a JWT via anonymous sign-in.
-    const keyToExchange = connection.serviceRoleKey ?? connection.anonKey;
-    const bearerToken = await getValidApiKey(connection.supabaseUrl, keyToExchange);
+    // New-format keys (sb_publishable_, sb_secret_) are NOT JWTs.
+    // Supabase edge runtime rule: Authorization: Bearer <X> is only accepted
+    // when X exactly equals the apikey header value.
+    // So use the same key for both headers — prefer serviceRoleKey over anonKey.
+    const apiKey = connection.serviceRoleKey ?? connection.anonKey;
 
     // Build the URL for the edge function
     const url = `${connection.supabaseUrl}/functions/v1/${functionName}`;
 
     const requestHeaders: Record<string, string> = {
-      apikey: connection.anonKey,
-      Authorization: `Bearer ${bearerToken}`,
+      apikey: apiKey,
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
       ...customHeaders,
     };
