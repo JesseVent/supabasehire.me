@@ -31,6 +31,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useSupabaseStore } from '@/store/supabase-store'
 import type { EdgeFunction } from '@/lib/supabase-types'
+import { DEMO_CONNECTION_ID } from '@/lib/demo-data'
 
 interface InvokeResult {
   data?: unknown
@@ -88,6 +89,22 @@ export function EdgeFunctionsPanel() {
     setInvokeResult(null)
 
     const startTime = Date.now()
+
+    if (activeConnectionId === DEMO_CONNECTION_ID) {
+      await new Promise((r) => setTimeout(r, 200 + Math.random() * 400))
+      const responseTime = Date.now() - startTime
+      const demoResponses: Record<string, unknown> = {
+        'hello-world': { message: 'Hello from Edge Function!', timestamp: new Date().toISOString() },
+        'send-notification': { success: true, notificationId: `notif_${Math.random().toString(36).slice(2, 9)}`, recipient: 'user@example.com' },
+        'process-webhook': { received: true, eventType: 'demo.event', processedAt: new Date().toISOString() },
+      }
+      const demoData = demoResponses[selectedFunction.name] ?? { result: 'ok', function: selectedFunction.name }
+      setInvokeResult({ data: demoData, status: 200, responseTime })
+      addActivityLog({ type: 'function', action: `Invoked: ${selectedFunction.name}`, details: `Status: 200, ${responseTime}ms (demo)` })
+      toast.success('Function invoked (demo)', { description: `Status: 200, ${responseTime}ms` })
+      setIsInvoking(false)
+      return
+    }
 
     try {
       let body: Record<string, unknown> | undefined
