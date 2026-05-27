@@ -28,10 +28,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // New-format keys (sb_publishable_, sb_secret_) are NOT JWTs.
-    // Supabase edge runtime rule: Authorization: Bearer <X> is only accepted
-    // when X exactly equals the apikey header value.
-    // So use the same key for both headers — prefer serviceRoleKey over anonKey.
+    // Edge functions deployed with --no-verify-jwt validate the apikey header
+    // themselves. New-format keys (sb_publishable_/sb_secret_) are not JWTs
+    // and cannot pass platform-level JWT verification. Use serviceRoleKey when
+    // available so the function's manual auth check passes.
     const apiKey = connection.serviceRoleKey ?? connection.anonKey;
 
     // Build the URL for the edge function
@@ -39,7 +39,6 @@ export async function POST(request: NextRequest) {
 
     const requestHeaders: Record<string, string> = {
       apikey: apiKey,
-      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
       ...customHeaders,
     };

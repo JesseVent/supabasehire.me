@@ -32,10 +32,31 @@ const REQUIRED_FIELDS: (keyof PersonInsert)[] = [
   'ethnicity_concept_id',
 ];
 
+// New-format keys (sb_publishable_/sb_secret_) are not JWTs — the platform
+// cannot verify them. Deployed with --no-verify-jwt; we validate manually here.
+function isAuthorized(req: Request): boolean {
+  const secretKeys = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') ?? '{}');
+  const publishableKeys = JSON.parse(Deno.env.get('SUPABASE_PUBLISHABLE_KEYS') ?? '{}');
+  const validKeys = new Set([
+    ...Object.values(secretKeys) as string[],
+    ...Object.values(publishableKeys) as string[],
+  ]);
+
+  const incoming = req.headers.get('apikey') ?? req.headers.get('authorization')?.replace('Bearer ', '');
+  return incoming != null && validKeys.has(incoming);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  if (!isAuthorized(req)) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
       headers: { 'Content-Type': 'application/json' },
     });
   }
