@@ -263,7 +263,7 @@ export function RealtimeListener() {
       // Real connection: subscribe via Supabase JS client.
       // createSupabaseClient is async — it exchanges new-format keys for a JWT
       // before creating the client so the WebSocket apikey param is a real JWT.
-      createSupabaseClient(activeConnection, !!activeConnection.serviceRoleKey).then((client) => {
+      createSupabaseClient(activeConnection, false).then((client) => {
       const channel = client
         .channel(`devtool-${tableToListen}-${Date.now()}`)
         .on(
