@@ -950,7 +950,7 @@ export default function Home() {
             onValueChange={(val) => setActivePanel(val as ActivePanel)}
             className="w-full"
           >
-            <div className="sticky top-14 z-40 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 -mx-4 px-4 py-2 border-b border-border/50">
+            <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 -mx-4 px-4 py-2 border-b border-border/50">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <TabsList className="grid grid-cols-10 w-full sm:w-auto">
                 <TabsTrigger value="dashboard" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
@@ -1271,7 +1271,7 @@ export default function Home() {
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="w-full lg:w-[320px] shrink-0 border rounded-lg overflow-hidden"
+                        className="w-full lg:w-[420px] shrink-0 border rounded-lg overflow-hidden"
                       >
                         <ScrollArea className="h-full max-h-[600px]">
                           <TableDetailPanel
@@ -1667,7 +1667,7 @@ function TableDetailPanel({
                     </span>
                     <span className="font-mono font-medium truncate">{col.column_name}</span>
                     {/* Data type badge */}
-                    <span className={`ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded-full shrink-0 ${getColumnTypeColor(col.data_type)}`}>
+                    <span className={`ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded-full shrink-0 max-w-[120px] truncate ${getColumnTypeColor(col.data_type)}`} title={col.data_type}>
                       {col.data_type}
                     </span>
                   </div>
