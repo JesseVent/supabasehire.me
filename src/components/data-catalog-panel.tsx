@@ -125,7 +125,7 @@ function TableCard({ table, onReProfile, onGenerateAI, onCommit, isReprofiling, 
   return (
     <div className="border-b border-border/50 last:border-0">
       {/* Main row */}
-      <div className="flex items-center gap-3 px-3 py-2 hover:bg-muted/30 transition-colors group">
+      <div className="flex items-center gap-3 px-3 py-2 hover:bg-muted/30 transition-colors group overflow-hidden">
         {/* Expand toggle */}
         <button
           onClick={() => cols.length > 0 && setOpen(!open)}
