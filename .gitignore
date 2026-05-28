@@ -56,6 +56,9 @@ server.log
 # Skills directory
 /skills/
 
+# Bundled demo assets (override global *.parquet ignore)
+!public/sample-analytics.parquet
+
 # Agent loop artifacts (internal dev tooling)
 .agent-loop/
 .agent-loop-state.json
