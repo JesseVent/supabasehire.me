@@ -65,7 +65,7 @@ server.log
 loop.config.yaml
 spec.md
 agent-ctx/
-download/
+/download/
 supabase/.temp/
 .zscripts/
 [0-9]*
