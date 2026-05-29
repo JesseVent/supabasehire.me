@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "next-themes";
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
   title: "Supabase Debugger — RLS & Edge Function Inspector",
@@ -39,6 +40,7 @@ export default function RootLayout({
             This site is not affiliated with or endorsed by Supabase. It is an independent engineering project built as part of a job application.
           </footer>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
