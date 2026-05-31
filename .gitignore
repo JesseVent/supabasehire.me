@@ -72,3 +72,5 @@ supabase/.temp/
 -p
 --port
 .agents/skills/
+.antigravitycli/
+/supabasehireme/

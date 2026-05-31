@@ -11,6 +11,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { useSupabaseStore } from '@/store/supabase-store'
+import { useAgentStore } from '@/store/agent-store'
 import type { ActivePanel } from '@/lib/supabase-types'
 import { DEMO_CONNECTION_ID } from '@/lib/demo-data'
 
@@ -119,6 +120,11 @@ export function KeyboardShortcuts() {
           keys: ['Esc'],
           description: 'Close dialog / sheet',
           action: () => setShowShortcutsDialog(false),
+        },
+        {
+          keys: [`${modKey()}`, 'J'],
+          description: 'Toggle AI Agent sidebar',
+          action: () => useAgentStore.getState().toggleSidebar(),
         },
       ],
     },

@@ -6,18 +6,39 @@ Try it instantly with **Demo Mode** — no Supabase connection required.
 
 ---
 
+## What It Does
+
+A dev tool for Supabase projects. Surfaces everything the platform exposes — Management API, PostgREST, Storage, Edge Functions, Realtime — in one place, without switching tabs.
+
+- **Security** — Security Score dashboard shows every table with RLS disabled or policies missing before it becomes a problem
+- **Debugging** — run SQL, browse live rows, invoke edge functions with custom payloads, and watch Realtime events, all in one place
+- **Schema understanding** — auto-layout ER diagrams (dagre) make foreign key relationships readable at a glance, even on large schemas
+- **Data Catalog** — profiles every table automatically: row counts, null %, distinct counts, min/max per column. Generates AI descriptions for tables and columns so devs can understand an unfamiliar schema without reading migrations or asking someone
+- **Parquet / Iceberg** — the Analytics tab connects to an Iceberg REST Catalog, profiles tables via DuckDB WASM in-browser, and lets you run SQL against `.parquet` files with zero server infrastructure
+
+> **Run this locally.** Credentials are stored in your browser's `localStorage` via Zustand — they never leave your machine. Don't enter real service role keys into any hosted or web-based deployment of this tool.
+
+---
+
 ## Features
 
-- **Schema Inspector** — browse tables, columns, foreign keys, and constraints with a visual ER diagram (dagre auto-layout)
-- **RLS Policy Viewer** — 3-state policy status (enabled / disabled / no policy), policy details, and an inline policy generator
-- **Table Browser** — paginated row data via PostgREST
-- **SQL Runner** — execute queries with persistent history
-- **Database Health** — latency tracking, index viewer, triggers, views, and stored functions
+- **Schema Inspector** — browse tables, columns, foreign keys, and constraints with a visual ER diagram (dagre auto-layout, force-directed, and LR modes)
+- **RLS Panel** — 3-state policy status (enabled / disabled / no policy), policy editor, inline policy generator, and RLS simulator (test queries as anon/authenticated roles)
+- **Table Browser** — paginated row data via PostgREST with column filtering
+- **SQL Runner** — execute queries with persistent history and result charting
+- **Query Analyzer** — EXPLAIN ANALYZE with cost estimates and suggestions
+- **Database Health** — latency tracking, index viewer, trigger viewer, views and stored functions
 - **Edge Functions** — list deployed functions and invoke them with custom payloads
 - **Storage Explorer** — browse buckets and folders; preview Parquet files with schema, data, and SQL tabs (DuckDB WASM, fully in-browser)
-- **Security Score** — dashboard summarizing RLS coverage and policy gaps
+- **Data Catalog** — auto-profile tables (row counts, null %, distinct, min/max) with AI-generated descriptions per table and column
+- **Analytics** — in-browser SQL over Parquet/Iceberg via DuckDB WASM; benchmark Postgres vs Iceberg query performance
+- **Security Score** — dashboard summarising RLS coverage, policy gaps, and risk scoring
 - **Realtime Monitor** — subscribe to and inspect realtime events
-- **Multi-project** — store and switch between multiple Supabase connections; credentials stay local
+- **Migration Runner** — execute and track SQL migrations with pass/fail history
+- **Schema Snapshots** — save, diff, and restore schema states
+- **Export** — export schema snapshots and security reports as JSON or Markdown
+- **AI Agent** — agentic assistant (OpenAI / Anthropic / Google) that can autonomously query schemas, run SQL, inspect RLS, and debug across multiple steps
+- **Multi-project** — store and switch between multiple Supabase connections; credentials stay in `localStorage`
 - **Demo Mode** — works entirely with mock data, no credentials needed
 
 ---
@@ -27,13 +48,14 @@ Try it instantly with **Demo Mode** — no Supabase connection required.
 | Layer | Choice |
 |---|---|
 | Framework | Next.js 16 App Router (Bun runtime) |
-| Language | TypeScript + React |
-| Styling | Tailwind CSS (Evil Martians design tokens, OKLCH color space) |
-| State | Zustand with `localStorage` persistence |
-| Local DB | SQLite via Prisma (stores connection configs) |
-| Parquet | DuckDB WASM (in-browser, zero server-side processing) |
-| ER Diagrams | Dagre (auto-layout) |
-| Supabase APIs | Management API + PostgREST |
+| Language | TypeScript 5 + React 19 |
+| Styling | Tailwind CSS 4 (Evil Martians design tokens, OKLCH color space) |
+| State | Zustand 5 with `localStorage` persistence |
+| Parquet / SQL | DuckDB WASM (in-browser, zero server-side processing) |
+| ER Diagrams | Dagre + D3-Force + XYFlow |
+| Charts | Recharts |
+| AI Agent | PageAgent + OpenAI / Anthropic / Google SDKs |
+| Supabase APIs | Management API + PostgREST + Storage API + Realtime |
 
 ---
 
@@ -45,29 +67,31 @@ git clone https://github.com/yourusername/supabase-devtool.git
 cd supabase-devtool
 bun install
 
-# Set up environment
-cp .env.example .env
-# Edit .env and set:
-# DATABASE_URL="file:./db/custom.db"
-
-# Initialize the local database
-bun run db:push
-
 # Start the dev server
 bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000). Click **Try Demo Mode** to explore without a Supabase connection.
 
-To connect a real project, you'll need:
+To connect a real project you'll need:
 - **Supabase URL** and **Service Role Key** — for PostgREST row access
 - **Access Token** (`sbp_...`) — for Management API (schema introspection, SQL execution)
+
+No environment variables are required to run the app. See `.env.example` for optional configuration (AI agent keys, S3/Iceberg pre-fill).
 
 ---
 
 ## Architecture
 
-The app is a single-page shell (`src/app/page.tsx`) that manages navigation, connection state, and panel rendering. Feature panels are lazily loaded via `next/dynamic`, keeping the initial bundle small. All backend logic lives in API routes (`src/app/api/`) — each route reads a `connectionId`, retrieves credentials from the local SQLite DB via Prisma, and proxies requests to the appropriate Supabase API. There are two auth paths: the Management API (`api.supabase.com/v1/...`) for schema and SQL operations, and PostgREST (`{project-url}/rest/v1/...`) for row data. All application state is managed by a single Zustand store with selective `localStorage` persistence.
+The app is a single-page shell (`src/app/page.tsx`) that manages navigation, connection state, and panel rendering. Feature panels are lazily loaded via `next/dynamic`, keeping the initial bundle small.
+
+All backend logic lives in API routes (`src/app/api/`) — each route reads connection credentials from the request body and proxies calls to the appropriate Supabase API. There is no server-side database; all state (connections, SQL history, schema snapshots, latency records) is persisted client-side via Zustand's `localStorage` middleware.
+
+There are two Supabase auth paths:
+- **Management API** (`api.supabase.com/v1/projects/{ref}/...`) — requires `accessToken` (`sbp_...`). Used for schema introspection, SQL execution, RLS queries, and data catalog profiling.
+- **PostgREST** (`{project-url}/rest/v1/...`) — requires `serviceRoleKey` or `anonKey`. Used for row data and Realtime. New opaque key formats (`sb_secret_`, `sb_publishable_`) are exchanged for JWTs via `/auth/v1/token` before use.
+
+The AI Agent feature uses a server-side proxy (`/api/agent/chat`) to keep LLM API keys off the client. Provider, model, and max steps are configurable per-session and persisted in a separate Zustand store (`agent-store.ts`).
 
 ---
 
@@ -77,17 +101,30 @@ The app is a single-page shell (`src/app/page.tsx`) that manages navigation, con
 src/
   app/
     page.tsx              # Main shell and navigation
-    api/                  # API routes (connections, schema, rls, sql, ...)
+    api/
+      agent/chat/         # LLM proxy (OpenAI / Anthropic / Google)
+      catalog/            # Data catalog: setup, profile, load, commit
+      connections/        # Connection CRUD + health check
+      database/           # Indexes, triggers, views-functions
+      edge-functions/     # List + invoke
+      project/            # Project metadata
+      realtime-token/     # Realtime auth token
+      rls/                # RLS policies
+      schema/             # Table / column / FK introspection
+      sql/                # Raw SQL execution
+      storage/            # Bucket browser + file download
+      tables/rows/        # Paginated row data
+  agent/
+    supabase-tools.ts     # Agent tool definitions (schema, SQL, RLS, storage…)
+    use-devtool-agent.ts  # React hook managing PageAgent lifecycle
   components/             # Feature panels (lazy-loaded)
   lib/
     supabase-helpers.ts   # Server-side Supabase API calls
     supabase-types.ts     # Shared TypeScript interfaces
-    db.ts                 # Prisma client singleton
     demo-data.ts          # Mock data for Demo Mode
   store/
-    supabase-store.ts     # Zustand store
-prisma/
-  schema.prisma           # SQLite schema (SupabaseConnection model)
+    supabase-store.ts     # Main Zustand store (connections, SQL history, snapshots…)
+    agent-store.ts        # Agent Zustand store (LLM config, messages)
 ```
 
 ---

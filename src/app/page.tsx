@@ -45,6 +45,7 @@ import {
   DatabaseBackup,
   BookOpen,
   Layers,
+  Sparkles,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -95,6 +96,8 @@ import { RLSPanel } from '@/components/rls-panel'
 import { EdgeFunctionsPanel } from '@/components/edge-functions-panel'
 import { SQLPanel } from '@/components/sql-panel'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { AgentChatPanel } from '@/components/agent-chat-panel'
+import { useAgentStore } from '@/store/agent-store'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { TableDataViewer } from '@/components/table-data-viewer'
@@ -530,6 +533,15 @@ export default function Home() {
             </DropdownMenu>
 
             <ThemeToggle />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => useAgentStore.getState().toggleSidebar()}
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+              title="AI Agent"
+            >
+              <Sparkles className="size-3.5" />
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -1485,6 +1497,9 @@ export default function Home() {
       {/* Keyboard Shortcuts Dialog */}
       <KeyboardShortcuts />
       <CommandPalette />
+
+      {/* AI Agent Sidebar Panel */}
+      <AgentChatPanel />
 
       {/* Footer */}
       <footer className="footer-gradient-border mt-auto">

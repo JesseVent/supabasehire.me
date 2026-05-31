@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { toast } from 'sonner'
 import {
   Database,
@@ -15,6 +15,7 @@ import {
   Layers,
   AlertCircle,
   Settings,
+  Zap,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -60,6 +61,23 @@ interface QueryResult {
   columns: string[]
   rows: Record<string, unknown>[]
 }
+
+interface BenchResult {
+  label: string
+  pgMs: number | null
+  icebergMs: number | null
+  pgRows: number
+  icebergRows: number
+  pgError?: string
+  icebergError?: string
+}
+
+const BENCH_QUERIES: { label: string; sql: (t: string) => string }[] = [
+  { label: 'COUNT(*)',     sql: (t) => `SELECT COUNT(*) FROM ${t}` },
+  { label: 'Sample 100',  sql: (t) => `SELECT * FROM ${t} LIMIT 100` },
+  { label: 'Sample 1 000', sql: (t) => `SELECT * FROM ${t} LIMIT 1000` },
+  { label: 'Sample 5 000', sql: (t) => `SELECT * FROM ${t} LIMIT 5000` },
+]
 
 // ─── DuckDB singleton ───
 
@@ -119,9 +137,9 @@ export function AnalyticsPanel({
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   // Pre-filled from saved connection; updated on successful connect
-  const [s3KeyId, setS3KeyId] = useState(connection?.s3KeyId ?? '')
-  const [s3Secret, setS3Secret] = useState(connection?.s3Secret ?? '')
-  const [warehouse, setWarehouse] = useState(connection?.s3Warehouse ?? '')
+  const [s3KeyId, setS3KeyId] = useState(connection?.s3KeyId ?? process.env.NEXT_PUBLIC_S3_KEY_ID ?? '')
+  const [s3Secret, setS3Secret] = useState(connection?.s3Secret ?? process.env.NEXT_PUBLIC_S3_SECRET ?? '')
+  const [warehouse, setWarehouse] = useState(connection?.s3Warehouse ?? process.env.NEXT_PUBLIC_S3_WAREHOUSE ?? '')
 
   const [tables, setTables] = useState<IcebergTable[]>([])
   const [selectedTable, setSelectedTable] = useState<IcebergTable | null>(null)
@@ -137,6 +155,10 @@ export function AnalyticsPanel({
   const [sqlError, setSqlError] = useState<string | null>(null)
   const [isRunning, setIsRunning] = useState(false)
 
+  const [benchPgTable, setBenchPgTable] = useState('')
+  const [benchResults, setBenchResults] = useState<BenchResult[]>([])
+  const [isBenchmarking, setIsBenchmarking] = useState(false)
+
   const connRef = useRef<import('@duckdb/duckdb-wasm').AsyncDuckDBConnection | null>(null)
 
   const projectRef = connection ? extractProjectRef(connection.supabaseUrl) : ''
@@ -151,6 +173,11 @@ export function AnalyticsPanel({
 
     setPhase('connecting')
     setErrorMsg(null)
+
+    // Persist creds immediately so they survive a failed connect attempt
+    if (connection) {
+      updateConnection(connection.id, { s3KeyId, s3Secret, s3Warehouse: warehouse })
+    }
 
     try {
       const db = await getDuckDB()
@@ -265,11 +292,6 @@ export function AnalyticsPanel({
       const firstNs = [...new Set(withCounts.map((t) => t.namespace))]
       if (firstNs.length > 0) setExpandedNamespaces(new Set([firstNs[0]]))
 
-      // Persist S3 creds to connection so they're pre-filled next time
-      if (connection) {
-        updateConnection(connection.id, { s3KeyId, s3Secret, s3Warehouse: warehouse })
-      }
-
       setPhase('connected')
       toast.success(`Connected — ${withCounts.length} table${withCounts.length !== 1 ? 's' : ''} found`)
     } catch (err) {
@@ -279,6 +301,13 @@ export function AnalyticsPanel({
       toast.error('Connection failed')
     }
   }, [connection, s3KeyId, s3Secret, warehouse, s3Endpoint, updateConnection])
+
+  // Auto-connect when the panel mounts with saved credentials
+  useEffect(() => {
+    if (phase === 'idle' && s3KeyId && s3Secret && warehouse && connection) {
+      connect()
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectTable = useCallback(async (table: IcebergTable) => {
     if (!connRef.current) return
@@ -361,6 +390,62 @@ export function AnalyticsPanel({
       setIsRunning(false)
     }
   }, [sql])
+
+  const runBenchmark = useCallback(async () => {
+    if (!connRef.current || !connection || !selectedTable) return
+    const pgTable = benchPgTable.trim() || selectedTable.name
+    const icebergTable = `"${selectedTable.fullName}"`
+
+    setIsBenchmarking(true)
+    setBenchResults([])
+
+    const results: BenchResult[] = []
+
+    for (const q of BENCH_QUERIES) {
+      const pgSql = q.sql(pgTable)
+      const icebergSql = q.sql(icebergTable)
+
+      // Postgres via Management API
+      let pgMs: number | null = null
+      let pgRows = 0
+      let pgError: string | undefined
+      try {
+        const t0 = performance.now()
+        const res = await fetch('/api/sql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ connection, query: pgSql }),
+        })
+        const data = await res.json()
+        pgMs = performance.now() - t0
+        if (data.success) {
+          pgRows = Array.isArray(data.data) ? data.data.length : 0
+        } else {
+          pgError = data.error ?? 'Query failed'
+        }
+      } catch (err) {
+        pgError = err instanceof Error ? err.message : String(err)
+      }
+
+      // Iceberg via DuckDB WASM
+      let icebergMs: number | null = null
+      let icebergRows = 0
+      let icebergError: string | undefined
+      try {
+        const t0 = performance.now()
+        const result = await connRef.current.query(icebergSql)
+        icebergMs = performance.now() - t0
+        icebergRows = result.numRows
+      } catch (err) {
+        icebergError = err instanceof Error ? err.message : String(err)
+      }
+
+      results.push({ label: q.label, pgMs, icebergMs, pgRows, icebergRows, pgError, icebergError })
+      setBenchResults([...results]) // stream results in as they complete
+    }
+
+    setIsBenchmarking(false)
+  }, [connection, selectedTable, benchPgTable])
 
   // ─── Render: setup screen ───
 
@@ -551,6 +636,9 @@ export function AnalyticsPanel({
                 <TabsTrigger value="sql" className="text-xs px-2 h-6 gap-1">
                   <Terminal className="size-3" />SQL
                 </TabsTrigger>
+                <TabsTrigger value="benchmark" className="text-xs px-2 h-6 gap-1">
+                  <Zap className="size-3" />Benchmark
+                </TabsTrigger>
               </TabsList>
             </div>
 
@@ -661,6 +749,142 @@ export function AnalyticsPanel({
                         </TableBody>
                       </Table>
                     </ScrollArea>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="benchmark" className="flex flex-col flex-1 overflow-hidden m-0 p-3 gap-3">
+                  <div className="flex gap-2 items-end">
+                    <div className="flex-1 grid gap-1.5">
+                      <Label className="text-xs">Postgres table name</Label>
+                      <Input
+                        value={benchPgTable}
+                        onChange={(e) => setBenchPgTable(e.target.value)}
+                        placeholder={selectedTable.name}
+                        className="h-8 text-sm font-mono"
+                      />
+                    </div>
+                    <Button onClick={runBenchmark} disabled={isBenchmarking} size="sm" className="gap-1.5 shrink-0">
+                      {isBenchmarking ? <Loader2 className="size-3.5 animate-spin" /> : <Zap className="size-3.5" />}
+                      Run Benchmark
+                    </Button>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground -mt-1">
+                    Postgres runs via Management API (network round-trip). Iceberg runs in DuckDB WASM (S3 reads, in-browser).
+                  </p>
+
+                  {benchResults.length > 0 && (
+                    <ScrollArea className="flex-1">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs w-28">Query</TableHead>
+                            <TableHead className="text-xs">Postgres</TableHead>
+                            <TableHead className="text-xs">Iceberg (DuckDB)</TableHead>
+                            <TableHead className="text-xs w-20">Faster</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {benchResults.map((r, i) => {
+                            const bothOk = r.pgMs !== null && r.icebergMs !== null
+                            const maxMs = bothOk ? Math.max(r.pgMs!, r.icebergMs!) : 1
+                            const pgWins = bothOk && r.pgMs! < r.icebergMs!
+                            const iceWins = bothOk && r.icebergMs! < r.pgMs!
+                            return (
+                              <TableRow key={i}>
+                                <TableCell className="text-xs font-medium py-3">{r.label}</TableCell>
+
+                                <TableCell className="text-xs py-3">
+                                  {r.pgError ? (
+                                    <span className="text-destructive font-mono text-[10px]">{r.pgError.slice(0, 60)}</span>
+                                  ) : r.pgMs !== null ? (
+                                    <div className="flex flex-col gap-1">
+                                      <span className={`font-mono font-semibold ${pgWins ? 'text-brand' : ''}`}>
+                                        {r.pgMs < 1000 ? `${r.pgMs.toFixed(0)} ms` : `${(r.pgMs / 1000).toFixed(2)} s`}
+                                      </span>
+                                      <div className="flex items-center gap-1.5">
+                                        <div className="h-1.5 w-24 rounded bg-muted overflow-hidden">
+                                          <div
+                                            className={`h-full rounded transition-all ${pgWins ? 'bg-brand' : 'bg-muted-foreground/40'}`}
+                                            style={{ width: `${(r.pgMs / maxMs) * 100}%` }}
+                                          />
+                                        </div>
+                                        <span className="text-[10px] text-muted-foreground">{r.pgRows > 0 ? `${r.pgRows.toLocaleString()} rows` : ''}</span>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <Loader2 className="size-3 animate-spin text-muted-foreground" />
+                                  )}
+                                </TableCell>
+
+                                <TableCell className="text-xs py-3">
+                                  {r.icebergError ? (
+                                    <span className="text-destructive font-mono text-[10px]">{r.icebergError.slice(0, 60)}</span>
+                                  ) : r.icebergMs !== null ? (
+                                    <div className="flex flex-col gap-1">
+                                      <span className={`font-mono font-semibold ${iceWins ? 'text-brand' : ''}`}>
+                                        {r.icebergMs < 1000 ? `${r.icebergMs.toFixed(0)} ms` : `${(r.icebergMs / 1000).toFixed(2)} s`}
+                                      </span>
+                                      <div className="flex items-center gap-1.5">
+                                        <div className="h-1.5 w-24 rounded bg-muted overflow-hidden">
+                                          <div
+                                            className={`h-full rounded transition-all ${iceWins ? 'bg-brand' : 'bg-muted-foreground/40'}`}
+                                            style={{ width: `${(r.icebergMs / maxMs) * 100}%` }}
+                                          />
+                                        </div>
+                                        <span className="text-[10px] text-muted-foreground">{r.icebergRows > 0 ? `${r.icebergRows.toLocaleString()} rows` : ''}</span>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <Loader2 className="size-3 animate-spin text-muted-foreground" />
+                                  )}
+                                </TableCell>
+
+                                <TableCell className="text-xs py-3">
+                                  {pgWins && <Badge variant="outline" className="text-[10px] text-blue-500 border-blue-500/30">PG</Badge>}
+                                  {iceWins && <Badge variant="outline" className="text-[10px] text-brand border-brand/30">Iceberg</Badge>}
+                                </TableCell>
+                              </TableRow>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+
+                      {!isBenchmarking && benchResults.length === BENCH_QUERIES.length && (() => {
+                        const pgWins = benchResults.filter((r) => r.pgMs !== null && r.icebergMs !== null && r.pgMs < r.icebergMs).length
+                        const iceWins = benchResults.filter((r) => r.pgMs !== null && r.icebergMs !== null && r.icebergMs < r.pgMs).length
+                        const validResults = benchResults.filter((r) => r.pgMs !== null && r.icebergMs !== null)
+                        const avgPg = validResults.length ? validResults.reduce((s, r) => s + r.pgMs!, 0) / validResults.length : null
+                        const avgIce = validResults.length ? validResults.reduce((s, r) => s + r.icebergMs!, 0) / validResults.length : null
+                        return (
+                          <div className="mx-4 my-3 p-3 rounded-lg border bg-muted/30 flex items-center gap-6 text-xs">
+                            <div>
+                              <span className="text-muted-foreground">Avg Postgres</span>
+                              <p className="font-mono font-semibold text-sm mt-0.5">{avgPg !== null ? `${avgPg.toFixed(0)} ms` : '—'}</p>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Avg Iceberg</span>
+                              <p className="font-mono font-semibold text-sm mt-0.5">{avgIce !== null ? `${avgIce.toFixed(0)} ms` : '—'}</p>
+                            </div>
+                            <div className="ml-auto text-right">
+                              <span className="text-muted-foreground">Overall winner</span>
+                              <p className="font-semibold mt-0.5">
+                                {pgWins > iceWins ? <span className="text-blue-500">Postgres ({pgWins}/{validResults.length})</span>
+                                  : iceWins > pgWins ? <span className="text-brand">Iceberg ({iceWins}/{validResults.length})</span>
+                                  : <span className="text-muted-foreground">Tied</span>}
+                              </p>
+                            </div>
+                          </div>
+                        )
+                      })()}
+                    </ScrollArea>
+                  )}
+
+                  {isBenchmarking && benchResults.length === 0 && (
+                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                      <Loader2 className="size-4 animate-spin" />
+                      Running queries…
+                    </div>
                   )}
                 </TabsContent>
               </>
