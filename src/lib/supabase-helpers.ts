@@ -408,8 +408,8 @@ WHERE schemaname = 'public';
 `;
 
   const [policiesResult, rlsEnabledResult] = await Promise.all([
-    executeManagementSQL(supabaseUrl, accessToken, policiesSQL, true),
-    executeManagementSQL(supabaseUrl, accessToken, rlsEnabledSQL, true),
+    executeManagementSQL(supabaseUrl, accessToken, policiesSQL),
+    executeManagementSQL(supabaseUrl, accessToken, rlsEnabledSQL),
   ]);
 
   if (policiesResult.error) return { error: policiesResult.error };
@@ -482,17 +482,14 @@ WHERE tc.constraint_type = 'FOREIGN KEY'
 `;
 
   const [columnsResult, fkResult] = await Promise.all([
-    executeManagementSQL(supabaseUrl, accessToken, columnsSQL, true),
-    executeManagementSQL(supabaseUrl, accessToken, fkSQL, true),
+    executeManagementSQL(supabaseUrl, accessToken, columnsSQL),
+    executeManagementSQL(supabaseUrl, accessToken, fkSQL),
   ]);
 
   if (columnsResult.error) return { error: columnsResult.error };
-  if (fkResult.error) {
-    return { error: fkResult.error };
-  }
-
+  // FK failure is non-fatal — return tables with empty FK arrays rather than falling back to OpenAPI
   const columns = parseQueryResult<ColumnInfo>(columnsResult.data);
-  const foreignKeys = parseQueryResult<ForeignKeyInfo>(fkResult.data);
+  const foreignKeys = fkResult.error ? [] : parseQueryResult<ForeignKeyInfo>(fkResult.data);
 
   const tableMap = new Map<string, TableSchema>();
 
