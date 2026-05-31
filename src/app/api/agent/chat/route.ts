@@ -67,6 +67,19 @@ export async function POST(request: NextRequest) {
 			body.model = model
 		}
 
+		// gpt-5.5 only supports verbosity:'medium' — patch any 'low' value
+		const resolvedModel: string = body.model ?? model ?? ''
+		if (resolvedModel.includes('gpt-5.5')) {
+			if (body.verbosity === 'low') body.verbosity = 'medium'
+			if (
+				body.reasoning &&
+				typeof body.reasoning === 'object' &&
+				(body.reasoning as Record<string, unknown>).verbosity === 'low'
+			) {
+				(body.reasoning as Record<string, unknown>).verbosity = 'medium'
+			}
+		}
+
 		// Forward to the provider
 		const response = await fetch(endpoint, {
 			method: 'POST',
