@@ -67,9 +67,9 @@ export async function POST(request: NextRequest) {
 			body.model = model
 		}
 
-		// gpt-5.5 only supports verbosity:'medium' — patch any 'low' value
+		// Reasoning models (gpt-5.5, gpt-54, gpt-54-mini) only support verbosity:'medium'
 		const resolvedModel: string = body.model ?? model ?? ''
-		if (resolvedModel.includes('gpt-5.5')) {
+		if (resolvedModel.includes('gpt-5.5') || resolvedModel.includes('gpt-54')) {
 			if (body.verbosity === 'low') body.verbosity = 'medium'
 			if (
 				body.reasoning &&
