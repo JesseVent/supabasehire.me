@@ -53,12 +53,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ token: anonKey });
     }
 
-    // 2. signInAnonymously uses POST /signup with empty body (not grant_type=anonymous)
+    // 2. Anonymous sign-in: POST /auth/v1/signup with provider:"anon"
+    //    Works when Anonymous Authentication is enabled in the Supabase project.
     try {
       const res = await fetch(`${supabaseUrl}/auth/v1/signup`, {
         method: 'POST',
         headers: { apikey: anonKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: {}, gotrue_meta_security: {} }),
+        body: JSON.stringify({ data: {}, provider: 'anon' }),
       });
       if (res.ok) {
         const data = await res.json() as { access_token?: string; session?: { access_token?: string } };
@@ -92,21 +93,19 @@ export async function POST(request: NextRequest) {
       }
 
       // 4. Management API: get jwt_secret from PostgREST config, generate JWT ourselves
-      if (ref) {
-        try {
-          const res = await fetch(`https://api.supabase.com/v1/projects/${ref}/config/postgrest`, {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          });
-          if (res.ok) {
-            const config = await res.json() as { jwt_secret?: string };
-            if (config.jwt_secret) {
-              const token = await buildAnonJwt(ref, config.jwt_secret);
-              return NextResponse.json({ token });
-            }
+      try {
+        const res = await fetch(`https://api.supabase.com/v1/projects/${ref}/config/postgrest`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (res.ok) {
+          const config = await res.json() as { jwt_secret?: string };
+          if (config.jwt_secret) {
+            const token = await buildAnonJwt(ref, config.jwt_secret);
+            return NextResponse.json({ token });
           }
-        } catch {
-          // fall through
         }
+      } catch {
+        // fall through
       }
     }
 

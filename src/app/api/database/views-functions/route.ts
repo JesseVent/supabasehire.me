@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { executeManagementSQL } from "@/lib/supabase-helpers";
+import { executeManagementSQL, parseQueryResult } from "@/lib/supabase-helpers";
 import type { SupabaseConnection } from "@/lib/supabase-types";
 
 // POST /api/database/views-functions — Fetch database views and functions
@@ -63,14 +63,14 @@ ORDER BY p.proname;
 `;
 
       const [viewsResult, columnsResult, functionsResult] = await Promise.all([
-        executeManagementSQL(connection.supabaseUrl, managementToken, viewsSQL),
-        executeManagementSQL(connection.supabaseUrl, managementToken, viewColumnsSQL),
-        executeManagementSQL(connection.supabaseUrl, managementToken, functionsSQL),
+        executeManagementSQL(connection.supabaseUrl, managementToken, viewsSQL, true),
+        executeManagementSQL(connection.supabaseUrl, managementToken, viewColumnsSQL, true),
+        executeManagementSQL(connection.supabaseUrl, managementToken, functionsSQL, true),
       ]);
 
-      const views = parseResult(viewsResult.data);
-      const columns = parseResult(columnsResult.data);
-      const functions = parseResult(functionsResult.data);
+      const views = parseQueryResult(viewsResult.data);
+      const columns = parseQueryResult(columnsResult.data);
+      const functions = parseQueryResult(functionsResult.data);
 
       return NextResponse.json({ views, columns, functions });
     }
@@ -93,16 +93,3 @@ ORDER BY p.proname;
   }
 }
 
-function parseResult(data: unknown): unknown[] {
-  if (Array.isArray(data)) return data;
-  if (data && typeof data === "object") {
-    const obj = data as Record<string, unknown>;
-    if (Array.isArray(obj.rows)) return obj.rows;
-    if (Array.isArray(obj.data)) return obj.data;
-    if (Array.isArray(obj.result)) return obj.result;
-    for (const value of Object.values(obj)) {
-      if (Array.isArray(value)) return value;
-    }
-  }
-  return [];
-}

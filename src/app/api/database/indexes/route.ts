@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { executeManagementSQL } from "@/lib/supabase-helpers";
+import { executeManagementSQL, parseQueryResult } from "@/lib/supabase-helpers";
 import type { SupabaseConnection } from "@/lib/supabase-types";
 
 // POST /api/database/indexes — Fetch database index usage statistics
@@ -38,15 +38,12 @@ ORDER BY idx_scan DESC;
       const result = await executeManagementSQL(
         connection.supabaseUrl,
         managementToken,
-        sql
+        sql,
+        true
       );
 
       if (result.data) {
-        const rows = parseIndexRows(result.data);
-        return NextResponse.json({ indexes: rows });
-      }
-
-      if (result.error) {
+        return NextResponse.json({ indexes: parseQueryResult(result.data) });
       }
     }
 
@@ -66,16 +63,3 @@ ORDER BY idx_scan DESC;
   }
 }
 
-function parseIndexRows(data: unknown): unknown[] {
-  if (Array.isArray(data)) return data;
-  if (data && typeof data === "object") {
-    const obj = data as Record<string, unknown>;
-    if (Array.isArray(obj.rows)) return obj.rows;
-    if (Array.isArray(obj.data)) return obj.data;
-    if (Array.isArray(obj.result)) return obj.result;
-    for (const value of Object.values(obj)) {
-      if (Array.isArray(value)) return value;
-    }
-  }
-  return [];
-}

@@ -147,6 +147,17 @@ export function useDevtoolAgent(): UseDevtoolAgentReturn {
 					customSystemPrompt: systemPrompt,
 					customTools: customToolEntries,
 					pageController: noopPageController,
+					transformRequestBody: (body: Record<string, unknown>) => {
+						// gpt-5.5 only supports verbosity:'medium'; page-agent patches all gpt-* to 'low'.
+						// Strip optional provider prefix (e.g. 'openai/gpt-5.5' → 'gpt-5.5').
+						const modelName = typeof body.model === 'string'
+							? body.model.split('/').pop() ?? ''
+							: ''
+						if (modelName.startsWith('gpt-5.5') && body.verbosity === 'low') {
+							body.verbosity = 'medium'
+						}
+						return body
+					},
 				}
 
 				if (useServerProxy) {

@@ -28,18 +28,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Edge functions deployed with --no-verify-jwt validate the apikey header
-    // themselves. New-format keys (sb_publishable_/sb_secret_) are not JWTs
-    // and cannot pass platform-level JWT verification. Use serviceRoleKey when
-    // available so the function's manual auth check passes.
+    // Use serviceRoleKey when available — it bypasses RLS and has the most access.
+    // New-format opaque keys (sb_secret_) go in apikey only; the platform rejects
+    // them in Authorization. Legacy JWT keys (eyJ...) must also appear in
+    // Authorization: Bearer for platform-level JWT verification to pass.
     const apiKey = connection.serviceRoleKey ?? connection.anonKey;
 
-    // Build the URL for the edge function
     const url = `${connection.supabaseUrl}/functions/v1/${functionName}`;
 
     const requestHeaders: Record<string, string> = {
       apikey: apiKey,
       "Content-Type": "application/json",
+      // JWT-format keys need Authorization for platform JWT verification.
+      // Sending a new-format opaque key as Bearer causes a 401 — skip it.
+      ...(apiKey.startsWith('eyJ') && { Authorization: `Bearer ${apiKey}` }),
       ...customHeaders,
     };
 

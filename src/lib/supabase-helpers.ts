@@ -8,7 +8,8 @@ import type { ColumnInfo, ForeignKeyInfo, TableSchema, RLSPolicy, RLSEnabledStat
 export async function executeManagementSQL(
   supabaseUrl: string,
   accessToken: string,
-  query: string
+  query: string,
+  readOnly = false
 ): Promise<{ data?: unknown; error?: string }> {
   const projectRef = extractProjectRef(supabaseUrl);
   if (!projectRef) {
@@ -24,7 +25,7 @@ export async function executeManagementSQL(
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, ...(readOnly && { read_only: true }) }),
       }
     );
 
@@ -392,25 +393,13 @@ FROM pg_policies
 WHERE schemaname = 'public';
 `;
 
-  const policiesResult = await executeManagementSQL(supabaseUrl, accessToken, policiesSQL);
-  if (policiesResult.error) {
-    return { error: policiesResult.error };
-  }
+  const [policiesResult, rlsEnabledResult] = await Promise.all([
+    executeManagementSQL(supabaseUrl, accessToken, policiesSQL, true),
+    executeManagementSQL(supabaseUrl, accessToken, rlsEnabledSQL, true),
+  ]);
 
-  // Query RLS enabled status
-  const rlsEnabledSQL = `
-SELECT 
-  schemaname,
-  tablename,
-  rowsecurity AS rls_enabled
-FROM pg_tables
-WHERE schemaname = 'public';
-`;
-
-  const rlsEnabledResult = await executeManagementSQL(supabaseUrl, accessToken, rlsEnabledSQL);
-  if (rlsEnabledResult.error) {
-    return { error: rlsEnabledResult.error };
-  }
+  if (policiesResult.error) return { error: policiesResult.error };
+  if (rlsEnabledResult.error) return { error: rlsEnabledResult.error };
 
   const policies = parseQueryResult<RLSPolicy>(policiesResult.data);
   const rlsStatuses = parseQueryResult<RLSEnabledStatus>(rlsEnabledResult.data);
@@ -463,12 +452,6 @@ WHERE t.table_schema = 'public'
 ORDER BY t.table_name, c.ordinal_position;
 `;
 
-  const columnsResult = await executeManagementSQL(supabaseUrl, accessToken, columnsSQL);
-  if (columnsResult.error) {
-    return { error: columnsResult.error };
-  }
-
-  // Query foreign keys
   const fkSQL = `
 SELECT
   tc.table_name,
@@ -484,7 +467,12 @@ WHERE tc.constraint_type = 'FOREIGN KEY'
   AND tc.table_schema = 'public';
 `;
 
-  const fkResult = await executeManagementSQL(supabaseUrl, accessToken, fkSQL);
+  const [columnsResult, fkResult] = await Promise.all([
+    executeManagementSQL(supabaseUrl, accessToken, columnsSQL, true),
+    executeManagementSQL(supabaseUrl, accessToken, fkSQL, true),
+  ]);
+
+  if (columnsResult.error) return { error: columnsResult.error };
   if (fkResult.error) {
     return { error: fkResult.error };
   }

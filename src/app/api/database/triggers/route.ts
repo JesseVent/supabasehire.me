@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { executeManagementSQL } from "@/lib/supabase-helpers";
+import { executeManagementSQL, parseQueryResult } from "@/lib/supabase-helpers";
 import type { SupabaseConnection } from "@/lib/supabase-types";
 
 // POST /api/database/triggers — Fetch database triggers
@@ -46,15 +46,12 @@ ORDER BY t.event_object_table, t.trigger_name;
       const result = await executeManagementSQL(
         connection.supabaseUrl,
         managementToken,
-        sql
+        sql,
+        true
       );
 
       if (result.data) {
-        const triggers = parseResult(result.data);
-        return NextResponse.json({ triggers });
-      }
-
-      if (result.error) {
+        return NextResponse.json({ triggers: parseQueryResult(result.data) });
       }
     }
 
@@ -74,16 +71,3 @@ ORDER BY t.event_object_table, t.trigger_name;
   }
 }
 
-function parseResult(data: unknown): unknown[] {
-  if (Array.isArray(data)) return data;
-  if (data && typeof data === "object") {
-    const obj = data as Record<string, unknown>;
-    if (Array.isArray(obj.rows)) return obj.rows;
-    if (Array.isArray(obj.data)) return obj.data;
-    if (Array.isArray(obj.result)) return obj.result;
-    for (const value of Object.values(obj)) {
-      if (Array.isArray(value)) return value;
-    }
-  }
-  return [];
-}

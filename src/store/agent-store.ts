@@ -18,17 +18,17 @@ export const PROVIDER_PRESETS: Record<LLMProvider, Omit<LLMProviderConfig, 'apiK
 	openai: {
 		provider: 'openai',
 		baseURL: 'https://api.openai.com/v1',
-		model: 'gpt-4o',
+		model: 'gpt-5.5',
 	},
 	anthropic: {
 		provider: 'anthropic',
 		baseURL: 'https://api.anthropic.com/v1',
-		model: 'claude-sonnet-4-20250514',
+		model: 'claude-sonnet-4-6',
 	},
 	google: {
 		provider: 'google',
 		baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai',
-		model: 'gemini-2.5-pro',
+		model: 'gemini-2.5-flash',
 	},
 	custom: {
 		provider: 'custom',

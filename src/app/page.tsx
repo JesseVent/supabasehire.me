@@ -950,7 +950,6 @@ export default function Home() {
                 title="Snapshot & Indexes"
                 description="Track schema changes over time and inspect index usage statistics."
                 delay={0.55}
-                index={8}
                 index={5}
               />
             </div>
