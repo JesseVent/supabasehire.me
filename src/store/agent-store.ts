@@ -18,7 +18,7 @@ export const PROVIDER_PRESETS: Record<LLMProvider, Omit<LLMProviderConfig, 'apiK
 	openai: {
 		provider: 'openai',
 		baseURL: 'https://api.openai.com/v1',
-		model: 'gpt-54',
+		model: 'gpt-5.4',
 	},
 	anthropic: {
 		provider: 'anthropic',
