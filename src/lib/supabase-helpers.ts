@@ -393,6 +393,15 @@ FROM pg_policies
 WHERE schemaname = 'public';
 `;
 
+  const rlsEnabledSQL = `
+SELECT
+  schemaname,
+  tablename,
+  rowsecurity AS rls_enabled
+FROM pg_tables
+WHERE schemaname = 'public';
+`;
+
   const [policiesResult, rlsEnabledResult] = await Promise.all([
     executeManagementSQL(supabaseUrl, accessToken, policiesSQL, true),
     executeManagementSQL(supabaseUrl, accessToken, rlsEnabledSQL, true),

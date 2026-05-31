@@ -292,7 +292,7 @@ export function EdgeFunctionsPanel() {
                       <div className="flex flex-col">
                         <span className="font-mono text-sm font-medium">{fn.name}</span>
                         <span className="text-xs text-muted-foreground">
-                          {fn.entrypoint_path || 'index.ts'}
+                          {fn.entrypoint_path ? fn.entrypoint_path.split('/').pop() : 'index.ts'}
                         </span>
                       </div>
                     </div>

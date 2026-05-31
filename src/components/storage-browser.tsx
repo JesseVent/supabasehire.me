@@ -444,7 +444,7 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
                           <div>
                             <p className="text-sm font-medium font-mono">{bucket.name}</p>
                             <p className="text-xs text-muted-foreground">
-                              {bucket.fileCount} file{bucket.fileCount !== 1 ? 's' : ''}
+                              Click to browse
                             </p>
                           </div>
                         </div>
