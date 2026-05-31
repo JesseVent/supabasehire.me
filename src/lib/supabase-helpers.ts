@@ -31,9 +31,14 @@ export async function executeManagementSQL(
 
     if (!response.ok) {
       const errorText = await response.text();
-      return {
-        error: `Management API error (${response.status}): ${errorText}`,
-      };
+      let message = errorText;
+      try {
+        const parsed = JSON.parse(errorText);
+        message = parsed.message || parsed.error || parsed.error_description || errorText;
+      } catch {
+        // not JSON, use raw text
+      }
+      return { error: message };
     }
 
     const result = await response.json();
