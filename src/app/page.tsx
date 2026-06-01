@@ -46,6 +46,7 @@ import {
   BookOpen,
   Layers,
   Sparkles,
+  Activity,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -124,6 +125,7 @@ import { TriggerViewer } from '@/components/trigger-viewer'
 import { DbViewsFunctions } from '@/components/db-views-functions'
 import { DataCatalogPanel } from '@/components/data-catalog-panel'
 import { AnalyticsPanel } from '@/components/analytics-panel'
+import { TracePanel } from '@/components/trace-panel'
 
 // Dynamic import for SchemaDiagram to avoid SSR issues with ReactFlow
 const SchemaDiagram = dynamic(
@@ -963,7 +965,7 @@ export default function Home() {
           >
             <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 -mx-4 px-4 py-2 border-b border-border/50">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <TabsList className="grid grid-cols-10 w-full sm:w-auto">
+                <TabsList className="grid grid-cols-11 w-full sm:w-auto">
                 <TabsTrigger value="dashboard" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
                   <LayoutDashboard className="size-3.5" />
                   <span className="hidden sm:inline">Dashboard</span>
@@ -999,6 +1001,10 @@ export default function Home() {
                 <TabsTrigger value="analytics" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
                   <Layers className="size-3.5" />
                   <span className="hidden sm:inline">Analytics</span>
+                </TabsTrigger>
+                <TabsTrigger value="traces" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
+                  <Activity className="size-3.5" />
+                  <span className="hidden sm:inline">Traces</span>
                 </TabsTrigger>
                 <TabsTrigger value="settings" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
                   <Settings className="size-3.5" />
@@ -1220,7 +1226,7 @@ export default function Home() {
                   {/* Diagram + side panel */}
                   <div className="flex flex-col lg:flex-row gap-4 min-h-[600px]">
                     {/* Diagram area */}
-                    <div className="flex-1 border rounded-lg overflow-hidden bg-muted/30 relative">
+                    <div className="flex-1 border border-border rounded-xl overflow-hidden bg-card shadow-sm relative">
                       {filteredTables.length > 0 ? (
                         <SchemaDiagram
                           tables={filteredTables}
@@ -1427,6 +1433,22 @@ export default function Home() {
                     transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
                   >
                     <AnalyticsPanel connection={activeConnection || null} isDemoMode={isDemoMode} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </TabsContent>
+
+            <TabsContent value="traces" className="mt-0" forceMount={activePanel === 'traces' ? true : undefined}>
+              <AnimatePresence mode="wait">
+                {activePanel === 'traces' && (
+                  <motion.div
+                    key="traces"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  >
+                    <TracePanel connection={activeConnection || null} isDemoMode={isDemoMode} />
                   </motion.div>
                 )}
               </AnimatePresence>

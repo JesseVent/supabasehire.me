@@ -32,6 +32,7 @@ A dev tool for Supabase projects. Surfaces everything the platform exposes — M
 - **Storage Explorer** — browse buckets and folders; preview Parquet files with schema, data, and SQL tabs (DuckDB WASM, fully in-browser)
 - **Data Catalog** — auto-profile tables (row counts, null %, distinct, min/max) with AI-generated descriptions per table and column
 - **Analytics** — in-browser SQL over Parquet/Iceberg via DuckDB WASM; benchmark Postgres vs Iceberg query performance
+- **Agent Traces** — OpenTelemetry trace visualizer powered by [AgentPrism](https://github.com/evilmartians/agent-prism); includes a live example edge function instrumented with OTLP spans
 - **Security Score** — dashboard summarising RLS coverage, policy gaps, and risk scoring
 - **Realtime Monitor** — subscribe to and inspect realtime events
 - **Migration Runner** — execute and track SQL migrations with pass/fail history
@@ -55,6 +56,7 @@ A dev tool for Supabase projects. Surfaces everything the platform exposes — M
 | ER Diagrams | Dagre + D3-Force + XYFlow |
 | Charts | Recharts |
 | AI Agent | PageAgent + OpenAI / Anthropic / Google SDKs |
+| Trace Visualization | AgentPrism (Evil Martians) + OpenTelemetry OTLP |
 | Supabase APIs | Management API + PostgREST + Storage API + Realtime |
 
 ---
@@ -93,6 +95,17 @@ There are two Supabase auth paths:
 
 The AI Agent feature uses a server-side proxy (`/api/agent/chat`) to keep LLM API keys off the client. Provider, model, and max steps are configurable per-session and persisted in a separate Zustand store (`agent-store.ts`).
 
+### Agent Traces / OpenTelemetry
+
+The **Traces** panel demonstrates end-to-end OpenTelemetry instrumentation inside a Supabase edge function. The `agent-query` edge function runs three chained SQL queries (discover tables → inspect columns → count rows), wraps each in an OTLP span built manually (no external collector required), and returns the full trace as JSON in the response body. The panel converts the raw OTLP document with `openTelemetrySpanAdapter` from AgentPrism, then renders it using the `<TraceViewer>` component — giving you a live interactive timeline showing exactly where time is spent across agent steps.
+
+To deploy the edge function:
+```bash
+supabase functions deploy agent-query --no-verify-jwt
+```
+
+The function requires `SUPABASE_DB_URL` (auto-injected in Supabase cloud) for direct PostgreSQL access. Demo Mode works without it using a hardcoded trace fixture.
+
 ---
 
 ## Project Structure
@@ -106,7 +119,7 @@ src/
       catalog/            # Data catalog: setup, profile, load, commit
       connections/        # Connection CRUD + health check
       database/           # Indexes, triggers, views-functions
-      edge-functions/     # List + invoke
+      edge-functions/     # List + invoke (also used by Traces panel to call agent-query)
       project/            # Project metadata
       realtime-token/     # Realtime auth token
       rls/                # RLS policies
@@ -117,7 +130,10 @@ src/
   agent/
     supabase-tools.ts     # Agent tool definitions (schema, SQL, RLS, storage…)
     use-devtool-agent.ts  # React hook managing PageAgent lifecycle
-  components/             # Feature panels (lazy-loaded)
+  components/
+    agent-prism/          # AgentPrism UI components (copied from evilmartians/agent-prism)
+    trace-panel.tsx       # Traces panel — invokes edge function, renders OTLP trace
+    ...                   # Feature panels (lazy-loaded)
   lib/
     supabase-helpers.ts   # Server-side Supabase API calls
     supabase-types.ts     # Shared TypeScript interfaces
@@ -125,6 +141,11 @@ src/
   store/
     supabase-store.ts     # Main Zustand store (connections, SQL history, snapshots…)
     agent-store.ts        # Agent Zustand store (LLM config, messages)
+supabase/
+  functions/
+    agent-query/          # Edge function: 3-step DB introspection with OTLP spans
+    catalog-generator/    # Edge function: AI-generated table/column descriptions
+    _shared/auth.ts       # Shared API key validation for edge functions
 ```
 
 ---

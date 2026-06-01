@@ -336,3 +336,104 @@ export const DEMO_EDGE_FUNCTIONS: EdgeFunction[] = [
     entrypoint_path: 'supabase/functions/process-webhook/index.ts',
   },
 ]
+
+// ─── Demo OTLP Trace ───
+// Hardcoded trace used in Demo Mode for the Traces panel (no real connection needed).
+// Represents a schema-inspector agent run: discover_tables → inspect_columns → count_rows.
+
+// Precomputed OTLP nanosecond timestamps (base: 1717200000000000000ns = ~2024-06-01)
+// Each value = base + offsetMs * 1_000_000
+const T0  = '1717200000000000000' // 0ms
+const T5  = '1717200000005000000' // 5ms
+const T110 = '1717200000110000000' // 110ms
+const T115 = '1717200000115000000' // 115ms
+const T285 = '1717200000285000000' // 285ms
+const T290 = '1717200000290000000' // 290ms
+const T435 = '1717200000435000000' // 435ms
+const T440 = '1717200000440000000' // 440ms
+
+export const DEMO_OTLP_TRACE = {
+  resourceSpans: [{
+    resource: {
+      attributes: [{ key: 'service.name', value: { stringValue: 'supabase-edge-agent' } }],
+    },
+    scopeSpans: [{
+      scope: { name: 'agent-query', version: '1.0.0' },
+      spans: [
+        {
+          traceId: 'aabbccdd001122334455667788990011',
+          spanId: 'aabb001122334455',
+          name: 'agent_query',
+          kind: 'SPAN_KIND_INTERNAL' as const,
+          startTimeUnixNano: T0,
+          endTimeUnixNano: T440,
+          attributes: [
+            { key: 'service.name', value: { stringValue: 'supabase-edge-agent' } },
+            { key: 'gen_ai.agent.name', value: { stringValue: 'schema-inspector' } },
+          ],
+          status: { code: 'STATUS_CODE_OK' as const },
+          flags: 1,
+        },
+        {
+          traceId: 'aabbccdd001122334455667788990011',
+          spanId: 'bbcc001122334455',
+          parentSpanId: 'aabb001122334455',
+          name: 'discover_tables',
+          kind: 'SPAN_KIND_INTERNAL' as const,
+          startTimeUnixNano: T5,
+          endTimeUnixNano: T110,
+          attributes: [
+            { key: 'db.system', value: { stringValue: 'postgresql' } },
+            { key: 'db.statement', value: { stringValue: "SELECT table_name, size FROM information_schema.tables WHERE table_schema='public' LIMIT 5" } },
+            { key: 'gen_ai.agent.step', value: { stringValue: '1' } },
+            { key: 'result.count', value: { stringValue: '3' } },
+          ],
+          status: { code: 'STATUS_CODE_OK' as const },
+          flags: 1,
+        },
+        {
+          traceId: 'aabbccdd001122334455667788990011',
+          spanId: 'ccdd001122334455',
+          parentSpanId: 'aabb001122334455',
+          name: 'inspect_columns',
+          kind: 'SPAN_KIND_INTERNAL' as const,
+          startTimeUnixNano: T115,
+          endTimeUnixNano: T285,
+          attributes: [
+            { key: 'db.system', value: { stringValue: 'postgresql' } },
+            { key: 'db.statement', value: { stringValue: "SELECT column_name, data_type FROM information_schema.columns WHERE table_name='users'" } },
+            { key: 'gen_ai.agent.step', value: { stringValue: '2' } },
+            { key: 'db.table', value: { stringValue: 'users' } },
+            { key: 'result.count', value: { stringValue: '6' } },
+          ],
+          status: { code: 'STATUS_CODE_OK' as const },
+          flags: 1,
+        },
+        {
+          traceId: 'aabbccdd001122334455667788990011',
+          spanId: 'ddee001122334455',
+          parentSpanId: 'aabb001122334455',
+          name: 'count_rows',
+          kind: 'SPAN_KIND_INTERNAL' as const,
+          startTimeUnixNano: T290,
+          endTimeUnixNano: T435,
+          attributes: [
+            { key: 'db.system', value: { stringValue: 'postgresql' } },
+            { key: 'db.statement', value: { stringValue: 'SELECT COUNT(*) FROM users' } },
+            { key: 'gen_ai.agent.step', value: { stringValue: '3' } },
+            { key: 'db.table', value: { stringValue: 'users' } },
+            { key: 'result.row_count', value: { stringValue: '117482' } },
+          ],
+          status: { code: 'STATUS_CODE_OK' as const },
+          flags: 1,
+        },
+      ],
+    }],
+  }],
+}
+
+export const DEMO_TRACE_STEPS = [
+  { name: 'discover_tables', durationMs: 105, result: [{ table_name: 'users', size: '12 MB' }, { table_name: 'posts', size: '8 MB' }, { table_name: 'comments', size: '4 MB' }] },
+  { name: 'inspect_columns', durationMs: 170, result: { table: 'users', columns: [{ column_name: 'id', data_type: 'uuid', is_nullable: 'NO' }, { column_name: 'email', data_type: 'text', is_nullable: 'NO' }, { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'NO' }] } },
+  { name: 'count_rows', durationMs: 145, result: { table: 'users', rowCount: 117482 } },
+]

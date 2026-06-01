@@ -160,7 +160,7 @@ export interface SQLQueryResult {
 
 // ─── UI Types ───
 
-export type ActivePanel = 'dashboard' | 'schema' | 'rls' | 'edge-functions' | 'realtime' | 'sql' | 'storage' | 'catalog' | 'analytics' | 'settings';
+export type ActivePanel = 'dashboard' | 'schema' | 'rls' | 'edge-functions' | 'realtime' | 'sql' | 'storage' | 'catalog' | 'analytics' | 'traces' | 'settings';
 
 // ─── Data Catalog Types ───
 
