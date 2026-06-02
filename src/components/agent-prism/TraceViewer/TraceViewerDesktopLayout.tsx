@@ -1,4 +1,4 @@
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from "react-resizable-panels";
 
 import { DetailsView } from "../DetailsView/DetailsView";
 import { TraceList } from "../TraceList/TraceList";
