@@ -755,7 +755,7 @@ export function DataCatalogPanel({
       {/* Stats bar */}
       <div className="flex items-center gap-4 text-xs text-muted-foreground border-b pb-2">
         <span className="flex items-center gap-1.5"><Database className="size-3" /><strong className="text-foreground">{tables.length}</strong> tables</span>
-        <span className="flex items-center gap-1.5"><CheckCircle2 className="size-3 text-emerald-500" /><strong className="text-foreground">{profiledCount}</strong> profiled</span>
+        <span className="flex items-center gap-1.5"><CheckCircle2 className="size-3 text-primary" /><strong className="text-foreground">{profiledCount}</strong> profiled</span>
         <span className="flex items-center gap-1.5"><Sparkles className="size-3" /><strong className="text-foreground">{aiCount}</strong> with AI</span>
       </div>
 

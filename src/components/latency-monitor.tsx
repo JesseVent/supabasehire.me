@@ -35,7 +35,7 @@ function getLatencyStatus(duration: number): LatencyRecord['status'] {
 
 function getStatusColor(status: LatencyRecord['status']) {
   switch (status) {
-    case 'good': return 'text-emerald-500'
+    case 'good': return 'text-primary'
     case 'warning': return 'text-amber-500'
     case 'critical': return 'text-red-500'
   }
@@ -43,7 +43,7 @@ function getStatusColor(status: LatencyRecord['status']) {
 
 function getStatusBg(status: LatencyRecord['status']) {
   switch (status) {
-    case 'good': return 'bg-emerald-500'
+    case 'good': return 'bg-primary'
     case 'warning': return 'bg-amber-500'
     case 'critical': return 'bg-red-500'
   }
@@ -51,7 +51,7 @@ function getStatusBg(status: LatencyRecord['status']) {
 
 function getStatusBgLight(status: LatencyRecord['status']) {
   switch (status) {
-    case 'good': return 'bg-emerald-500/10'
+    case 'good': return 'bg-primary/10'
     case 'warning': return 'bg-amber-500/10'
     case 'critical': return 'bg-red-500/10'
   }
@@ -59,7 +59,7 @@ function getStatusBgLight(status: LatencyRecord['status']) {
 
 function getStatusRing(status: LatencyRecord['status']) {
   switch (status) {
-    case 'good': return 'ring-emerald-500/30'
+    case 'good': return 'ring-primary/30'
     case 'warning': return 'ring-amber-500/30'
     case 'critical': return 'ring-red-500/30'
   }
@@ -67,7 +67,7 @@ function getStatusRing(status: LatencyRecord['status']) {
 
 function getStatusBadgeVariant(status: LatencyRecord['status']) {
   switch (status) {
-    case 'good': return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+    case 'good': return 'bg-primary/10 text-primary dark:text-primary border-primary/30 dark:border-primary/30'
     case 'warning': return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'
     case 'critical': return 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800'
   }
@@ -109,7 +109,7 @@ function Sparkline({ data, maxPoints = 20 }: { data: number[]; maxPoints?: numbe
         const height = Math.max(4, (value / max) * 100)
         const status = getLatencyStatus(value)
         const colorClass = status === 'good'
-          ? 'bg-emerald-500/70'
+          ? 'bg-primary/70'
           : status === 'warning'
           ? 'bg-amber-500/70'
           : 'bg-red-500/70'
@@ -285,7 +285,7 @@ export function LatencyMonitor() {
         <Card className="lg:col-span-2 overflow-hidden stat-card-enhanced">
           <div className={cn(
             'h-1.5 bg-gradient-to-r',
-            currentStatus === 'good' ? 'from-emerald-400 to-emerald-600' :
+            currentStatus === 'good' ? 'from-primary to-primary' :
             currentStatus === 'warning' ? 'from-amber-400 to-amber-600' :
             'from-red-400 to-red-600'
           )} />
@@ -406,16 +406,16 @@ export function LatencyMonitor() {
 
           {/* Min */}
           <Card className="overflow-hidden stat-card-enhanced group press-effect">
-            <div className="h-1 bg-gradient-to-r from-emerald-400 to-emerald-600" />
-            <div className="bg-gradient-to-b from-emerald-500/5 to-transparent">
+            <div className="h-1 bg-gradient-to-r from-primary to-primary" />
+            <div className="bg-gradient-to-b from-primary/5 to-transparent">
               <CardContent className="pt-3 pb-3 px-3">
                 <div className="flex items-center gap-1.5 mb-1.5">
-                  <div className="size-6 rounded-md bg-emerald-500/10 flex items-center justify-center">
-                    <TrendingDown className="size-3 text-emerald-500" />
+                  <div className="size-6 rounded-md bg-primary/10 flex items-center justify-center">
+                    <TrendingDown className="size-3 text-primary" />
                   </div>
                   <span className="text-[10px] font-medium text-muted-foreground">Min</span>
                 </div>
-                <p className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+                <p className="text-2xl font-bold tracking-tight text-primary dark:text-primary">
                   {stats ? `${stats.min}` : '—'}
                   <span className="text-xs text-muted-foreground font-normal ml-0.5">ms</span>
                 </p>
@@ -446,13 +446,13 @@ export function LatencyMonitor() {
           <Card className="overflow-hidden stat-card-enhanced group press-effect">
             <div className={cn(
               'h-1 bg-gradient-to-r',
-              trend === 'improving' ? 'from-emerald-400 to-emerald-600' :
+              trend === 'improving' ? 'from-primary to-primary' :
               trend === 'degrading' ? 'from-amber-400 to-amber-600' :
               'from-muted-foreground/40 to-muted-foreground/60'
             )} />
             <div className={cn(
               'bg-gradient-to-b to-transparent',
-              trend === 'improving' ? 'from-emerald-500/5' :
+              trend === 'improving' ? 'from-primary/5' :
               trend === 'degrading' ? 'from-amber-500/5' :
               'from-muted-foreground/5'
             )}>
@@ -460,11 +460,11 @@ export function LatencyMonitor() {
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <div className={cn(
                     'size-6 rounded-md flex items-center justify-center',
-                    trend === 'improving' ? 'bg-emerald-500/10' :
+                    trend === 'improving' ? 'bg-primary/10' :
                     trend === 'degrading' ? 'bg-amber-500/10' :
                     'bg-muted-foreground/10'
                   )}>
-                    {trend === 'improving' ? <TrendingDown className="size-3 text-emerald-500" /> :
+                    {trend === 'improving' ? <TrendingDown className="size-3 text-primary" /> :
                      trend === 'degrading' ? <TrendingUp className="size-3 text-amber-500" /> :
                      <Minus className="size-3 text-muted-foreground" />}
                   </div>
@@ -472,7 +472,7 @@ export function LatencyMonitor() {
                 </div>
                 <p className={cn(
                   'text-lg font-bold tracking-tight capitalize',
-                  trend === 'improving' ? 'text-emerald-600 dark:text-emerald-400' :
+                  trend === 'improving' ? 'text-primary dark:text-primary' :
                   trend === 'degrading' ? 'text-amber-600 dark:text-amber-400' :
                   'text-muted-foreground'
                 )}>
@@ -573,7 +573,7 @@ export function LatencyMonitor() {
                         <div
                           className={cn(
                             'h-full rounded-full transition-all',
-                            record.status === 'good' ? 'bg-emerald-500' :
+                            record.status === 'good' ? 'bg-primary' :
                             record.status === 'warning' ? 'bg-amber-500' :
                             'bg-red-500'
                           )}

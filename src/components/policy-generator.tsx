@@ -390,7 +390,7 @@ export function PolicyGenerator({ tables, rlsStatuses, onCopyToSQL, initialTable
                       className="gap-1.5"
                     >
                       {copied ? (
-                        <Check className="size-3.5 text-emerald-500" />
+                        <Check className="size-3.5 text-primary" />
                       ) : (
                         <Copy className="size-3.5" />
                       )}
@@ -439,8 +439,8 @@ export function PolicyGenerator({ tables, rlsStatuses, onCopyToSQL, initialTable
           <CardContent>
             {tablesWithoutRLS.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
-                <Wand2 className="mb-2 size-8 text-emerald-500/50" />
-                <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                <Wand2 className="mb-2 size-8 text-primary/50" />
+                <p className="text-sm font-medium text-primary dark:text-primary">
                   All tables have RLS enabled!
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -504,7 +504,7 @@ export function PolicyGenerator({ tables, rlsStatuses, onCopyToSQL, initialTable
                       className="gap-1.5"
                     >
                       {batchCopied ? (
-                        <Check className="size-3.5 text-emerald-500" />
+                        <Check className="size-3.5 text-primary" />
                       ) : (
                         <Copy className="size-3.5" />
                       )}

@@ -288,7 +288,7 @@ export function EdgeFunctionsPanel() {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className={`size-2 rounded-full shrink-0 ${fn.status === 'active' ? 'bg-emerald-500' : fn.status === 'failed' ? 'bg-red-500' : 'bg-muted-foreground'}`} />
+                      <span className={`size-2 rounded-full shrink-0 ${fn.status === 'active' ? 'bg-primary' : fn.status === 'failed' ? 'bg-red-500' : 'bg-muted-foreground'}`} />
                       <div className="flex flex-col">
                         <span className="font-mono text-sm font-medium">{fn.name}</span>
                         <span className="text-xs text-muted-foreground">
@@ -339,7 +339,7 @@ export function EdgeFunctionsPanel() {
                       variant={httpMethod === 'GET' ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => setHttpMethod('GET')}
-                      className={httpMethod === 'GET' ? 'bg-emerald-600 hover:bg-emerald-700 text-white gap-1' : 'gap-1'}
+                      className={httpMethod === 'GET' ? 'bg-primary hover:bg-primary text-white gap-1' : 'gap-1'}
                     >
                       GET
                     </Button>
@@ -424,7 +424,7 @@ export function EdgeFunctionsPanel() {
                     {invokeResult.error ? (
                       <XCircle className="size-5 text-red-500" />
                     ) : (
-                      <CheckCircle2 className="size-5 text-emerald-500" />
+                      <CheckCircle2 className="size-5 text-primary" />
                     )}
                     <div className="flex items-center gap-2">
                       <Globe className="size-4 text-muted-foreground" />
@@ -450,7 +450,7 @@ export function EdgeFunctionsPanel() {
                           <div
                             className={`h-full rounded-full transition-all ${
                               invokeResult.responseTime < 200
-                                ? 'bg-emerald-500'
+                                ? 'bg-primary'
                                 : invokeResult.responseTime < 1000
                                   ? 'bg-amber-500'
                                   : 'bg-red-500'

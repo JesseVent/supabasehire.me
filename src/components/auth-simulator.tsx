@@ -287,7 +287,7 @@ export function AuthSimulator() {
         )
       case 'conditional':
         return (
-          <Badge className="gap-1 bg-emerald-500 hover:bg-emerald-600 text-white">
+          <Badge className="gap-1 bg-primary hover:bg-primary text-white">
             <ShieldCheck className="size-3" />
             Conditional
           </Badge>
@@ -480,7 +480,7 @@ export function AuthSimulator() {
                   <Separator />
                   <div className="flex items-center gap-2">
                     {testResult.success ? (
-                      <CheckCircle2 className="size-5 text-emerald-500" />
+                      <CheckCircle2 className="size-5 text-primary" />
                     ) : (
                       <XCircle className="size-5 text-red-500" />
                     )}
@@ -609,7 +609,7 @@ export function AuthSimulator() {
                 <span className="font-medium">{rlsImpact.filter((e) => e.access === 'denied').length} tables</span>
               </div>
               <div className="flex items-center gap-1.5 text-xs">
-                <ShieldCheck className="size-3.5 text-emerald-500" />
+                <ShieldCheck className="size-3.5 text-primary" />
                 <span className="text-muted-foreground">Conditional:</span>
                 <span className="font-medium">{rlsImpact.filter((e) => e.access === 'conditional').length} tables</span>
               </div>

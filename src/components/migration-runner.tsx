@@ -118,9 +118,9 @@ function getDestructiveKeywords(sql: string): string[] {
 
 const CATEGORY_STYLES: Record<string, { bg: string; text: string; border: string }> = {
   create: {
-    bg: 'bg-emerald-500/10 dark:bg-emerald-500/20',
-    text: 'text-emerald-600 dark:text-emerald-400',
-    border: 'border-emerald-500/20 dark:border-emerald-500/30',
+    bg: 'bg-primary/10 dark:bg-primary/20',
+    text: 'text-primary dark:text-primary',
+    border: 'border-primary/20 dark:border-primary/30',
   },
   alter: {
     bg: 'bg-amber-500/10 dark:bg-amber-500/20',
@@ -286,7 +286,7 @@ export function MigrationRunner() {
   const statusIcon = (status: MigrationRecord['status']) => {
     switch (status) {
       case 'success':
-        return <CheckCircle2 className="size-3.5 text-emerald-500" />
+        return <CheckCircle2 className="size-3.5 text-primary" />
       case 'failed':
         return <XCircle className="size-3.5 text-red-500" />
       case 'pending':
@@ -297,7 +297,7 @@ export function MigrationRunner() {
   const statusBadge = (status: MigrationRecord['status']) => {
     switch (status) {
       case 'success':
-        return <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[10px]">Success</Badge>
+        return <Badge variant="secondary" className="bg-primary/10 text-primary dark:text-primary border-primary/20 text-[10px]">Success</Badge>
       case 'failed':
         return <Badge variant="destructive" className="text-[10px]">Failed</Badge>
       case 'pending':

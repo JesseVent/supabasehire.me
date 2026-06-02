@@ -227,11 +227,14 @@
   --accent-pink:      oklch(0.62 0.20  340);
   --accent-orange:    oklch(0.62 0.20   47);
   --accent-coral:     oklch(0.60 0.20   22);
-  --accent-green:     oklch(0.55 0.18  150);
+  --accent-green:     var(--brand-supabase);
   --accent-yellow:    oklch(0.70 0.17   90);
 
+  /* Supabase brand green — #3ECF8E as single source of truth */
+  --brand-supabase:   oklch(0.7624 0.1544 159.36);
+
   /* Status colors */
-  --status-ok:        oklch(0.55 0.18  150);
+  --status-ok:        var(--brand-supabase);
   --status-warn:      oklch(0.70 0.15   70);
   --status-err:       oklch(0.60 0.20   28);
   --status-info:      var(--neon-a);
@@ -256,8 +259,8 @@
   --card-foreground:     oklch(0.145 0 0);
   --popover:             oklch(1 0 0);
   --popover-foreground:  oklch(0.145 0 0);
-  --primary:             oklch(0.72 0.19 152);
-  --primary-foreground:  oklch(0.13 0.04  152);
+  --primary:             var(--brand-supabase);
+  --primary-foreground:  oklch(0.13 0.04  159);
   --secondary:           oklch(0.936 0 0);   /* sub-sections, slightly darker */
   --secondary-foreground: oklch(0.145 0 0);
   --muted:               oklch(0.936 0 0);
@@ -267,7 +270,7 @@
   --destructive:         oklch(0.55 0.205 25);
   --border:              oklch(0 0 0 / 10%);
   --input:               oklch(0 0 0 / 8%);
-  --ring:                oklch(0.72 0.19 152);
+  --ring:                var(--brand-supabase);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -275,12 +278,12 @@
   --chart-5: oklch(0.769 0.188 70.08);
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.72 0.19 152);
-  --sidebar-primary-foreground: oklch(0.13 0.04 152);
+  --sidebar-primary: var(--brand-supabase);
+  --sidebar-primary-foreground: oklch(0.13 0.04 159);
   --sidebar-accent: oklch(0.936 0 0);
   --sidebar-accent-foreground: oklch(0.145 0 0);
   --sidebar-border: oklch(0 0 0 / 10%);
-  --sidebar-ring: oklch(0.72 0.19 152);
+  --sidebar-ring: var(--brand-supabase);
 
   /* Agentic Labs semantic tokens */
   --agl-bg:             oklch(0.955 0 0);
@@ -292,10 +295,10 @@
   --agl-fg-subtle:      oklch(0.556 0 0);
   --agl-fg-faint:       oklch(0.68 0 0);
   --agl-fg-inverse:     #ffffff;
-  --agl-accent:         oklch(0.72 0.19 152);
-  --agl-accent-hover:   oklch(0.64 0.19 152);
-  --agl-accent-soft:    color-mix(in oklch, oklch(0.72 0.19 152) 14%, transparent);
-  --agl-accent-soft-hover: color-mix(in oklch, oklch(0.72 0.19 152) 22%, transparent);
+  --agl-accent:         var(--brand-supabase);
+  --agl-accent-hover:   oklch(0.66 0.164 159);
+  --agl-accent-soft:    color-mix(in oklch, var(--brand-supabase) 14%, transparent);
+  --agl-accent-soft-hover: color-mix(in oklch, var(--brand-supabase) 22%, transparent);
   --agl-on-accent:      #ffffff;
   --agl-border:         oklch(0 0 0 / 12%);
   --agl-border-subtle:  oklch(0 0 0 / 6%);
@@ -339,7 +342,7 @@
   --accent-pink:        oklch(0.78 0.18   340);
   --accent-orange:      oklch(0.78 0.16    47);
   --accent-coral:       oklch(0.74 0.18    22);
-  --accent-green:       oklch(0.81 0.21   145);
+  --accent-green:       var(--brand-supabase);
   --accent-yellow:      oklch(0.88 0.17    90);
 
   /* Gray opacity scale */
@@ -350,8 +353,11 @@
   --gray-universal-12:  oklch(0.70 0.0207 298.9 / 12%);
   --gray-universal-36:  oklch(0.70 0.0207 298.9 / 36%);
 
+  /* Supabase brand green — dark mode (slightly brighter for dark bg) */
+  --brand-supabase:   oklch(0.8224 0.1644 159.36);
+
   /* Status colors */
-  --status-ok:          oklch(0.80 0.20  145);
+  --status-ok:          var(--brand-supabase);
   --status-warn:        oklch(0.80 0.17   70);
   --status-err:         oklch(0.78 0.17   28);
   --status-info:        var(--neon-a);
@@ -371,8 +377,8 @@
   --card-foreground:     oklch(0.982 0 0);
   --popover:             oklch(0.175 0 0);
   --popover-foreground:  oklch(0.982 0 0);
-  --primary:             oklch(0.79 0.19 152);
-  --primary-foreground:  oklch(0.13 0.04  152);
+  --primary:             var(--brand-supabase);
+  --primary-foreground:  oklch(0.13 0.04  159);
   --secondary:           oklch(0.21 0 0);    /* sub-sections */
   --secondary-foreground: oklch(0.982 0 0);
   --muted:               oklch(0.21 0 0);
@@ -382,7 +388,7 @@
   --destructive:         oklch(0.72 0.17 25);
   --border:              oklch(1 0 0 / 10%);
   --input:               oklch(1 0 0 / 8%);
-  --ring:                oklch(0.79 0.19 152);
+  --ring:                var(--brand-supabase);
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
@@ -390,12 +396,12 @@
   --chart-5: oklch(0.645 0.246 16.439);
   --sidebar: oklch(0.175 0 0);
   --sidebar-foreground: oklch(0.982 0 0);
-  --sidebar-primary: oklch(0.79 0.19 152);
-  --sidebar-primary-foreground: oklch(0.13 0.04 152);
+  --sidebar-primary: var(--brand-supabase);
+  --sidebar-primary-foreground: oklch(0.13 0.04 159);
   --sidebar-accent: oklch(0.21 0 0);
   --sidebar-accent-foreground: oklch(0.982 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.79 0.19 152);
+  --sidebar-ring: var(--brand-supabase);
 
   /* Agentic Labs semantic tokens — dark overrides */
   --agl-bg:             oklch(0.10 0 0);
@@ -407,10 +413,10 @@
   --agl-fg-subtle:      oklch(0.50 0 0);
   --agl-fg-faint:       oklch(0.40 0 0);
   --agl-fg-inverse:     oklch(0.135 0 0);
-  --agl-accent:         oklch(0.79 0.19 152);
-  --agl-accent-hover:   oklch(0.85 0.19 152);
-  --agl-accent-soft:    color-mix(in oklch, oklch(0.79 0.19 152) 18%, transparent);
-  --agl-accent-soft-hover: color-mix(in oklch, oklch(0.79 0.19 152) 28%, transparent);
+  --agl-accent:         var(--brand-supabase);
+  --agl-accent-hover:   oklch(0.86 0.164 159);
+  --agl-accent-soft:    color-mix(in oklch, var(--brand-supabase) 18%, transparent);
+  --agl-accent-soft-hover: color-mix(in oklch, var(--brand-supabase) 28%, transparent);
   --agl-on-accent:      oklch(0.135 0 0);
   --agl-border:         oklch(1 0 0 / 10%);
   --agl-border-subtle:  oklch(1 0 0 / 6%);
@@ -775,6 +781,7 @@ button, a, [role="button"] {
   left: 0;
   right: 0;
   height: 3px;
+  background: var(--brand-supabase);
   border-radius: var(--radius) var(--radius) 0 0;
   opacity: 0.9;
   transition: opacity 0.2s ease;
@@ -807,8 +814,8 @@ button, a, [role="button"] {
 }
 
 @keyframes glowPulse {
-  0%, 100% { box-shadow: 0 0 0 0 oklch(0.72 0.19 142 / 40%); }
-  50% { box-shadow: 0 0 0 6px oklch(0.72 0.19 142 / 0%); }
+  0%, 100% { box-shadow: 0 0 0 0 oklch(0.76 0.16 159 / 40%); }
+  50% { box-shadow: 0 0 0 6px oklch(0.76 0.16 159 / 0%); }
 }
 
 /* ─── Subtle noise texture overlay ─── */
@@ -943,8 +950,8 @@ button, a, [role="button"] {
 }
 
 .status-pill-success {
-  background-color: oklch(0.72 0.19 142 / 12%);
-  color: oklch(0.55 0.17 142);
+  background-color: oklch(0.76 0.16 159 / 12%);
+  color: oklch(0.55 0.17 159);
 }
 
 .status-pill-warning {
@@ -1093,14 +1100,14 @@ button, a, [role="button"] {
 
 /* ─── Gradient text utility ─── */
 .gradient-text {
-  background: linear-gradient(135deg, oklch(0.55 0.15 142), oklch(0.55 0.2 25));
+  background: linear-gradient(135deg, oklch(0.76 0.16 159), oklch(0.55 0.2 25));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .dark .gradient-text {
-  background: linear-gradient(135deg, oklch(0.72 0.19 142), oklch(0.7 0.22 25));
+  background: linear-gradient(135deg, oklch(0.82 0.16 159), oklch(0.7 0.22 25));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -1217,10 +1224,10 @@ button, a, [role="button"] {
 .hero-gradient-text {
   background: linear-gradient(
     135deg,
-    oklch(0.58 0.19 152),
-    oklch(0.55 0.18 175),
-    oklch(0.52 0.17 200),
-    oklch(0.58 0.19 152)
+    oklch(0.76 0.16 159),
+    oklch(0.72 0.15 175),
+    oklch(0.68 0.14 200),
+    oklch(0.76 0.16 159)
   );
   background-size: 300% 300%;
   -webkit-background-clip: text;
@@ -1232,10 +1239,10 @@ button, a, [role="button"] {
 .dark .hero-gradient-text {
   background: linear-gradient(
     135deg,
-    oklch(0.82 0.19 152),
-    oklch(0.78 0.17 172),
-    oklch(0.74 0.16 195),
-    oklch(0.82 0.19 152)
+    oklch(0.82 0.16 159),
+    oklch(0.78 0.15 172),
+    oklch(0.74 0.14 195),
+    oklch(0.82 0.16 159)
   );
   background-size: 300% 300%;
   -webkit-background-clip: text;
@@ -1691,7 +1698,7 @@ button, a, [role="button"] {
 
 /* ─── Status glow effects for status indicators ─── */
 .status-glow-green {
-  box-shadow: 0 0 8px oklch(0.72 0.19 142 / 40%), 0 0 16px oklch(0.72 0.19 142 / 20%);
+  box-shadow: 0 0 8px oklch(0.76 0.16 159 / 40%), 0 0 16px oklch(0.76 0.16 159 / 20%);
 }
 
 .status-glow-amber {

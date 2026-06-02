@@ -144,7 +144,7 @@ export function AgentConfigPanel() {
 					className="h-8 text-xs font-mono"
 				/>
 				{!llmConfig.apiKey ? (
-					<p className="text-[10px] text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+					<p className="text-[10px] text-primary dark:text-primary flex items-center gap-1">
 						<ShieldCheck className="size-3" />
 						Server-side mode: key stays on the server. Set LLM_API_KEY in .env.
 					</p>

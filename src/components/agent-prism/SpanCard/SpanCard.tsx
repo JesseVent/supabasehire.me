@@ -58,6 +58,25 @@ interface SpanCardState {
   isSelected: boolean;
 }
 
+// ─── Left-border accent per span type (sequence signaling) ───
+
+const SPAN_ACCENT_COLORS: Record<string, string> = {
+  llm:        "border-l-[#a78bfa]",       // violet — AI thinking
+  agent:      "border-l-[#818cf8]",       // indigo — agent orchestration
+  tool:       "border-l-[#3ECF8E]",       // Supabase green — tool execution
+  chain:      "border-l-[#67e8f9]",       // cyan — chain step
+  retrieval:  "border-l-[#93c5fd]",       // blue — data fetch
+  embedding:  "border-l-[#3ECF8E]",       // green — vector op
+  guardrail:  "border-l-[#f87171]",       // red — safety check
+  span:       "border-l-[#93c5fd]",       // blue — generic span
+  event:      "border-l-[#3ECF8E]",       // green — event
+  unknown:    "border-l-[#94a3b8]",       // slate — unknown
+};
+
+function getSpanAccentClass(type: string): string {
+  return SPAN_ACCENT_COLORS[type] ?? SPAN_ACCENT_COLORS.unknown;
+}
+
 const getContentWidth = ({
   level,
   hasExpandButton,
@@ -400,6 +419,8 @@ export const SpanCard: FC<SpanCardProps> = ({
             className={cn(
               "flex flex-wrap items-start gap-x-2 gap-y-1",
               "mb-3 min-h-5 w-full cursor-pointer",
+              "border-l-2 rounded-l-sm",
+              getSpanAccentClass(data.type),
               level !== 0 && !hasExpandButtonAsFirstChild && "pl-2",
               level !== 0 && hasExpandButtonAsFirstChild && "pl-1",
             )}
@@ -414,7 +435,7 @@ export const SpanCard: FC<SpanCardProps> = ({
               {avatar && <Avatar size="4" {...avatar} />}
 
               <h3
-                className="text-agentprism-foreground max-w-32 truncate text-sm leading-[14px]"
+                className="text-agentprism-foreground max-w-32 truncate font-mono text-sm leading-[14px]"
                 title={data.title}
               >
                 {data.title}

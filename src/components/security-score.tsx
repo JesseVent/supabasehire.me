@@ -118,7 +118,7 @@ function calculateScore(rlsStatuses: TableRLSInfo[], tables: TableSchema[]): Sco
 }
 
 function getScoreColor(score: number): string {
-  if (score >= 80) return 'text-emerald-500'
+  if (score >= 80) return 'text-primary'
   if (score >= 60) return 'text-amber-500'
   if (score >= 40) return 'text-orange-500'
   return 'text-red-500'
@@ -330,13 +330,13 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
             {/* Risk badges */}
             <div className="flex flex-col gap-2 flex-1 w-full">
               {hasSimulatedChanges && potentialScore !== score && (
-                <div className="flex items-start gap-2 rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/20 p-3">
-                  <ArrowRight className="size-4 text-emerald-500 mt-0.5 shrink-0" />
+                <div className="flex items-start gap-2 rounded-lg border border-primary/30 dark:border-primary/50/50 bg-primary/10 dark:bg-primary/20 p-3">
+                  <ArrowRight className="size-4 text-primary mt-0.5 shrink-0" />
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                    <span className="text-sm font-medium text-primary dark:text-primary">
                       Score Improvement
                     </span>
-                    <span className="text-xs text-emerald-600 dark:text-emerald-400/80">
+                    <span className="text-xs text-primary dark:text-primary/80">
                       Current Score: {score} → Potential Score: {potentialScore} (+{potentialScore - score} points)
                     </span>
                   </div>
@@ -386,13 +386,13 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
               )}
 
               {breakdown.tablesFullyProtected.length > 0 && (
-                <div className="flex items-start gap-2 rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/20 p-3">
-                  <CheckCircle2 className="size-4 text-emerald-500 mt-0.5 shrink-0" />
+                <div className="flex items-start gap-2 rounded-lg border border-primary/30 dark:border-primary/50/50 bg-primary/10 dark:bg-primary/20 p-3">
+                  <CheckCircle2 className="size-4 text-primary mt-0.5 shrink-0" />
                   <div className="flex flex-col gap-1">
-                    <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                    <span className="text-sm font-medium text-primary dark:text-primary">
                       Good
                     </span>
-                    <span className="text-xs text-emerald-600 dark:text-emerald-400/80">
+                    <span className="text-xs text-primary dark:text-primary/80">
                       {breakdown.tablesFullyProtected.length} table{breakdown.tablesFullyProtected.length !== 1 ? 's' : ''} properly protected with RLS policies
                     </span>
                   </div>
@@ -400,13 +400,13 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
               )}
 
               {breakdown.tablesWithoutRLS.length === 0 && breakdown.tablesWithRLSNoPolicies.length === 0 && (
-                <div className="flex items-start gap-2 rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/20 p-3">
-                  <CheckCircle2 className="size-4 text-emerald-500 mt-0.5 shrink-0" />
+                <div className="flex items-start gap-2 rounded-lg border border-primary/30 dark:border-primary/50/50 bg-primary/10 dark:bg-primary/20 p-3">
+                  <CheckCircle2 className="size-4 text-primary mt-0.5 shrink-0" />
                   <div className="flex flex-col gap-1">
-                    <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                    <span className="text-sm font-medium text-primary dark:text-primary">
                       All tables secured
                     </span>
-                    <span className="text-xs text-emerald-600 dark:text-emerald-400/80">
+                    <span className="text-xs text-primary dark:text-primary/80">
                       All tables have RLS enabled with policies defined
                     </span>
                   </div>
@@ -493,10 +493,10 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
         <Card className="overflow-hidden">
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 mb-3">
-              <ShieldCheck className="size-4 text-emerald-500" />
+              <ShieldCheck className="size-4 text-primary" />
               <span className="text-sm font-medium">Fully protected</span>
             </div>
-            <div className="text-2xl font-bold text-emerald-500 mb-2">
+            <div className="text-2xl font-bold text-primary mb-2">
               {breakdown.tablesFullyProtected.length}
             </div>
             <TooltipProvider>
@@ -506,7 +506,7 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
                     {breakdown.tablesFullyProtected.map((t) => (
                       <Tooltip key={t.tableName}>
                         <TooltipTrigger asChild>
-                          <Badge className="text-[10px] px-1.5 py-0 bg-emerald-500 hover:bg-emerald-600 cursor-default">
+                          <Badge className="text-[10px] px-1.5 py-0 bg-primary hover:bg-primary cursor-default">
                             {t.tableName}
                           </Badge>
                         </TooltipTrigger>
@@ -534,7 +534,7 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
             <div className="flex items-baseline gap-1 mb-2">
               <span className={`text-2xl font-bold ${
                 breakdown.policyCoverage >= 80
-                  ? 'text-emerald-500'
+                  ? 'text-primary'
                   : breakdown.policyCoverage >= 50
                     ? 'text-amber-500'
                     : 'text-red-500'
@@ -546,7 +546,7 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
               <div
                 className={`h-2 rounded-full transition-all duration-700 ${
                   breakdown.policyCoverage >= 80
-                    ? 'bg-emerald-500'
+                    ? 'bg-primary'
                     : breakdown.policyCoverage >= 50
                       ? 'bg-amber-500'
                       : 'bg-red-500'
@@ -598,13 +598,13 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
                     key={t.tableName}
                     className={`flex items-center justify-between rounded-lg border p-3 transition-colors ${
                       simulatedRLS[t.tableName]
-                        ? 'border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/20'
+                        ? 'border-primary/30 dark:border-primary/50/50 bg-primary/10 dark:bg-primary/20'
                         : 'border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/20'
                     }`}
                   >
                     <div className="flex items-center gap-2">
                       {simulatedRLS[t.tableName] ? (
-                        <ShieldCheck className="size-4 text-emerald-500" />
+                        <ShieldCheck className="size-4 text-primary" />
                       ) : (
                         <ShieldX className="size-4 text-red-500" />
                       )}
@@ -627,13 +627,13 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
               {/* Score impact message */}
               {hasSimulatedChanges && (
                 <div className="flex items-center gap-2 text-sm">
-                  <ArrowRight className="size-4 text-emerald-500 shrink-0" />
+                  <ArrowRight className="size-4 text-primary shrink-0" />
                   <span>
                     Current Score:{' '}
                     <span className={`font-bold ${getScoreColor(score)}`}>{score}</span>
                     {' → '}Potential Score:{' '}
                     <span className={`font-bold ${getScoreColor(potentialScore)}`}>{potentialScore}</span>
-                    <span className="text-emerald-600 dark:text-emerald-400 ml-1">
+                    <span className="text-primary dark:text-primary ml-1">
                       (+{potentialScore - score} points)
                     </span>
                   </span>
@@ -665,7 +665,7 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
                     className="gap-1.5"
                   >
                     {copied ? (
-                      <Check className="size-3.5 text-emerald-500" />
+                      <Check className="size-3.5 text-primary" />
                     ) : (
                       <Copy className="size-3.5" />
                     )}

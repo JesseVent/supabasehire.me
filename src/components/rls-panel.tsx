@@ -265,7 +265,7 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
 
   const getPermissiveIcon = (permissive: string) => {
     if (permissive === 'PERMISSIVE') {
-      return <ShieldCheck className="size-4 text-emerald-500" />
+      return <ShieldCheck className="size-4 text-primary" />
     }
     return <ShieldX className="size-4 text-red-500" />
   }
@@ -467,7 +467,7 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
                           key={policy.policyname}
                           className={`rounded-lg border p-4 hover:shadow-md transition-shadow ${
                             policy.cmd === 'SELECT'
-                              ? 'border-l-4 border-l-emerald-500'
+                              ? 'border-l-4 border-l-primary'
                               : policy.cmd === 'INSERT'
                               ? 'border-l-4 border-l-amber-500'
                               : policy.cmd === 'UPDATE'
@@ -628,7 +628,7 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
                     <div className="flex flex-col gap-3">
                       <div className="flex items-center gap-2">
                         {testResult.success ? (
-                          <CheckCircle2 className="size-5 text-emerald-500" />
+                          <CheckCircle2 className="size-5 text-primary" />
                         ) : (
                           <XCircle className="size-5 text-red-500" />
                         )}

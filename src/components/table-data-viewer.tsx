@@ -40,7 +40,7 @@ function CellValue({ value }: { value: unknown }) {
 
   if (typeof value === 'boolean') {
     return value ? (
-      <span className="text-emerald-600 dark:text-emerald-400 font-medium">✓</span>
+      <span className="text-primary dark:text-primary font-medium">✓</span>
     ) : (
       <span className="text-red-500 font-medium">✗</span>
     )
@@ -114,21 +114,19 @@ export function TableDataViewer({ connection, tableName, isDemoMode }: TableData
     } finally {
       setIsLoading(false)
     }
-  }, [connectionId, tableName, limit, offset])
+  }, [connectionId, tableName, limit, offset, connection])
 
-  // Fetch when table or offset changes
+  // Reset to page 1 when connection or table changes
+  useEffect(() => {
+    setOffset(0)
+  }, [connectionId, tableName])
+
+  // Fetch whenever any fetch dependency changes (fetchRows captures all of them)
   useEffect(() => {
     if (connectionId && tableName) {
-      setOffset(0)
       fetchRows()
     }
-  }, [connectionId, tableName, fetchRows])
-
-  useEffect(() => {
-    if (connectionId && tableName && offset > 0) {
-      fetchRows()
-    }
-  }, [offset, connectionId, tableName, fetchRows])
+  }, [fetchRows])
 
   // Column headers from row data keys
   const columns = useMemo(() => {

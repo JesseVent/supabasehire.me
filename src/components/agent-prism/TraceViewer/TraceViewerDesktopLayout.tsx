@@ -52,7 +52,7 @@ export const TraceViewerDesktopLayout = ({
         <Panel
           id="tree-view"
           minSize={30}
-          className="flex h-full flex-col gap-y-2 overflow-hidden"
+          className="flex h-full flex-col gap-y-2 overflow-hidden bg-agentprism-background"
         >
           <TraceViewerTreeViewContainer
             searchValue={searchValue}
@@ -72,7 +72,7 @@ export const TraceViewerDesktopLayout = ({
         <Panel
           id="tree-view"
           minSize={30}
-          className="flex h-full items-center justify-center"
+          className="flex h-full items-center justify-center bg-agentprism-background"
         >
           <TraceViewerPlaceholder title="Select a trace to see the details" />
         </Panel>
@@ -85,7 +85,7 @@ export const TraceViewerDesktopLayout = ({
         defaultSize={30}
         minSize={20}
         maxSize={50}
-        className="h-full overflow-hidden"
+        className="h-full overflow-hidden bg-agentprism-background"
       >
         {selectedSpan ? (
           <DetailsView data={selectedSpan} />

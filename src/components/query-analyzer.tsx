@@ -328,10 +328,10 @@ function getDemoExplainResult(query: string): ExplainResult[] {
 function getNodePerformanceColor(time: number): { bg: string; border: string; text: string; dot: string } {
   if (time < 1) {
     return {
-      bg: 'bg-emerald-500/10 dark:bg-emerald-500/15',
-      border: 'border-emerald-500/20 dark:border-emerald-500/30',
-      text: 'text-emerald-600 dark:text-emerald-400',
-      dot: 'bg-emerald-500',
+      bg: 'bg-primary/10 dark:bg-primary/15',
+      border: 'border-primary/20 dark:border-primary/30',
+      text: 'text-primary dark:text-primary',
+      dot: 'bg-primary',
     }
   }
   if (time < 50) {
@@ -616,7 +616,7 @@ function PlanTreeNode({
                   </Badge>
                 )}
                 {node['Index Name'] && (
-                  <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0 gap-1 border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
+                  <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0 gap-1 border-primary/30 text-primary dark:text-primary">
                     <Zap className="size-2.5" />
                     {node['Index Name']}
                   </Badge>
@@ -652,7 +652,7 @@ function PlanTreeNode({
                   cost {cost.toFixed(2)}
                 </span>
                 {totalBlocks > 0 && (
-                  <span className={`text-[11px] ${hitRatio >= 99 ? 'text-emerald-500' : hitRatio >= 90 ? 'text-amber-500' : 'text-red-500'}`}>
+                  <span className={`text-[11px] ${hitRatio >= 99 ? 'text-primary' : hitRatio >= 90 ? 'text-amber-500' : 'text-red-500'}`}>
                     cache {hitRatio.toFixed(0)}%
                   </span>
                 )}
@@ -662,7 +662,7 @@ function PlanTreeNode({
               {(node['Index Cond'] || node['Filter'] || node['Hash Cond'] || node['Recheck Cond']) && (
                 <div className="mt-1 flex flex-wrap gap-1">
                   {node['Index Cond'] && (
-                    <code className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-mono">
+                    <code className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary dark:text-primary font-mono">
                       Index: {node['Index Cond']}
                     </code>
                   )}
@@ -1018,25 +1018,25 @@ export function QueryAnalyzer({ activeConnectionId, query: initialQuery }: Query
                 gradient="bg-gradient-to-br from-sky-50 to-sky-100/50 dark:from-sky-950/30 dark:to-sky-900/20 border-sky-200/50 dark:border-sky-800/30"
               />
               <StatCard
-                icon={<Database className="size-4 text-emerald-700 dark:text-emerald-300" />}
+                icon={<Database className="size-4 text-primary dark:text-primary/70" />}
                 label="Rows Processed"
                 value={totalRows.toLocaleString()}
                 subValue={`${nodeCount} plan node${nodeCount !== 1 ? 's' : ''}`}
-                gradient="bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-emerald-900/20 border-emerald-200/50 dark:border-emerald-800/30"
+                gradient="bg-gradient-to-br from-primary/10 to-primary/15/50 dark:from-primary/10/30 dark:to-primary/50/20 border-primary/30/50 dark:border-primary/30/30"
               />
               <StatCard
                 icon={<MemoryStick className="size-4 text-violet-700 dark:text-violet-300" />}
                 label="Buffer Hit Ratio"
                 value={`${hitRatio.toFixed(0)}%`}
                 subValue={`${buffers.hit.toLocaleString()} hits / ${buffers.read.toLocaleString()} reads`}
-                gradient={`bg-gradient-to-br ${hitRatio >= 99 ? 'from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-emerald-900/20 border-emerald-200/50 dark:border-emerald-800/30' : hitRatio >= 90 ? 'from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/20 border-amber-200/50 dark:border-amber-800/30' : 'from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/20 border-red-200/50 dark:border-red-800/30'}`}
+                gradient={`bg-gradient-to-br ${hitRatio >= 99 ? 'from-primary/10 to-primary/15/50 dark:from-primary/10/30 dark:to-primary/50/20 border-primary/30/50 dark:border-primary/30/30' : hitRatio >= 90 ? 'from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/20 border-amber-200/50 dark:border-amber-800/30' : 'from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/20 border-red-200/50 dark:border-red-800/30'}`}
               />
               <StatCard
                 icon={<AlertTriangle className="size-4 text-orange-700 dark:text-orange-300" />}
                 label="Warnings"
                 value={`${criticalCount + warningCount}`}
                 subValue={criticalCount > 0 ? `${criticalCount} critical, ${warningCount} warning` : warningCount > 0 ? `${warningCount} warning` : 'No issues detected'}
-                gradient={`bg-gradient-to-br ${criticalCount > 0 ? 'from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/20 border-red-200/50 dark:border-red-800/30' : warningCount > 0 ? 'from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/20 border-amber-200/50 dark:border-amber-800/30' : 'from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-emerald-900/20 border-emerald-200/50 dark:border-emerald-800/30'}`}
+                gradient={`bg-gradient-to-br ${criticalCount > 0 ? 'from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/20 border-red-200/50 dark:border-red-800/30' : warningCount > 0 ? 'from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/20 border-amber-200/50 dark:border-amber-800/30' : 'from-primary/10 to-primary/15/50 dark:from-primary/10/30 dark:to-primary/50/20 border-primary/30/50 dark:border-primary/30/30'}`}
               />
             </div>
 
@@ -1067,7 +1067,7 @@ export function QueryAnalyzer({ activeConnectionId, query: initialQuery }: Query
                 <div className="flex items-center gap-4 flex-wrap">
                   <span className="text-[11px] text-muted-foreground font-medium">Performance:</span>
                   <div className="flex items-center gap-1.5">
-                    <div className="size-2.5 rounded-full bg-emerald-500" />
+                    <div className="size-2.5 rounded-full bg-primary" />
                     <span className="text-[11px] text-muted-foreground">&lt; 1ms (fast)</span>
                   </div>
                   <div className="flex items-center gap-1.5">

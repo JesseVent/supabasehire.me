@@ -367,9 +367,9 @@ export function IndexViewer() {
       return <ArrowUpDown className="size-3 ml-1 text-muted-foreground/50" />
     }
     return sortDirection === 'asc' ? (
-      <ArrowUp className="size-3 ml-1 text-emerald-500" />
+      <ArrowUp className="size-3 ml-1 text-primary" />
     ) : (
-      <ArrowDown className="size-3 ml-1 text-emerald-500" />
+      <ArrowDown className="size-3 ml-1 text-primary" />
     )
   }
 
@@ -510,11 +510,11 @@ export function IndexViewer() {
           {/* Stats Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <Card className="overflow-hidden">
-              <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-emerald-600" />
+              <div className="h-1.5 bg-gradient-to-r from-primary to-primary" />
               <CardContent className="pt-3 pb-3 px-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="size-7 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                    <Database className="size-3.5 text-emerald-500" />
+                  <div className="size-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Database className="size-3.5 text-primary" />
                   </div>
                   <span className="text-xs font-medium text-muted-foreground">Total Indexes</span>
                 </div>
@@ -762,14 +762,14 @@ export function IndexViewer() {
                               </TableCell>
                               <TableCell>
                                 {idx.unique ? (
-                                  <Badge className="text-[10px] px-1.5 py-0 bg-emerald-500 hover:bg-emerald-600">
+                                  <Badge className="text-[10px] px-1.5 py-0 bg-primary hover:bg-primary">
                                     UNIQUE
                                   </Badge>
                                 ) : (
                                   <span className="text-xs text-muted-foreground">—</span>
                                 )}
                               </TableCell>
-                              <TableCell className={cn('font-mono text-xs', isUnused ? 'text-amber-600 dark:text-amber-400' : idx.scans > 5000 ? 'text-emerald-600 dark:text-emerald-400' : '')}>
+                              <TableCell className={cn('font-mono text-xs', isUnused ? 'text-amber-600 dark:text-amber-400' : idx.scans > 5000 ? 'text-primary dark:text-primary' : '')}>
                                 {formatNumber(idx.scans)}
                               </TableCell>
                               <TableCell className="hidden md:table-cell font-mono text-xs text-muted-foreground">

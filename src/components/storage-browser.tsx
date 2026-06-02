@@ -143,7 +143,7 @@ function getFileIcon(mimeType: string) {
   if (mimeType.includes('zip') || mimeType.includes('archive') || mimeType.includes('compressed'))
     return <Archive className="size-4 text-orange-500" />
   if (mimeType.includes('javascript') || mimeType.includes('json') || mimeType.includes('html') || mimeType.includes('css'))
-    return <Code className="size-4 text-emerald-500" />
+    return <Code className="size-4 text-primary" />
   return <FileIcon className="size-4 text-muted-foreground" />
 }
 
@@ -449,7 +449,7 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
                           </div>
                         </div>
                         {bucket.isPublic ? (
-                          <Badge variant="outline" className="gap-1 text-emerald-600 border-emerald-200 dark:text-emerald-400 dark:border-emerald-800">
+                          <Badge variant="outline" className="gap-1 text-primary border-primary/30 dark:text-primary dark:border-primary/30">
                             <Globe className="size-3" />
                             Public
                           </Badge>
@@ -528,7 +528,7 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
                   )}
                   <Separator orientation="vertical" className="h-6" />
                   {selectedBucket.isPublic ? (
-                    <Badge variant="outline" className="gap-1 text-emerald-600 border-emerald-200 dark:text-emerald-400 dark:border-emerald-800">
+                    <Badge variant="outline" className="gap-1 text-primary border-primary/30 dark:text-primary dark:border-primary/30">
                       <Globe className="size-3" />
                       Public
                     </Badge>
@@ -676,7 +676,7 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
                                 title="Copy URL"
                               >
                                 {copiedId === file.id ? (
-                                  <Check className="size-3.5 text-emerald-500" />
+                                  <Check className="size-3.5 text-primary" />
                                 ) : (
                                   <Copy className="size-3.5" />
                                 )}

@@ -63,7 +63,7 @@ function getRelativeTime(date: Date): string {
 function getEventBadge(type: RealtimeEventType) {
   switch (type) {
     case 'INSERT':
-      return <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1 text-[10px] px-1.5 py-0">INSERT</Badge>
+      return <Badge className="bg-primary hover:bg-primary text-white gap-1 text-[10px] px-1.5 py-0">INSERT</Badge>
     case 'UPDATE':
       return <Badge className="bg-amber-500 hover:bg-amber-600 text-white gap-1 text-[10px] px-1.5 py-0">UPDATE</Badge>
     case 'DELETE':
@@ -351,10 +351,10 @@ export function RealtimeListener() {
       <div className="flex flex-wrap items-center gap-3">
         <Badge
           variant="outline"
-          className={`gap-1 cursor-pointer transition-colors ${eventFilters.INSERT ? 'text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:hover:bg-emerald-950/30' : 'opacity-50'}`}
+          className={`gap-1 cursor-pointer transition-colors ${eventFilters.INSERT ? 'text-primary border-primary/30 hover:bg-primary/10 dark:hover:bg-primary/15' : 'opacity-50'}`}
           onClick={() => toggleFilter('INSERT')}
         >
-          <span className="size-2 rounded-full bg-emerald-500" />
+          <span className="size-2 rounded-full bg-primary" />
           {insertCount} INSERT
         </Badge>
         <Badge
@@ -380,7 +380,7 @@ export function RealtimeListener() {
       </div>
 
       {/* Controls card */}
-      <Card className={isListening ? 'ring-2 ring-emerald-500/20' : ''}>
+      <Card className={isListening ? 'ring-2 ring-primary/20' : ''}>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -391,13 +391,13 @@ export function RealtimeListener() {
             <div className="flex items-center gap-1.5">
               {isListening ? (
                 <>
-                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Listening...</span>
+                  <span className="size-2 rounded-full bg-primary animate-pulse" />
+                  <span className="text-xs text-primary dark:text-primary font-medium">Listening...</span>
                   <div className="flex items-center gap-0.5 ml-1">
                     {[0, 1, 2, 3].map((i) => (
                       <div
                         key={i}
-                        className="w-0.5 bg-emerald-500 rounded-full"
+                        className="w-0.5 bg-primary rounded-full"
                         style={{
                           height: '8px',
                           animation: 'waveform 1s ease-in-out infinite',
@@ -442,7 +442,7 @@ export function RealtimeListener() {
                   pressed={eventFilters.INSERT}
                   onPressedChange={() => toggleFilter('INSERT')}
                   size="sm"
-                  className="data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-700 dark:data-[state=on]:bg-emerald-950/50 dark:data-[state=on]:text-emerald-400 text-xs gap-1"
+                  className="data-[state=on]:bg-primary/15 data-[state=on]:text-primary dark:data-[state=on]:bg-primary/15 dark:data-[state=on]:text-primary text-xs gap-1"
                   aria-label="Toggle INSERT events"
                 >
                   INSERT
@@ -553,7 +553,7 @@ export function RealtimeListener() {
                     key={event.id}
                     className={`rounded-lg border p-3 transition-colors hover:bg-accent/50 ${
                       event.type === 'INSERT'
-                        ? 'border-l-4 border-l-emerald-500'
+                        ? 'border-l-4 border-l-primary'
                         : event.type === 'UPDATE'
                         ? 'border-l-4 border-l-amber-500'
                         : 'border-l-4 border-l-red-500'

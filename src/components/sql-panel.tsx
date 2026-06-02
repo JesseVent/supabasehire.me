@@ -531,7 +531,7 @@ export function SQLPanel() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {result.success ? (
-                          <CheckCircle2 className="size-5 text-emerald-500" />
+                          <CheckCircle2 className="size-5 text-primary" />
                         ) : (
                           <XCircle className="size-5 text-red-500" />
                         )}
@@ -635,7 +635,7 @@ export function SQLPanel() {
 
                     {result.success && resultRows.length === 0 && !result.error && (
                       <div className="flex flex-col items-center justify-center py-6 text-center">
-                        <CheckCircle2 className="mb-2 size-8 text-emerald-500/50" />
+                        <CheckCircle2 className="mb-2 size-8 text-primary/50" />
                         <p className="text-sm text-muted-foreground">
                           Query executed successfully. No rows returned.
                         </p>

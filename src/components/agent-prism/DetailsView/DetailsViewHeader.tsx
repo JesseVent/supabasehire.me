@@ -54,7 +54,7 @@ export const DetailsViewHeader = ({
     <div className={className || "flex flex-wrap items-center gap-2"}>
       {avatar && <Avatar size="4" {...avatar} />}
 
-      <span className="text-agentprism-foreground tracking-wide">
+      <span className="text-agentprism-foreground font-mono tracking-wide">
         {data.title}
       </span>
 

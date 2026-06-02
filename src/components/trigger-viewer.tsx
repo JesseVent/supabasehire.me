@@ -244,7 +244,7 @@ function mapApiTriggerToTriggerInfo(row: ApiTriggerRow): TriggerInfo {
 function getEventBadgeColor(event: TriggerEvent): string {
   switch (event) {
     case 'INSERT':
-      return 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800'
+      return 'bg-primary/15 text-primary border-primary/30 dark:bg-primary/40 dark:text-primary dark:border-primary/30'
     case 'UPDATE':
       return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800'
     case 'DELETE':
@@ -261,7 +261,7 @@ function getTimingBorderColor(timing: TriggerTiming): string {
     case 'BEFORE':
       return 'border-l-amber-500'
     case 'AFTER':
-      return 'border-l-emerald-500'
+      return 'border-l-primary'
     case 'INSTEAD OF':
       return 'border-l-violet-500'
     default:
@@ -274,7 +274,7 @@ function getTimingBgColor(timing: TriggerTiming): string {
     case 'BEFORE':
       return 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
     case 'AFTER':
-      return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+      return 'bg-primary/10 text-primary dark:text-primary'
     case 'INSTEAD OF':
       return 'bg-violet-500/10 text-violet-600 dark:text-violet-400'
     default:
@@ -588,11 +588,11 @@ export function TriggerViewer() {
           {/* Stats Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <Card className="overflow-hidden">
-              <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-emerald-600" />
+              <div className="h-1.5 bg-gradient-to-r from-primary to-primary" />
               <CardContent className="pt-3 pb-3 px-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="size-7 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                    <Zap className="size-3.5 text-emerald-500" />
+                  <div className="size-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Zap className="size-3.5 text-primary" />
                   </div>
                   <span className="text-xs font-medium text-muted-foreground">Total Triggers</span>
                 </div>
@@ -737,7 +737,7 @@ export function TriggerViewer() {
                                     </Badge>
                                     {/* Enabled/disabled */}
                                     {trigger.enabled ? (
-                                      <Badge className="text-[10px] px-1.5 py-0 bg-emerald-500 hover:bg-emerald-600 gap-0.5">
+                                      <Badge className="text-[10px] px-1.5 py-0 bg-primary hover:bg-primary gap-0.5">
                                         <ToggleRight className="size-2.5" />
                                         ENABLED
                                       </Badge>
@@ -842,7 +842,7 @@ export function TriggerViewer() {
                                           <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-0.5">Status</span>
                                           <span className={cn(
                                             'text-xs font-semibold',
-                                            trigger.enabled ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
+                                            trigger.enabled ? 'text-primary dark:text-primary' : 'text-muted-foreground'
                                           )}>
                                             {trigger.enabled ? 'Enabled' : 'Disabled'}
                                           </span>

@@ -160,7 +160,7 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
                     <span className="text-xs text-muted-foreground">{step.durationMs}ms</span>
                   </div>
                 </div>
-                <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
+                <CheckCircle2 className="size-4 text-primary shrink-0" />
               </div>
             ))}
           </div>
@@ -173,8 +173,7 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
           <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide text-[11px]">
             OTLP trace — visualized with AgentPrism
           </p>
-          {/* Override AgentPrism's background/border tokens to use the app's card system,
-              so the viewer adapts automatically when the user toggles dark mode. */}
+          {/* Standard panel background — AgentPrism adapts via its own theme.css tokens. */}
           <div
             className="rounded-xl border border-border shadow-sm overflow-hidden bg-card"
             style={{

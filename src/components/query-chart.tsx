@@ -43,7 +43,7 @@ import type { ChartConfig } from '@/components/ui/chart'
 type ChartType = 'bar' | 'line' | 'pie'
 
 const CHART_COLORS = [
-  'hsl(160, 60%, 45%)',  // emerald
+  'hsl(159, 84%, 62%)',  // Supabase green #3ECF8E
   'hsl(45, 93%, 47%)',   // amber
   'hsl(0, 72%, 51%)',    // red
   'hsl(263, 70%, 50%)',  // violet

@@ -249,7 +249,7 @@ function formatTimestamp(iso: string): string {
 
 function getColumnTypeColor(type: string): string {
   switch (type) {
-    case 'uuid': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+    case 'uuid': return 'bg-primary/15 text-primary dark:bg-primary/40 dark:text-primary'
     case 'text': case 'character varying': case 'varchar': return 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
     case 'timestamptz': case 'timestamp': case 'date': case 'time': case 'timetz': return 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
     case 'boolean': case 'bool': return 'bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-400'
@@ -560,7 +560,7 @@ export function SchemaSnapshotPanel() {
                     {/* Summary */}
                     <div className="flex flex-wrap items-center gap-3">
                       {diffResult.addedCount > 0 && (
-                        <Badge className="gap-1 bg-emerald-500 hover:bg-emerald-600">
+                        <Badge className="gap-1 bg-primary hover:bg-primary">
                           <PlusCircle className="size-3" />
                           {diffResult.addedCount} added
                         </Badge>
@@ -596,10 +596,10 @@ export function SchemaSnapshotPanel() {
                     </div>
 
                     {diffResult.tables.every((t) => t.status === 'unchanged') ? (
-                      <Card className="border-emerald-200 dark:border-emerald-800">
+                      <Card className="border-primary/30 dark:border-primary/30">
                         <CardContent className="py-8">
                           <div className="flex flex-col items-center justify-center text-center gap-3">
-                            <CheckCircle2 className="size-10 text-emerald-500" />
+                            <CheckCircle2 className="size-10 text-primary" />
                             <p className="text-sm font-medium">No schema changes detected</p>
                             <p className="text-xs text-muted-foreground">
                               Both snapshots have identical schemas.
@@ -736,9 +736,9 @@ function DiffTableRow({
 }) {
   const statusConfig: Record<DiffStatus, { bg: string; border: string; icon: React.ReactNode; label: string }> = {
     added: {
-      bg: 'bg-emerald-50 dark:bg-emerald-950/20',
-      border: 'border-l-emerald-500',
-      icon: <PlusCircle className="size-4 text-emerald-500" />,
+      bg: 'bg-primary/10 dark:bg-primary/20',
+      border: 'border-l-primary',
+      icon: <PlusCircle className="size-4 text-primary" />,
       label: 'Added',
     },
     removed: {
@@ -784,7 +784,7 @@ function DiffTableRow({
         <Badge
           variant={diff.status === 'unchanged' ? 'outline' : diff.status === 'added' ? 'default' : diff.status === 'removed' ? 'destructive' : 'secondary'}
           className={`text-[9px] px-1.5 py-0 ${
-            diff.status === 'added' ? 'bg-emerald-500 hover:bg-emerald-600' :
+            diff.status === 'added' ? 'bg-primary hover:bg-primary' :
             diff.status === 'modified' ? 'bg-amber-500 hover:bg-amber-600 text-white' : ''
           }`}
         >
@@ -793,7 +793,7 @@ function DiffTableRow({
         {diff.status === 'modified' && (
           <div className="flex items-center gap-1.5 ml-auto">
             {diff.columnDiffs.filter((c) => c.status === 'added').length > 0 && (
-              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
+              <span className="text-[10px] text-primary dark:text-primary flex items-center gap-0.5">
                 +{diff.columnDiffs.filter((c) => c.status === 'added').length} col
               </span>
             )}
@@ -854,7 +854,7 @@ function DiffTableRow({
                   {diff.fkChanges.map((fk, idx) => (
                     <div key={idx} className="flex items-center gap-2 text-xs">
                       <Link2 className="size-3.5 text-amber-500" />
-                      <span className={fk.startsWith('FK added') ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}>
+                      <span className={fk.startsWith('FK added') ? 'text-primary dark:text-primary' : 'text-red-700 dark:text-red-400'}>
                         {fk}
                       </span>
                     </div>
@@ -885,7 +885,7 @@ function DiffTableRow({
 
 function ColumnDiffRow({ diff }: { diff: ColumnDiff }) {
   const statusIcon: Record<DiffStatus, React.ReactNode> = {
-    added: <PlusCircle className="size-3.5 text-emerald-500" />,
+    added: <PlusCircle className="size-3.5 text-primary" />,
     removed: <MinusCircle className="size-3.5 text-red-500" />,
     modified: <AlertTriangle className="size-3.5 text-amber-500" />,
     unchanged: null,
@@ -893,7 +893,7 @@ function ColumnDiffRow({ diff }: { diff: ColumnDiff }) {
 
   return (
     <div className={`flex items-start gap-2 text-xs py-1 px-2 rounded ${
-      diff.status === 'added' ? 'bg-emerald-50 dark:bg-emerald-950/20' :
+      diff.status === 'added' ? 'bg-primary/10 dark:bg-primary/20' :
       diff.status === 'removed' ? 'bg-red-50 dark:bg-red-950/20' :
       diff.status === 'modified' ? 'bg-amber-50 dark:bg-amber-950/20' : ''
     }`}>
@@ -914,7 +914,7 @@ function ColumnDiffRow({ diff }: { diff: ColumnDiff }) {
           <Badge
             variant={diff.status === 'added' ? 'default' : diff.status === 'removed' ? 'destructive' : 'secondary'}
             className={`text-[8px] px-1 py-0 ${
-              diff.status === 'added' ? 'bg-emerald-500 hover:bg-emerald-600' :
+              diff.status === 'added' ? 'bg-primary hover:bg-primary' :
               diff.status === 'modified' ? 'bg-amber-500 hover:bg-amber-600 text-white' : ''
             }`}
           >

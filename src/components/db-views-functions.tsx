@@ -376,7 +376,7 @@ END;`,
 function getTypeBadgeColor(type: string): string {
   const t = type.toLowerCase()
   if (t.includes('uuid')) return 'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950/40 dark:text-violet-400 dark:border-violet-800'
-  if (t.includes('text') || t.includes('char') || t.includes('varchar')) return 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800'
+  if (t.includes('text') || t.includes('char') || t.includes('varchar')) return 'bg-primary/15 text-primary border-primary/30 dark:bg-primary/40 dark:text-primary dark:border-primary/30'
   if (t.includes('int') || t.includes('serial') || t.includes('bigint')) return 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-800'
   if (t.includes('timestamp') || t.includes('date') || t.includes('time')) return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800'
   if (t.includes('bool')) return 'bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-950/40 dark:text-pink-400 dark:border-pink-800'
@@ -388,7 +388,7 @@ function getTypeBadgeColor(type: string): string {
 function getVolatilityBadge(volatility: FunctionVolatility): string {
   switch (volatility) {
     case 'IMMUTABLE':
-      return 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800'
+      return 'bg-primary/15 text-primary border-primary/30 dark:bg-primary/40 dark:text-primary dark:border-primary/30'
     case 'STABLE':
       return 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-800'
     case 'VOLATILE':
@@ -401,7 +401,7 @@ function getVolatilityBadge(volatility: FunctionVolatility): string {
 function getLanguageBadge(lang: FunctionLanguage): string {
   switch (lang) {
     case 'plpgsql':
-      return 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800'
+      return 'bg-primary/15 text-primary border-primary/30 dark:bg-primary/40 dark:text-primary dark:border-primary/30'
     case 'sql':
       return 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-800'
     case 'c':
@@ -846,11 +846,11 @@ export function DbViewsFunctions() {
       {/* Stats Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card className="overflow-hidden">
-          <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-emerald-600" />
+          <div className="h-1.5 bg-gradient-to-r from-primary to-primary" />
           <CardContent className="pt-3 pb-3 px-4">
             <div className="flex items-center gap-2 mb-1">
-              <div className="size-7 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                <Eye className="size-3.5 text-emerald-500" />
+              <div className="size-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Eye className="size-3.5 text-primary" />
               </div>
               <span className="text-xs font-medium text-muted-foreground">Total Views</span>
             </div>
@@ -966,7 +966,7 @@ export function DbViewsFunctions() {
                       >
                         <Card
                           className={cn(
-                            'border-l-4 border-l-emerald-500 transition-all duration-200 hover:shadow-md cursor-pointer'
+                            'border-l-4 border-l-primary transition-all duration-200 hover:shadow-md cursor-pointer'
                           )}
                           onClick={() => toggleViewExpanded(view.name)}
                         >
@@ -984,7 +984,7 @@ export function DbViewsFunctions() {
                                   </Badge>
                                   <Badge
                                     variant="outline"
-                                    className="text-[10px] px-1.5 py-0 text-emerald-600 border-emerald-200 dark:text-emerald-400 dark:border-emerald-800"
+                                    className="text-[10px] px-1.5 py-0 text-primary border-primary/30 dark:text-primary dark:border-primary/30"
                                   >
                                     {view.columns.length} column{view.columns.length !== 1 ? 's' : ''}
                                   </Badge>
@@ -1074,7 +1074,7 @@ export function DbViewsFunctions() {
                                                       NULLABLE
                                                     </Badge>
                                                   ) : (
-                                                    <Badge className="text-[10px] px-1.5 py-0 bg-emerald-500 hover:bg-emerald-600">
+                                                    <Badge className="text-[10px] px-1.5 py-0 bg-primary hover:bg-primary">
                                                       NOT NULL
                                                     </Badge>
                                                   )}

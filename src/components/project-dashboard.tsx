@@ -71,7 +71,7 @@ function getPlanBadge(plan: string) {
     case 'free':
       return <Badge variant="outline" className="text-xs bg-muted/50">Free</Badge>
     case 'pro':
-      return <Badge className="text-xs bg-emerald-500 hover:bg-emerald-600">Pro</Badge>
+      return <Badge className="text-xs bg-primary hover:bg-primary">Pro</Badge>
     case 'enterprise':
       return <Badge className="text-xs bg-amber-500 hover:bg-amber-600">Enterprise</Badge>
     default:
@@ -82,7 +82,7 @@ function getPlanBadge(plan: string) {
 function getHealthIcon(status: string) {
   switch (status) {
     case 'healthy':
-      return <CheckCircle2 className="size-4 text-emerald-500" />
+      return <CheckCircle2 className="size-4 text-primary" />
     case 'degraded':
       return <AlertTriangle className="size-4 text-amber-500" />
     case 'unhealthy':
@@ -119,7 +119,7 @@ const itemVariants = {
 
 function getActivityDotColor(type: ActivityType): string {
   switch (type) {
-    case 'schema': return 'bg-emerald-500'
+    case 'schema': return 'bg-primary'
     case 'rls': return 'bg-red-500'
     case 'function': return 'bg-amber-500'
     case 'sql': return 'bg-cyan-500'
@@ -130,7 +130,7 @@ function getActivityDotColor(type: ActivityType): string {
 
 function getActivityBadgeColor(type: ActivityType): string {
   switch (type) {
-    case 'schema': return 'text-emerald-600 border-emerald-200 dark:text-emerald-400 dark:border-emerald-800'
+    case 'schema': return 'text-primary border-primary/30 dark:text-primary dark:border-primary/30'
     case 'rls': return 'text-red-600 border-red-200 dark:text-red-400 dark:border-red-800'
     case 'function': return 'text-amber-600 border-amber-200 dark:text-amber-400 dark:border-amber-800'
     case 'sql': return 'text-cyan-600 border-cyan-200 dark:text-cyan-400 dark:border-cyan-800'
@@ -310,7 +310,7 @@ export function ProjectDashboard() {
   }, [rlsStatuses])
 
   const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-emerald-500'
+    if (score >= 80) return 'text-primary'
     if (score >= 60) return 'text-amber-500'
     if (score >= 40) return 'text-orange-500'
     return 'text-red-500'
@@ -383,8 +383,8 @@ export function ProjectDashboard() {
 
               {/* Region */}
               <div className="flex items-start gap-3">
-                <div className="size-9 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <Globe className="size-4 text-emerald-500" />
+                <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                  <Globe className="size-4 text-primary" />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Region</p>
@@ -601,7 +601,7 @@ export function ProjectDashboard() {
                       className="flex items-start gap-3 p-2 rounded-md hover:bg-muted/50 transition-colors"
                     >
                       {check.status === 'pass' ? (
-                        <CheckCircle2 className="size-4 text-emerald-500 mt-0.5 shrink-0" />
+                        <CheckCircle2 className="size-4 text-primary mt-0.5 shrink-0" />
                       ) : check.status === 'warn' ? (
                         <AlertTriangle className="size-4 text-amber-500 mt-0.5 shrink-0" />
                       ) : (
@@ -691,8 +691,8 @@ export function ProjectDashboard() {
                     <>
                       {healthStatus.status === 'healthy' && (
                         <>
-                          <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                          <span className="text-sm text-emerald-600 dark:text-emerald-400">Healthy</span>
+                          <span className="size-2 rounded-full bg-primary animate-pulse" />
+                          <span className="text-sm text-primary dark:text-primary">Healthy</span>
                         </>
                       )}
                       {healthStatus.status === 'degraded' && (

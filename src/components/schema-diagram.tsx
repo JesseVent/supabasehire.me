@@ -536,7 +536,7 @@ function SchemaDiagramInner({
   }
 
   return (
-    <div className="w-full h-full min-h-[500px]" style={{ height: '100%', backgroundColor: 'var(--background)' }}>
+    <div className="w-full h-full min-h-[500px] bg-card" style={{ height: '100%' }}>
       <ReactFlow
         nodes={nodesWithSelection}
         edges={displayEdges}
@@ -553,7 +553,7 @@ function SchemaDiagramInner({
         attributionPosition="bottom-left"
         proOptions={{ hideAttribution: true }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={16} size={1.2} color="var(--border)" style={{ backgroundColor: 'var(--background)' }} />
+        <Background variant={BackgroundVariant.Dots} gap={16} size={1.2} color="var(--border)" />
         <Controls position="bottom-right" />
         <Panel position="top-left">
           <Button
@@ -572,7 +572,7 @@ function SchemaDiagramInner({
           <Panel position="top-center">
             <div className="flex items-center gap-3 rounded-lg border bg-background/95 backdrop-blur-sm shadow-md px-3 py-2 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5">
-                <span className="inline-block size-2.5 rounded-sm border border-brand/30 shadow-sm shadow-emerald-200/60 bg-background shrink-0" />
+                <span className="inline-block size-2.5 rounded-sm border border-brand/30 shadow-sm shadow-primary/20/60 bg-background shrink-0" />
                 RLS on + policies
               </span>
               <span className="flex items-center gap-1.5">

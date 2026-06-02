@@ -41,7 +41,7 @@ function StatusDot({ status }: { status: string }) {
 			className={cn(
 				'size-2 rounded-full shrink-0',
 				status === 'running' && 'bg-blue-500 animate-pulse',
-				status === 'completed' && 'bg-emerald-500',
+				status === 'completed' && 'bg-primary',
 				status === 'error' && 'bg-red-500',
 				status === 'idle' && 'bg-muted-foreground/40'
 			)}
