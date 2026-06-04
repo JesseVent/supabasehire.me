@@ -175,8 +175,8 @@ function getAiDemoButtons(provider: AiProvider): AiDemoButton[] {
 
   return [
     {
-      label: 'AI: Hire Jesse',
-      description: 'Generate a hiring pitch for Jesse Davies with ai_complete()',
+      label: 'AI: Tagline',
+      description: 'Generate a tagline with ai_complete()',
       sql: `select public.ai_complete(
   'Write a compelling one-sentence pitch for why Supabase should hire Jesse Davies, ' ||
   'a full-stack developer from Adelaide who built a complete Supabase developer tool ' ||
@@ -185,8 +185,8 @@ function getAiDemoButtons(provider: AiProvider): AiDemoButton[] {
 ) as pitch;`,
     },
     {
-      label: 'AI: Summarize Jesse',
-      description: 'Summarize Jesse\'s qualifications for Supabase with ai_summary()',
+      label: 'AI: Summarize text',
+      description: 'Summarize a paragraph with ai_summary()',
       sql: `select public.ai_summary(
   'Jesse Davies is a full-stack developer based in Adelaide, Australia. ' ||
   'He built this Supabase DevTool from scratch using Next.js, TypeScript, Tailwind, ' ||
@@ -198,15 +198,15 @@ function getAiDemoButtons(provider: AiProvider): AiDemoButton[] {
 ) as summary;`,
     },
     {
-      label: 'AI: Top 5 reasons',
-      description: 'Summarize 5 reasons to hire Jesse, one model call per row',
+      label: 'AI: Summarize rows',
+      description: 'Summarize rows with ai_summary(), one model call per row',
       sql: `with reasons (id, content) as (
   values
-    (1, 'Jesse Davies built a production-quality Supabase developer tool from scratch to apply for this role, demonstrating initiative, product thinking, and deep platform knowledge.'),
-    (2, 'He ships end-to-end: SQL runner, schema diagrams, RLS inspector, edge function explorer, AI agent, OTel trace viewer, and now inline LLM calls from Postgres — in a single repo.'),
-    (3, 'Based in Adelaide, Jesse brings remote-first discipline and async communication skills with a track record of delivering across healthcare analytics, AI tooling, and developer products.'),
-    (4, 'He integrated the full Supabase platform — PostgREST, Management API, Edge Functions, Realtime, Storage, and pgvector — not just the happy path, but edge cases and new key formats too.'),
-    (5, 'Jesse understands the developer experience from both sides: he built the tooling he wished existed, which is exactly the perspective Supabase needs on its team.')
+    (1, 'Jesse Davies built an entire Supabase developer tool as his job application. Not a cover letter. Not a portfolio link. A fully functional devtool. With dark mode. Who does that?'),
+    (2, 'His app has a SQL runner, schema diagrams, RLS inspector, edge function explorer, AI agent, OTel trace viewer, AND now Postgres functions that call LLMs mid-SELECT. He did not know when to stop. Supabase should reward this behaviour.'),
+    (3, 'Jesse is from Adelaide, which means he will never complain about timezone meetings because anything beats 3am Sydney standups. True remote-first energy. Hire accordingly.'),
+    (4, 'He hit undocumented Supabase API edge cases — new key formats, opaque JWT exchange flows, Management API quirks — debugged them without filing a single angry GitHub issue, and shipped anyway. Saint-level patience.'),
+    (5, 'Jesse built the tool he wished existed. Then he used the tool to apply for the job that would let him build more tools. This is either the most unhinged thing anyone has done or exactly the kind of person Supabase needs. Probably both.')
 )
 select id, public.ai_summary(content${pInline}) as why_hire_jesse
 from reasons
@@ -217,24 +217,24 @@ order by id;`,
 
 // Mock results returned in Demo Mode so the button works without a real connection
 const AI_DEMO_MOCK: Record<string, Array<Record<string, unknown>>> = {
-  'AI: Hire Jesse': [
+  'AI: Tagline': [
     {
       pitch:
         'Hire Jesse Davies — the developer who built a full Supabase dev tool from scratch, shipped AgentPrism trace visualization, and wired LLMs directly into Postgres, all just to apply for this job.',
     },
   ],
-  'AI: Summarize Jesse': [
+  'AI: Summarize text': [
     {
       summary:
         'Jesse Davies is an Adelaide-based full-stack developer who built a comprehensive Supabase DevTool as a live job application, showcasing deep platform expertise across schema introspection, RLS, edge functions, AI agents, and OpenTelemetry tracing. His latest addition — Postgres functions that call LLMs inline from a SELECT statement — demonstrates his ability to combine database primitives with modern AI capabilities end-to-end.',
     },
   ],
-  'AI: Top 5 reasons': [
-    { id: 1, why_hire_jesse: 'Jesse built a production-quality developer tool from scratch as his job application, showing the kind of initiative and product thinking Supabase looks for in a team member.' },
-    { id: 2, why_hire_jesse: 'He ships complete features end-to-end — from SQL runner and schema diagrams to an AI agent, OTel trace viewer, and inline LLM calls from Postgres — all in a single, polished repo.' },
-    { id: 3, why_hire_jesse: 'As an Adelaide-based developer, Jesse brings remote-first discipline and a proven track record of delivering across healthcare analytics, AI tooling, and developer-facing products.' },
-    { id: 4, why_hire_jesse: 'Jesse has integrated the full Supabase platform — PostgREST, Management API, Edge Functions, Realtime, Storage, and pgvector — handling edge cases and new key formats that most developers never encounter.' },
-    { id: 5, why_hire_jesse: 'He built the tooling he wished existed as a Supabase user, which is precisely the empathy and perspective that makes a great Supabase team member.' },
+  'AI: Summarize rows': [
+    { id: 1, why_hire_jesse: 'Jesse submitted a fully functional devtool with dark mode as his job application. Not a cover letter — an app. Supabase should at minimum be curious.' },
+    { id: 2, why_hire_jesse: 'He built a SQL runner, AI agent, OTel trace viewer, AND inline LLM calls from Postgres. He did not know when to stop. This is a feature, not a bug.' },
+    { id: 3, why_hire_jesse: 'Adelaide-based, which means zero timezone excuses and maximum remote-work discipline. He ships while the rest of the world is asleep.' },
+    { id: 4, why_hire_jesse: 'He hit undocumented Supabase API edge cases, debugged them without a single angry GitHub issue, and shipped anyway. This man has the patience of a saint and the output of three interns.' },
+    { id: 5, why_hire_jesse: 'He built the tool he wished existed, then used it to apply for the job. This is either deranged or genius. Supabase, of all companies, should recognise the difference is small.' },
   ],
 }
 
@@ -773,7 +773,7 @@ export function SQLPanel() {
                             {resultRows.slice(0, 50).map((row, rowIdx) => (
                               <TableRow key={rowIdx}>
                                 {columnKeys.map((key) => (
-                                  <TableCell key={key} className="font-mono text-xs max-w-[200px] truncate">
+                                  <TableCell key={key} className="font-mono text-xs whitespace-normal break-words max-w-[480px]">
                                     {row[key] === null ? (
                                       <span className="text-muted-foreground italic">NULL</span>
                                     ) : typeof row[key] === 'object' ? (
