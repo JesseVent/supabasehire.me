@@ -3,7 +3,9 @@
 import '@/components/agent-prism/theme/theme.css'
 
 import { useState } from 'react'
-import { Activity, Play, AlertCircle, CheckCircle2, Clock } from 'lucide-react'
+import { Activity, Play, AlertCircle, CheckCircle2, Clock, Grid3x3 } from 'lucide-react'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { SkillCoverageMatrix } from '@/components/skill-coverage-matrix'
 import { openTelemetrySpanAdapter } from '@evilmartians/agent-prism-data'
 import type { OpenTelemetryDocument, TraceRecord, TraceSpan } from '@evilmartians/agent-prism-types'
 
@@ -84,7 +86,25 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
   const canRun = (isDemoMode || !!connection) && !running
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-4">
+    <Tabs defaultValue="traces">
+      <TabsList className="mb-6">
+        <TabsTrigger value="traces" className="gap-1.5">
+          <Activity className="size-3.5" />
+          Agent Traces
+        </TabsTrigger>
+        <TabsTrigger value="skills" className="gap-1.5">
+          <Grid3x3 className="size-3.5" />
+          Skill Coverage
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="skills">
+        <SkillCoverageMatrix />
+      </TabsContent>
+
+      <TabsContent value="traces">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
@@ -202,6 +222,9 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
           </p>
         </div>
       )}
+      </div>
+      </TabsContent>
+    </Tabs>
     </div>
   )
 }
