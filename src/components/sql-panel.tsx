@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   History,
   ChevronDown,
+  Sparkles,
   ChevronUp,
   Trash2,
   BarChart3,
@@ -162,6 +163,64 @@ const QUICK_TEMPLATES: Record<string, string> = {
   'Active connections': `SELECT\n  pid,\n  usename,\n  application_name,\n  client_addr,\n  state,\n  query,\n  query_start\nFROM pg_stat_activity\nWHERE state != 'idle'\nORDER BY query_start DESC;`,
 }
 
+// ─── AI Demo Buttons ───
+
+type AiProvider = 'openai' | 'supabase'
+type AiDemoButton = { label: string; description: string; sql: string }
+
+function getAiDemoButtons(provider: AiProvider): AiDemoButton[] {
+  // provider arg is only emitted when non-default (openai is the SQL default)
+  const p = provider === 'supabase' ? `, provider => 'supabase'` : ''
+  const pInline = provider === 'supabase' ? `, null, null, 'supabase'` : ''
+
+  return [
+    {
+      label: 'AI: Tagline',
+      description: 'Generate a product tagline with ai_complete()',
+      sql: `select public.ai_complete('Write a punchy one-line tagline for an AI-powered note-taking app'${p}) as tagline;`,
+    },
+    {
+      label: 'AI: Summarize text',
+      description: 'Summarize a paragraph with ai_summary()',
+      sql: `select public.ai_summary(
+  'Supabase is an open-source Firebase alternative built on top of PostgreSQL. ' ||
+  'It provides authentication, real-time subscriptions, edge functions, storage, ' ||
+  'and a full Postgres database — all accessible through a clean REST and GraphQL API. ' ||
+  'Developers use it to build full-stack applications without managing infrastructure.'${pInline}
+) as summary;`,
+    },
+    {
+      label: 'AI: Summarize rows',
+      description: 'Call ai_summary() per row from a table (limit 5)',
+      sql: `-- Replace "documents" and "content" with your table/column.
+-- Each row is a live model call — keep LIMIT low for demos.
+select id, public.ai_summary(content${pInline}) as summary
+from documents
+limit 5;`,
+    },
+  ]
+}
+
+// Mock results returned in Demo Mode so the button works without a real connection
+const AI_DEMO_MOCK: Record<string, Array<Record<string, unknown>>> = {
+  'AI: Tagline': [
+    { tagline: 'Think less, capture more — your second brain, supercharged.' },
+  ],
+  'AI: Summarize text': [
+    {
+      summary:
+        'Supabase is an open-source Firebase alternative that provides a full Postgres database alongside authentication, real-time subscriptions, edge functions, and storage. It offers REST and GraphQL APIs, enabling developers to build full-stack applications without managing infrastructure.',
+    },
+  ],
+  'AI: Summarize rows': [
+    { id: 1, summary: 'A brief guide to setting up Postgres RLS policies for multi-tenant apps.' },
+    { id: 2, summary: 'An overview of edge function patterns for real-time data processing.' },
+    { id: 3, summary: 'Best practices for indexing large Supabase tables to optimize query performance.' },
+    { id: 4, summary: 'How to combine pgvector with OpenAI embeddings for semantic search.' },
+    { id: 5, summary: 'A walkthrough of Supabase Storage bucket policies and signed URLs.' },
+  ],
+}
+
 // ─── Export Helpers ───
 
 function exportToCSV(rows: Array<Record<string, unknown>>, filename: string) {
@@ -221,6 +280,7 @@ export function SQLPanel() {
   const [showHistory, setShowHistory] = useState(false)
   const [isEditorFocused, setIsEditorFocused] = useState(false)
   const [showVisualization, setShowVisualization] = useState(false)
+  const [aiProvider, setAiProvider] = useState<AiProvider>('openai')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Line numbers for the SQL editor
@@ -298,6 +358,52 @@ export function SQLPanel() {
       setQuery(template)
     }
   }, [])
+
+  const runAiDemo = useCallback(async (demo: AiDemoButton) => {
+    // demo.sql is already rendered with the current provider by getAiDemoButtons()
+    if (!activeConnectionId) return
+    setQuery(demo.sql)
+    setIsExecuting(true)
+    setResult(null)
+
+    if (activeConnectionId === DEMO_CONNECTION_ID) {
+      await new Promise((resolve) => setTimeout(resolve, 600 + Math.random() * 400))
+      const rows = AI_DEMO_MOCK[demo.label] ?? []
+      const demoResult: SQLQueryResult = { success: true, data: rows }
+      setResult(demoResult)
+      addSqlResult(demoResult)
+      addSqlToHistory(demo.sql.trim())
+      toast.success(`${demo.label} (demo)`, { description: `${rows.length} row${rows.length !== 1 ? 's' : ''} returned` })
+      setIsExecuting(false)
+      return
+    }
+
+    try {
+      const res = await fetch('/api/sql', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connection: activeConnection, query: demo.sql.trim() }),
+      })
+      const data = await res.json()
+      const sqlResult: SQLQueryResult = data.error ? { success: false, error: data.error } : data
+      setResult(sqlResult)
+      addSqlResult(sqlResult)
+      addSqlToHistory(demo.sql.trim())
+      addActivityLog({ type: 'sql', action: `AI demo: ${demo.label}`, details: demo.sql.trim().substring(0, 80) })
+      if (sqlResult.success) {
+        const rowCount = sqlResult.data ? (Array.isArray(sqlResult.data) ? sqlResult.data.length : 1) : 0
+        toast.success(demo.label, { description: `${rowCount} row${rowCount !== 1 ? 's' : ''} returned` })
+      } else {
+        toast.error(`${demo.label} failed`, { description: sqlResult.error || 'Unknown error' })
+      }
+    } catch {
+      const errResult: SQLQueryResult = { success: false, error: 'Network error occurred' }
+      setResult(errResult)
+      addSqlResult(errResult)
+    } finally {
+      setIsExecuting(false)
+    }
+  }, [activeConnectionId, activeConnection, addSqlResult, addSqlToHistory, addActivityLog])
 
   const copyToClipboard = useCallback((text: string, type: 'query' | 'results') => {
     navigator.clipboard.writeText(text)
@@ -428,6 +534,45 @@ export function SQLPanel() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-col gap-4">
+                    {/* AI Demo Buttons */}
+                    <div className="flex flex-wrap items-center gap-2 pb-1 border-b border-border/50">
+                      <span className="flex items-center gap-1 text-[11px] text-muted-foreground font-medium shrink-0">
+                        <Sparkles className="size-3 text-primary" />
+                        AI demos
+                      </span>
+                      {/* Provider toggle */}
+                      <div className="flex items-center rounded-md border border-border/60 overflow-hidden text-[10px] font-medium shrink-0">
+                        <button
+                          className={`px-2 py-1 transition-colors ${aiProvider === 'openai' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}
+                          onClick={() => setAiProvider('openai')}
+                          title="Use OpenAI (requires OPENAI_API_KEY secret)"
+                        >
+                          OpenAI
+                        </button>
+                        <button
+                          className={`px-2 py-1 transition-colors ${aiProvider === 'supabase' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}
+                          onClick={() => setAiProvider('supabase')}
+                          title="Use Supabase built-in inference (no API key needed)"
+                        >
+                          Supabase AI
+                        </button>
+                      </div>
+                      {getAiDemoButtons(aiProvider).map((demo) => (
+                        <Button
+                          key={demo.label}
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/60"
+                          disabled={isExecuting || !activeConnectionId}
+                          onClick={() => runAiDemo(demo)}
+                          title={demo.description}
+                        >
+                          <Play className="size-3" />
+                          {demo.label}
+                        </Button>
+                      ))}
+                    </div>
+
                     <div className="relative flex rounded-lg overflow-hidden border border-zinc-800 dark:border-zinc-700 bg-zinc-950 dark:bg-zinc-900 focus-within:ring-1 focus-within:ring-zinc-600">
                       {/* Line numbers */}
                       <div className="flex-shrink-0 py-3 px-2 text-right select-none border-r border-zinc-800 dark:border-zinc-700 bg-zinc-900/50 dark:bg-zinc-800/50 overflow-hidden" aria-hidden="true">
