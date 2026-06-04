@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, Fragment } from 'react'
 import { toast } from 'sonner'
 import {
   Zap,
@@ -38,6 +38,7 @@ import { useSupabaseStore } from '@/store/supabase-store'
 import type { EdgeFunction } from '@/lib/supabase-types'
 import { DEMO_CONNECTION_ID, DEMO_FUNCTION_NOTES } from '@/lib/demo-data'
 import { parseFunctionNotes, generateBodyFromSchema, extractCommentFrontmatter } from '@/lib/edge-function-utils'
+import { BUILT_IN_FUNCTION_SCHEMAS } from '@/config/function-schemas'
 
 interface InvokeResult {
   data?: unknown
@@ -70,14 +71,16 @@ export function EdgeFunctionsPanel() {
   const [isEditingNotes, setIsEditingNotes] = useState(false)
   const [draftNotes, setDraftNotes] = useState('')
   const [isAutoFetchingNotes, setIsAutoFetchingNotes] = useState(false)
+  const [sourceFetchResult, setSourceFetchResult] = useState<'ok' | 'bundle' | 'error' | null>(null)
 
   const notesKey = activeConnectionId && selectedFunction
     ? `${activeConnectionId}:${selectedFunction.name}`
     : null
 
   const savedNotes = notesKey ? (functionNotes[notesKey] ?? '') : ''
+  const effectiveNotes = savedNotes || (selectedFunction ? (BUILT_IN_FUNCTION_SCHEMAS[selectedFunction.name] ?? '') : '')
 
-  const parsedSchema = useMemo(() => parseFunctionNotes(savedNotes), [savedNotes])
+  const parsedSchema = useMemo(() => parseFunctionNotes(effectiveNotes), [effectiveNotes])
 
   const fetchFunctions = useCallback(async () => {
     if (!activeConnectionId) return
@@ -193,6 +196,7 @@ export function EdgeFunctionsPanel() {
     setCustomHeaders([{ key: '', value: '' }])
     setIsEditingNotes(false)
     setDraftNotes('')
+    setSourceFetchResult(null)
 
     if (!selectedFunction) return
     const name = selectedFunction.name
@@ -239,9 +243,15 @@ export function EdgeFunctionsPanel() {
         const data = (await res.json()) as { source?: string; error?: string }
         if (cancelled || !data.source) return
         const extracted = extractCommentFrontmatter(data.source)
-        if (extracted) setFunctionNotes(notesKey, extracted)
+        if (extracted) {
+          setFunctionNotes(notesKey, extracted)
+          if (!cancelled) setSourceFetchResult('ok')
+        } else {
+          // Binary eszip bundle or no recognizable frontmatter
+          if (!cancelled) setSourceFetchResult('bundle')
+        }
       } catch {
-        // Silent — the user can always add schema manually.
+        if (!cancelled) setSourceFetchResult('error')
       } finally {
         if (!cancelled) setIsAutoFetchingNotes(false)
       }
@@ -391,11 +401,11 @@ export function EdgeFunctionsPanel() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => { setDraftNotes(savedNotes); setIsEditingNotes(true) }}
+                    onClick={() => { setDraftNotes(effectiveNotes); setIsEditingNotes(true) }}
                     className="h-7 px-2 text-xs"
                   >
                     <Pencil className="size-3 mr-1" />
-                    {savedNotes ? 'Edit schema' : 'Add schema'}
+                    {effectiveNotes ? 'Edit schema' : 'Add schema'}
                   </Button>
                 ) : (
                   <>
@@ -435,9 +445,12 @@ export function EdgeFunctionsPanel() {
                 {selectedFunction.import_map !== undefined && (
                   <span><span className="font-medium text-foreground">Import map</span> {selectedFunction.import_map ? 'yes' : 'no'}</span>
                 )}
-                {selectedFunction.entrypoint_path && (
-                  <span className="font-mono">{selectedFunction.entrypoint_path}</span>
-                )}
+                {selectedFunction.entrypoint_path && (() => {
+                  const raw = selectedFunction.entrypoint_path!
+                  // Strip Supabase's internal deployed path prefix (file:///tmp/user_fn_.../source/)
+                  const cleaned = raw.replace(/^file:\/\/\/tmp\/[^/]+\/source\//, '')
+                  return <span className="font-mono">{cleaned}</span>
+                })()}
                 <span>{new Date(selectedFunction.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
               </div>
 
@@ -459,10 +472,15 @@ export function EdgeFunctionsPanel() {
                     Format: <code className="font-mono">@param name type required|optional - description</code>
                   </p>
                 </div>
-              ) : savedNotes ? (
+              ) : effectiveNotes ? (
                 <div className="flex flex-col gap-3">
                   {parsedSchema.description && (
                     <p className="text-sm text-muted-foreground">{parsedSchema.description}</p>
+                  )}
+                  {!savedNotes && effectiveNotes && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Schema from built-in registry — click <span className="font-medium">Edit schema</span> to customise.
+                    </p>
                   )}
                   {parsedSchema.params.length > 0 ? (
                     <div className="flex flex-col gap-1">
@@ -472,17 +490,19 @@ export function EdgeFunctionsPanel() {
                         <span className="text-muted-foreground font-medium">Required</span>
                         <span className="text-muted-foreground font-medium">Description</span>
                         {parsedSchema.params.map((p) => (
-                          <>
-                            <code key={`n-${p.name}`} className="font-mono text-primary">{p.name}</code>
-                            <code key={`t-${p.name}`} className="font-mono text-blue-600 dark:text-blue-400">{p.type}</code>
-                            <span key={`r-${p.name}`} className={p.required ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}>
+                          <Fragment key={p.name}>
+                            <code className="font-mono text-primary">{p.name}</code>
+                            <code className="font-mono text-blue-600 dark:text-blue-400">{p.type}</code>
+                            <span className={p.required ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}>
                               {p.required ? 'yes' : 'no'}
                             </span>
-                            <span key={`d-${p.name}`} className="text-muted-foreground">{p.description || '—'}</span>
-                          </>
+                            <span className="text-muted-foreground">{p.description || '—'}</span>
+                          </Fragment>
                         ))}
                       </div>
                     </div>
+                  ) : parsedSchema.description ? (
+                    <p className="text-xs text-muted-foreground italic">No parameters — this function takes no request body.</p>
                   ) : (
                     <p className="text-xs text-muted-foreground italic">No @param annotations found — add them in the schema editor.</p>
                   )}
@@ -512,8 +532,10 @@ export function EdgeFunctionsPanel() {
                       <Loader2 className="size-3 animate-spin" />
                       Looking for <code className="font-mono not-italic">@param</code> frontmatter in the deployed source…
                     </>
+                  ) : sourceFetchResult === 'bundle' ? (
+                    <>Deployed as a compiled bundle — source cannot be read. Click <span className="font-medium not-italic">Add schema</span> to annotate inputs manually.</>
                   ) : (
-                    <>No schema annotations yet. Click <span className="font-medium">Add schema</span> to document the expected inputs for this function.</>
+                    <>No schema annotations yet. Click <span className="font-medium not-italic">Add schema</span> to document the expected inputs for this function.</>
                   )}
                 </p>
               )}
