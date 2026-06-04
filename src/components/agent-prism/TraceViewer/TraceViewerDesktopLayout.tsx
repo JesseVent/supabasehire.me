@@ -31,9 +31,9 @@ export const TraceViewerDesktopLayout = ({
     <PanelGroup direction="horizontal" className="h-full">
       <Panel
         id="trace-list"
-        defaultSize={traceListExpanded ? 20 : 2}
-        minSize={traceListExpanded ? 15 : 2}
-        maxSize={traceListExpanded ? 40 : 2}
+        defaultSize={traceListExpanded ? "20%" : "2%"}
+        minSize={traceListExpanded ? "15%" : "2%"}
+        maxSize={traceListExpanded ? "40%" : "2%"}
         collapsible={false}
         className="flex h-full min-h-0 flex-col overflow-hidden"
       >
@@ -51,7 +51,7 @@ export const TraceViewerDesktopLayout = ({
       {selectedTrace ? (
         <Panel
           id="tree-view"
-          minSize={30}
+          minSize="30%"
           className="flex h-full flex-col gap-y-2 overflow-hidden bg-agentprism-background"
         >
           <TraceViewerTreeViewContainer
@@ -71,7 +71,7 @@ export const TraceViewerDesktopLayout = ({
       ) : (
         <Panel
           id="tree-view"
-          minSize={30}
+          minSize="30%"
           className="flex h-full items-center justify-center bg-agentprism-background"
         >
           <TraceViewerPlaceholder title="Select a trace to see the details" />
@@ -82,9 +82,9 @@ export const TraceViewerDesktopLayout = ({
 
       <Panel
         id="details-view"
-        defaultSize={30}
-        minSize={20}
-        maxSize={50}
+        defaultSize="30%"
+        minSize="20%"
+        maxSize="50%"
         className="h-full overflow-hidden bg-agentprism-background"
       >
         {selectedSpan ? (

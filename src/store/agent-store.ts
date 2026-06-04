@@ -67,12 +67,21 @@ export interface AgentChatMessage {
 	}
 }
 
+// ─── Skill Router Config ───
+
+export interface SkillRouterConfig {
+	url: string
+	key: string
+	skill: string
+}
+
 // ─── Agent Store ───
 
 interface AgentStore {
 	// Config
 	agentEnabled: boolean
 	llmConfig: LLMProviderConfig
+	skillRouterConfig: SkillRouterConfig
 	maxSteps: number
 	sidebarOpen: boolean
 
@@ -85,6 +94,7 @@ interface AgentStore {
 	// Actions
 	setAgentEnabled: (enabled: boolean) => void
 	setLLMConfig: (config: Partial<LLMProviderConfig>) => void
+	setSkillRouterConfig: (config: Partial<SkillRouterConfig>) => void
 	setMaxSteps: (steps: number) => void
 	setSidebarOpen: (open: boolean) => void
 	toggleSidebar: () => void
@@ -104,6 +114,11 @@ const initialState = {
 		...PROVIDER_PRESETS.openai,
 		apiKey: '',
 	} as LLMProviderConfig,
+	skillRouterConfig: {
+		url: '',
+		key: '',
+		skill: '',
+	} as SkillRouterConfig,
 	maxSteps: 40,
 	sidebarOpen: false as boolean,
 	messages: [] as AgentChatMessage[],
@@ -121,6 +136,10 @@ export const useAgentStore = create<AgentStore>()(
 			setLLMConfig: (config) =>
 				set((state) => ({
 					llmConfig: { ...state.llmConfig, ...config },
+				})),
+			setSkillRouterConfig: (config) =>
+				set((state) => ({
+					skillRouterConfig: { ...state.skillRouterConfig, ...config },
 				})),
 			setMaxSteps: (steps) => set({ maxSteps: steps }),
 			setSidebarOpen: (open) => set({ sidebarOpen: open }),
@@ -149,6 +168,7 @@ export const useAgentStore = create<AgentStore>()(
 			partialize: (state) => ({
 				agentEnabled: state.agentEnabled,
 				llmConfig: state.llmConfig,
+				skillRouterConfig: state.skillRouterConfig,
 				maxSteps: state.maxSteps,
 			}),
 		}

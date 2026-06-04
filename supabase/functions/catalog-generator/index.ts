@@ -1,3 +1,16 @@
+// supabase/functions/catalog-generator/index.ts
+//
+// @description Generates AI-authored data-catalog descriptions for a single table.
+//   Takes a column profile (types, null %, distinct counts, sample values), prompts
+//   GPT-4o, and returns { tableDescription, columnDescriptions } as plain-English
+//   business definitions. Requires the OPENAI_API_KEY secret; returns 502 on upstream
+//   OpenAI failure, 401 unauthorized, 500 on misconfiguration or unexpected errors.
+//
+// @param tableName string required - Name of the target table (without schema prefix)
+// @param schemaName string required - PostgreSQL schema containing the table (e.g. public)
+// @param rowCount number required - Total row count for the table (used in the prompt for context)
+// @param columns array required - Column profiles: { name, type, nullable, nullPct, distinctCount, sampleValues[] }
+
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { isAuthorized } from '../_shared/auth.ts';
 

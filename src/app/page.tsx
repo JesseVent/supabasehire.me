@@ -92,7 +92,7 @@ import {
 } from '@/components/ui/select'
 import { useSupabaseStore } from '@/store/supabase-store'
 import type { SupabaseConnection, ActivePanel, TableRLSInfo, ColumnInfo, ForeignKeyInfo, RLSPolicy } from '@/lib/supabase-types'
-import { DEMO_CONNECTION_ID, DEMO_CONNECTION, DEMO_TABLES, DEMO_RLS_STATUSES, DEMO_EDGE_FUNCTIONS } from '@/lib/demo-data'
+import { DEMO_CONNECTION_ID, DEMO_CONNECTION, DEMO_TABLES, DEMO_RLS_STATUSES, DEMO_EDGE_FUNCTIONS, DEMO_FUNCTION_NOTES } from '@/lib/demo-data'
 import { RLSPanel } from '@/components/rls-panel'
 import { EdgeFunctionsPanel } from '@/components/edge-functions-panel'
 import { SQLPanel } from '@/components/sql-panel'
@@ -163,6 +163,8 @@ export default function Home() {
     setShowShortcutsDialog,
     addActivityLog,
     reset,
+    functionNotes,
+    setFunctionNotes,
   } = useSupabaseStore()
 
   const isDemoMode = activeConnectionId === DEMO_CONNECTION_ID
@@ -362,6 +364,9 @@ export default function Home() {
     setTables(DEMO_TABLES)
     setRlsStatuses(DEMO_RLS_STATUSES)
     setEdgeFunctions(DEMO_EDGE_FUNCTIONS)
+    for (const [key, notes] of Object.entries(DEMO_FUNCTION_NOTES)) {
+      if (!functionNotes[key]) setFunctionNotes(key, notes)
+    }
     setSelectedTable(null)
     setActivePanel('schema')
     const noRlsCount = DEMO_RLS_STATUSES.filter((t) => !t.rlsEnabled).length
@@ -369,7 +374,7 @@ export default function Home() {
       description: 'Hover a table on the canvas to trace its foreign key relationships.',
       duration: 6000,
     })
-  }, [connections, addConnection, setActiveConnectionId, setTables, setRlsStatuses, setEdgeFunctions, setSelectedTable, setActivePanel])
+  }, [connections, addConnection, setActiveConnectionId, setTables, setRlsStatuses, setEdgeFunctions, functionNotes, setFunctionNotes, setSelectedTable, setActivePanel])
 
   // Auto-fetch when connection changes
   useEffect(() => {
@@ -380,6 +385,9 @@ export default function Home() {
           setTables(DEMO_TABLES)
           setRlsStatuses(DEMO_RLS_STATUSES)
           setEdgeFunctions(DEMO_EDGE_FUNCTIONS)
+          for (const [key, notes] of Object.entries(DEMO_FUNCTION_NOTES)) {
+            if (!functionNotes[key]) setFunctionNotes(key, notes)
+          }
           const existingDemo = connections.find((c) => c.id === DEMO_CONNECTION_ID)
           if (!existingDemo) {
             addConnection(DEMO_CONNECTION)

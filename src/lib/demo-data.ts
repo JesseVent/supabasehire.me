@@ -337,6 +337,32 @@ export const DEMO_EDGE_FUNCTIONS: EdgeFunction[] = [
   },
 ]
 
+// ─── Demo Edge Function Notes ───
+// Pre-populated schema annotations for demo functions (keyed by "connectionId:functionName")
+
+export const DEMO_FUNCTION_NOTES: Record<string, string> = {
+  [`${DEMO_CONNECTION_ID}:hello-world`]: [
+    '@description Returns a greeting message with a timestamp.',
+    '',
+    '@param name string optional - Name to include in the greeting (default: World)',
+  ].join('\n'),
+  [`${DEMO_CONNECTION_ID}:send-notification`]: [
+    '@description Send a push or email notification to a user.',
+    '',
+    '@param userId string required - UUID of the recipient user',
+    '@param message string required - Notification body text',
+    '@param channel string optional - Delivery channel: push, email, sms (default: push)',
+    '@param title string optional - Notification title (push/email only)',
+  ].join('\n'),
+  [`${DEMO_CONNECTION_ID}:process-webhook`]: [
+    '@description Handle an inbound webhook payload from a third-party service.',
+    '',
+    '@param event string required - Webhook event type (e.g. payment.succeeded)',
+    '@param payload object required - Raw webhook payload from the provider',
+    '@param signature string optional - HMAC signature header for verification',
+  ].join('\n'),
+}
+
 // ─── Demo OTLP Trace ───
 // Hardcoded trace used in Demo Mode for the Traces panel (no real connection needed).
 // Represents a schema-inspector agent run: discover_tables → inspect_columns → count_rows.

@@ -5,6 +5,7 @@ import { useAgentStore, type AgentChatMessage } from '@/store/agent-store'
 import { useSupabaseStore } from '@/store/supabase-store'
 import type { SupabaseConnection } from '@/lib/supabase-types'
 import { supabaseTools, type ConnectionData } from '@/agent/supabase-tools'
+import { SkillRouterClient } from '@/agent/skill-router-client'
 
 // Types we need from page-agent (imported dynamically to avoid SSR issues)
 type AgentStatus = 'idle' | 'running' | 'completed' | 'error'
@@ -50,6 +51,7 @@ export interface UseDevtoolAgentReturn {
 export function useDevtoolAgent(): UseDevtoolAgentReturn {
 	const {
 		llmConfig,
+		skillRouterConfig,
 		maxSteps,
 		setAgentStatus,
 		setActivityText,
@@ -140,6 +142,13 @@ export function useDevtoolAgent(): UseDevtoolAgentReturn {
 					}),
 				}
 
+				const skillRouter =
+					skillRouterConfig.url && skillRouterConfig.key && skillRouterConfig.skill
+						? new SkillRouterClient(skillRouterConfig.url, skillRouterConfig.key).asAdapter(
+								skillRouterConfig.skill
+							)
+						: undefined
+
 				const agentConfig: Record<string, unknown> = {
 					baseURL: llmConfig.baseURL,
 					model: llmConfig.model,
@@ -147,6 +156,7 @@ export function useDevtoolAgent(): UseDevtoolAgentReturn {
 					customSystemPrompt: systemPrompt,
 					customTools: customToolEntries,
 					pageController: noopPageController,
+					skillRouter,
 					transformRequestBody: (body: Record<string, unknown>) => {
 						// gpt-5.5 only supports verbosity:'medium'; page-agent patches all gpt-* to 'low'.
 						// Strip optional provider prefix (e.g. 'openai/gpt-5.5' → 'gpt-5.5').
@@ -219,9 +229,10 @@ export function useDevtoolAgent(): UseDevtoolAgentReturn {
 			}
 			agentRef.current = null
 		}
-	// Re-init when LLM config or maxSteps changes
+	// Re-init when LLM config, maxSteps, or skill router config changes
 	// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [llmConfig.baseURL, llmConfig.model, llmConfig.apiKey, llmConfig.provider, maxSteps])
+	}, [llmConfig.baseURL, llmConfig.model, llmConfig.apiKey, llmConfig.provider, maxSteps,
+		skillRouterConfig.url, skillRouterConfig.key, skillRouterConfig.skill])
 
 	const execute = useCallback(async (task: string) => {
 		const agent = agentRef.current

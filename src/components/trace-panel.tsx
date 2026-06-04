@@ -175,7 +175,7 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
           </p>
           {/* Standard panel background — AgentPrism adapts via its own theme.css tokens. */}
           <div
-            className="rounded-xl border border-border shadow-sm overflow-hidden bg-card"
+            className="w-full rounded-xl border border-border shadow-sm overflow-hidden bg-card"
             style={{
               height: '60vh',
               minHeight: '400px',

@@ -7,6 +7,7 @@ import {
 	Cpu,
 	ArrowRightLeft,
 	ShieldCheck,
+	Zap,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -18,6 +19,7 @@ import {
 	SelectValue,
 } from '@/components/ui/select'
 import { useAgentStore, PROVIDER_PRESETS, type LLMProvider } from '@/store/agent-store'
+import { Separator } from '@/components/ui/separator'
 
 // Feature flag: if the server provides a key, hide the client-side key input
 declare global {
@@ -41,7 +43,7 @@ const PROVIDER_MODELS: Record<LLMProvider, string[]> = {
 }
 
 export function AgentConfigPanel() {
-	const { llmConfig, setLLMConfig, maxSteps, setMaxSteps } = useAgentStore()
+	const { llmConfig, setLLMConfig, skillRouterConfig, setSkillRouterConfig, maxSteps, setMaxSteps } = useAgentStore()
 
 	const handleProviderChange = (provider: LLMProvider) => {
 		const preset = PROVIDER_PRESETS[provider]
@@ -181,6 +183,50 @@ export function AgentConfigPanel() {
 					Configure an API key and base URL to enable the agent.
 				</div>
 			)}
+
+			<Separator />
+
+			{/* Skill Router */}
+			<div className="space-y-3">
+				<div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+					<Zap className="size-3" />
+					Skill Router
+				</div>
+				<div className="space-y-1.5">
+					<Label className="text-xs">Supabase URL</Label>
+					<Input
+						value={skillRouterConfig.url}
+						onChange={(e) => setSkillRouterConfig({ url: e.target.value })}
+						placeholder="https://<project>.supabase.co"
+						className="h-8 text-xs font-mono"
+					/>
+				</div>
+				<div className="space-y-1.5">
+					<Label className="text-xs">Anon Key</Label>
+					<Input
+						type="password"
+						value={skillRouterConfig.key}
+						onChange={(e) => setSkillRouterConfig({ key: e.target.value })}
+						placeholder="Anon key"
+						className="h-8 text-xs font-mono"
+					/>
+				</div>
+				<div className="space-y-1.5">
+					<Label className="text-xs">Skill Name</Label>
+					<Input
+						value={skillRouterConfig.skill}
+						onChange={(e) => setSkillRouterConfig({ skill: e.target.value })}
+						placeholder="supabase-postgres-best-practices"
+						className="h-8 text-xs"
+					/>
+				</div>
+				{skillRouterConfig.url && skillRouterConfig.key && skillRouterConfig.skill && (
+					<p className="text-[10px] text-primary flex items-center gap-1">
+						<Zap className="size-3" />
+						Skill router active — chunks injected per task.
+					</p>
+				)}
+			</div>
 		</div>
 	)
 }

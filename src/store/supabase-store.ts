@@ -96,6 +96,9 @@ interface SupabaseStore {
   // Latency history
   latencyHistory: LatencyRecord[];
 
+  // Edge function notes (local schema annotations), keyed by "connectionId:functionName"
+  functionNotes: Record<string, string>;
+
   // Actions
   setConnections: (connections: SupabaseConnection[]) => void;
   addConnection: (connection: SupabaseConnection) => void;
@@ -124,6 +127,7 @@ interface SupabaseStore {
   clearMigrationHistory: () => void;
   addLatencyRecord: (record: Omit<LatencyRecord, 'id'>) => void;
   clearLatencyHistory: () => void;
+  setFunctionNotes: (key: string, notes: string) => void;
   reset: () => void;
 }
 
@@ -146,6 +150,7 @@ const initialState = {
   schemaSnapshots: [] as SchemaSnapshot[],
   migrationHistory: [] as MigrationRecord[],
   latencyHistory: [] as LatencyRecord[],
+  functionNotes: {} as Record<string, string>,
 };
 
 export const useSupabaseStore = create<SupabaseStore>()(
@@ -275,6 +280,12 @@ export const useSupabaseStore = create<SupabaseStore>()(
 
       clearLatencyHistory: () => set({ latencyHistory: [] }),
 
+      // Function notes
+      setFunctionNotes: (key, notes) =>
+        set((state) => ({
+          functionNotes: { ...state.functionNotes, [key]: notes },
+        })),
+
       // Reset
       reset: () => set(initialState),
     }),
@@ -290,6 +301,7 @@ export const useSupabaseStore = create<SupabaseStore>()(
         schemaSnapshots: state.schemaSnapshots,
         migrationHistory: state.migrationHistory,
         latencyHistory: state.latencyHistory,
+        functionNotes: state.functionNotes,
       }),
     }
   )

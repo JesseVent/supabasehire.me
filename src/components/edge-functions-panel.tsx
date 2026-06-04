@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
 import {
   Zap,
@@ -12,6 +12,11 @@ import {
   Check,
   Globe,
   Clock,
+  Pencil,
+  Save,
+  X,
+  Info,
+  Wand2,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -31,7 +36,8 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useSupabaseStore } from '@/store/supabase-store'
 import type { EdgeFunction } from '@/lib/supabase-types'
-import { DEMO_CONNECTION_ID } from '@/lib/demo-data'
+import { DEMO_CONNECTION_ID, DEMO_FUNCTION_NOTES } from '@/lib/demo-data'
+import { parseFunctionNotes, generateBodyFromSchema, extractCommentFrontmatter } from '@/lib/edge-function-utils'
 
 interface InvokeResult {
   data?: unknown
@@ -41,7 +47,7 @@ interface InvokeResult {
 }
 
 export function EdgeFunctionsPanel() {
-  const { activeConnectionId, connections, edgeFunctions, setEdgeFunctions, addActivityLog } = useSupabaseStore()
+  const { activeConnectionId, connections, edgeFunctions, setEdgeFunctions, addActivityLog, functionNotes, setFunctionNotes } = useSupabaseStore()
   const activeConnection = connections.find((c) => c.id === activeConnectionId) || null
 
   const [isLoading, setIsLoading] = useState(false)
@@ -59,6 +65,19 @@ export function EdgeFunctionsPanel() {
   const [isInvoking, setIsInvoking] = useState(false)
   const [invokeResult, setInvokeResult] = useState<InvokeResult | null>(null)
   const [copied, setCopied] = useState(false)
+
+  // Schema / notes state
+  const [isEditingNotes, setIsEditingNotes] = useState(false)
+  const [draftNotes, setDraftNotes] = useState('')
+  const [isAutoFetchingNotes, setIsAutoFetchingNotes] = useState(false)
+
+  const notesKey = activeConnectionId && selectedFunction
+    ? `${activeConnectionId}:${selectedFunction.name}`
+    : null
+
+  const savedNotes = notesKey ? (functionNotes[notesKey] ?? '') : ''
+
+  const parsedSchema = useMemo(() => parseFunctionNotes(savedNotes), [savedNotes])
 
   const fetchFunctions = useCallback(async () => {
     if (!activeConnectionId) return
@@ -172,6 +191,8 @@ export function EdgeFunctionsPanel() {
     setInvokeResult(null)
     setHttpMethod('POST')
     setCustomHeaders([{ key: '', value: '' }])
+    setIsEditingNotes(false)
+    setDraftNotes('')
 
     if (!selectedFunction) return
     const name = selectedFunction.name
@@ -192,6 +213,45 @@ export function EdgeFunctionsPanel() {
       setRequestBody('')
     }
   }, [selectedFunction])
+
+  // Auto-seed schema annotations from the deployed source's leading comment
+  // block. Only runs when we have no saved notes for this (connection, function)
+  // and we're on a real (non-demo) connection with an access token.
+  useEffect(() => {
+    if (!notesKey || !selectedFunction || !activeConnection) return
+    if (savedNotes) return
+    if (activeConnectionId === DEMO_CONNECTION_ID) return
+    if (!activeConnection.accessToken) return
+
+    let cancelled = false
+    setIsAutoFetchingNotes(true)
+    ;(async () => {
+      try {
+        const res = await fetch('/api/edge-functions/source', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            connection: activeConnection,
+            functionName: selectedFunction.name,
+          }),
+        })
+        if (!res.ok) return
+        const data = (await res.json()) as { source?: string; error?: string }
+        if (cancelled || !data.source) return
+        const extracted = extractCommentFrontmatter(data.source)
+        if (extracted) setFunctionNotes(notesKey, extracted)
+      } catch {
+        // Silent — the user can always add schema manually.
+      } finally {
+        if (!cancelled) setIsAutoFetchingNotes(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [notesKey, savedNotes, selectedFunction, activeConnection, activeConnectionId, setFunctionNotes])
+
 
   const addHeader = useCallback(() => {
     setCustomHeaders((prev) => [...prev, { key: '', value: '' }])
@@ -311,6 +371,153 @@ export function EdgeFunctionsPanel() {
                 ))}
               </div>
             </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Function Details + Schema */}
+      {selectedFunction && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Info className="size-4 text-muted-foreground" />
+                <CardTitle className="text-base">
+                  <span className="font-mono">{selectedFunction.name}</span>
+                </CardTitle>
+              </div>
+              <div className="flex items-center gap-1">
+                {!isEditingNotes ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => { setDraftNotes(savedNotes); setIsEditingNotes(true) }}
+                    className="h-7 px-2 text-xs"
+                  >
+                    <Pencil className="size-3 mr-1" />
+                    {savedNotes ? 'Edit schema' : 'Add schema'}
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (notesKey) setFunctionNotes(notesKey, draftNotes)
+                        setIsEditingNotes(false)
+                        toast.success('Schema saved')
+                      }}
+                      className="h-7 px-2 text-xs"
+                    >
+                      <Save className="size-3 mr-1" />
+                      Save
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsEditingNotes(false)}
+                      className="h-7 px-2 text-xs text-muted-foreground"
+                    >
+                      <X className="size-3" />
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-4">
+              {/* Metadata row */}
+              <div className="flex flex-wrap gap-x-6 gap-y-1.5 text-xs text-muted-foreground">
+                <span><span className="font-medium text-foreground">Version</span> v{selectedFunction.version}</span>
+                <span><span className="font-medium text-foreground">Status</span> {selectedFunction.status}</span>
+                <span><span className="font-medium text-foreground">JWT</span> {selectedFunction.verify_jwt ? 'required' : 'disabled'}</span>
+                {selectedFunction.import_map !== undefined && (
+                  <span><span className="font-medium text-foreground">Import map</span> {selectedFunction.import_map ? 'yes' : 'no'}</span>
+                )}
+                {selectedFunction.entrypoint_path && (
+                  <span className="font-mono">{selectedFunction.entrypoint_path}</span>
+                )}
+                <span>{new Date(selectedFunction.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+              </div>
+
+              <Separator />
+
+              {/* Schema / notes */}
+              {isEditingNotes ? (
+                <div className="flex flex-col gap-2">
+                  <Label className="text-xs text-muted-foreground">
+                    Schema annotations — document inputs using <code className="font-mono bg-muted px-1 rounded">@param</code>
+                  </Label>
+                  <Textarea
+                    value={draftNotes}
+                    onChange={(e) => setDraftNotes(e.target.value)}
+                    placeholder={`@description Brief description of what this function does\n\n@param userId string required - The target user's UUID\n@param message string required - The notification message\n@param channel string optional - Channel: push, email, sms`}
+                    className="font-mono text-xs min-h-[120px] bg-muted/50"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Format: <code className="font-mono">@param name type required|optional - description</code>
+                  </p>
+                </div>
+              ) : savedNotes ? (
+                <div className="flex flex-col gap-3">
+                  {parsedSchema.description && (
+                    <p className="text-sm text-muted-foreground">{parsedSchema.description}</p>
+                  )}
+                  {parsedSchema.params.length > 0 ? (
+                    <div className="flex flex-col gap-1">
+                      <div className="grid grid-cols-[auto_auto_auto_1fr] gap-x-3 gap-y-1.5 text-xs items-baseline">
+                        <span className="text-muted-foreground font-medium">Param</span>
+                        <span className="text-muted-foreground font-medium">Type</span>
+                        <span className="text-muted-foreground font-medium">Required</span>
+                        <span className="text-muted-foreground font-medium">Description</span>
+                        {parsedSchema.params.map((p) => (
+                          <>
+                            <code key={`n-${p.name}`} className="font-mono text-primary">{p.name}</code>
+                            <code key={`t-${p.name}`} className="font-mono text-blue-600 dark:text-blue-400">{p.type}</code>
+                            <span key={`r-${p.name}`} className={p.required ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}>
+                              {p.required ? 'yes' : 'no'}
+                            </span>
+                            <span key={`d-${p.name}`} className="text-muted-foreground">{p.description || '—'}</span>
+                          </>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">No @param annotations found — add them in the schema editor.</p>
+                  )}
+                  {parsedSchema.params.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="self-start"
+                      onClick={() => {
+                        const body = generateBodyFromSchema(parsedSchema.params)
+                        if (body) {
+                          setRequestBody(body)
+                          setHttpMethod('POST')
+                          toast.success('Request body generated from schema')
+                        }
+                      }}
+                    >
+                      <Wand2 className="size-3 mr-1.5" />
+                      Fill from schema
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground italic flex items-center gap-2">
+                  {isAutoFetchingNotes ? (
+                    <>
+                      <Loader2 className="size-3 animate-spin" />
+                      Looking for <code className="font-mono not-italic">@param</code> frontmatter in the deployed source…
+                    </>
+                  ) : (
+                    <>No schema annotations yet. Click <span className="font-medium">Add schema</span> to document the expected inputs for this function.</>
+                  )}
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}

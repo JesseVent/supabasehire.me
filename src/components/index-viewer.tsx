@@ -637,7 +637,7 @@ export function IndexViewer() {
                 <span className="font-semibold">{unusedIndexes.length} unused index{unusedIndexes.length !== 1 ? 'es' : ''}</span> detected (0 scans).
                 These indexes may be candidates for removal to save storage and improve write performance:{' '}
                 {unusedIndexes.map((i, idx) => (
-                  <span key={i.indexName}>
+                  <span key={`${i.tableName}-${i.indexName}`}>
                     <code className="rounded bg-amber-100 dark:bg-amber-900/30 px-1 py-0.5 text-xs font-mono">
                       {i.indexName}
                     </code>

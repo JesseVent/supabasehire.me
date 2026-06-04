@@ -1,6 +1,10 @@
-// Demonstrates OpenTelemetry instrumentation in a Supabase edge function.
-// Runs 3 chained SQL queries (simulating agentic steps), wraps each in an
-// OTLP span, and returns the trace alongside the query results in the response.
+// supabase/functions/agent-query/index.ts
+//
+// @description Demonstrates OpenTelemetry instrumentation in a Supabase edge function.
+//   Runs 3 chained SQL queries against the project database (discover_tables →
+//   inspect_columns → count_rows), wraps each in an OTLP span under a single root
+//   span, and returns { steps, otlpTrace } for rendering in AgentPrism.
+//   Takes no JSON body — only auth via apikey/Authorization header.
 //
 // Deploy: supabase functions deploy agent-query --no-verify-jwt
 

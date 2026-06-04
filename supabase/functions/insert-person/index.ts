@@ -1,5 +1,27 @@
 // supabase/functions/insert-person/index.ts
-// Inserts a single OMOP CDM v5.4 person record into public.person
+//
+// @description Inserts a single OMOP CDM v5.4 person record into public.person.
+//   Returns the created row (201) or a structured error (400 on missing/invalid body,
+//   401 unauthorized, 409 on duplicate person_id, 500 on insert failure).
+//
+// @param person_id number required - Unique OMOP person identifier (primary key)
+// @param gender_concept_id number required - OMOP concept ID for gender (e.g. 8507 male, 8532 female)
+// @param year_of_birth number required - 4-digit year of birth
+// @param race_concept_id number required - OMOP concept ID for race (e.g. 8527 white)
+// @param ethnicity_concept_id number required - OMOP concept ID for ethnicity (e.g. 38003564 not hispanic)
+// @param month_of_birth number optional - Month of birth (1-12)
+// @param day_of_birth number optional - Day of birth (1-31)
+// @param birth_datetime string optional - Full birth datetime in ISO 8601 format
+// @param location_id number optional - FK to public.location
+// @param provider_id number optional - FK to public.provider (primary care provider)
+// @param care_site_id number optional - FK to public.care_site
+// @param person_source_value string optional - Source system patient identifier (e.g. PAT-123456)
+// @param gender_source_value string optional - Raw gender value from source system
+// @param gender_source_concept_id number optional - Source vocabulary concept for gender
+// @param race_source_value string optional - Raw race value from source system
+// @param race_source_concept_id number optional - Source vocabulary concept for race
+// @param ethnicity_source_value string optional - Raw ethnicity value from source system
+// @param ethnicity_source_concept_id number optional - Source vocabulary concept for ethnicity
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { isAuthorized } from '../_shared/auth.ts';
