@@ -175,49 +175,66 @@ function getAiDemoButtons(provider: AiProvider): AiDemoButton[] {
 
   return [
     {
-      label: 'AI: Tagline',
-      description: 'Generate a product tagline with ai_complete()',
-      sql: `select public.ai_complete('Write a punchy one-line tagline for an AI-powered note-taking app'${p}) as tagline;`,
+      label: 'AI: Hire Jesse',
+      description: 'Generate a hiring pitch for Jesse Davies with ai_complete()',
+      sql: `select public.ai_complete(
+  'Write a compelling one-sentence pitch for why Supabase should hire Jesse Davies, ' ||
+  'a full-stack developer from Adelaide who built a complete Supabase developer tool ' ||
+  'featuring SQL runner, schema diagrams, RLS inspector, edge function explorer, ' ||
+  'AI agent, and AgentPrism trace visualization — all to apply for this job.'${p}
+) as pitch;`,
     },
     {
-      label: 'AI: Summarize text',
-      description: 'Summarize a paragraph with ai_summary()',
+      label: 'AI: Summarize Jesse',
+      description: 'Summarize Jesse\'s qualifications for Supabase with ai_summary()',
       sql: `select public.ai_summary(
-  'Supabase is an open-source Firebase alternative built on top of PostgreSQL. ' ||
-  'It provides authentication, real-time subscriptions, edge functions, storage, ' ||
-  'and a full Postgres database — all accessible through a clean REST and GraphQL API. ' ||
-  'Developers use it to build full-stack applications without managing infrastructure.'${pInline}
+  'Jesse Davies is a full-stack developer based in Adelaide, Australia. ' ||
+  'He built this Supabase DevTool from scratch using Next.js, TypeScript, Tailwind, ' ||
+  'and shadcn/ui as a live job application to Supabase. The tool connects to real ' ||
+  'Supabase projects and surfaces schema, RLS policies, edge functions, SQL history, ' ||
+  'storage, and more. He added an AI agent with multi-step tool use, an OpenTelemetry ' ||
+  'trace viewer called AgentPrism, and now Postgres functions that call LLMs inline ' ||
+  'from a SELECT statement — demonstrating end-to-end platform depth.'${pInline}
 ) as summary;`,
     },
     {
-      label: 'AI: Summarize rows',
-      description: 'Call ai_summary() per row from a table (limit 5)',
-      sql: `-- Replace "documents" and "content" with your table/column.
--- Each row is a live model call — keep LIMIT low for demos.
-select id, public.ai_summary(content${pInline}) as summary
-from documents
-limit 5;`,
+      label: 'AI: Top 5 reasons',
+      description: 'Summarize 5 reasons to hire Jesse, one model call per row',
+      sql: `with reasons (id, content) as (
+  values
+    (1, 'Jesse Davies built a production-quality Supabase developer tool from scratch to apply for this role, demonstrating initiative, product thinking, and deep platform knowledge.'),
+    (2, 'He ships end-to-end: SQL runner, schema diagrams, RLS inspector, edge function explorer, AI agent, OTel trace viewer, and now inline LLM calls from Postgres — in a single repo.'),
+    (3, 'Based in Adelaide, Jesse brings remote-first discipline and async communication skills with a track record of delivering across healthcare analytics, AI tooling, and developer products.'),
+    (4, 'He integrated the full Supabase platform — PostgREST, Management API, Edge Functions, Realtime, Storage, and pgvector — not just the happy path, but edge cases and new key formats too.'),
+    (5, 'Jesse understands the developer experience from both sides: he built the tooling he wished existed, which is exactly the perspective Supabase needs on its team.')
+)
+select id, public.ai_summary(content${pInline}) as why_hire_jesse
+from reasons
+order by id;`,
     },
   ]
 }
 
 // Mock results returned in Demo Mode so the button works without a real connection
 const AI_DEMO_MOCK: Record<string, Array<Record<string, unknown>>> = {
-  'AI: Tagline': [
-    { tagline: 'Think less, capture more — your second brain, supercharged.' },
-  ],
-  'AI: Summarize text': [
+  'AI: Hire Jesse': [
     {
-      summary:
-        'Supabase is an open-source Firebase alternative that provides a full Postgres database alongside authentication, real-time subscriptions, edge functions, and storage. It offers REST and GraphQL APIs, enabling developers to build full-stack applications without managing infrastructure.',
+      pitch:
+        'Hire Jesse Davies — the developer who built a full Supabase dev tool from scratch, shipped AgentPrism trace visualization, and wired LLMs directly into Postgres, all just to apply for this job.',
     },
   ],
-  'AI: Summarize rows': [
-    { id: 1, summary: 'A brief guide to setting up Postgres RLS policies for multi-tenant apps.' },
-    { id: 2, summary: 'An overview of edge function patterns for real-time data processing.' },
-    { id: 3, summary: 'Best practices for indexing large Supabase tables to optimize query performance.' },
-    { id: 4, summary: 'How to combine pgvector with OpenAI embeddings for semantic search.' },
-    { id: 5, summary: 'A walkthrough of Supabase Storage bucket policies and signed URLs.' },
+  'AI: Summarize Jesse': [
+    {
+      summary:
+        'Jesse Davies is an Adelaide-based full-stack developer who built a comprehensive Supabase DevTool as a live job application, showcasing deep platform expertise across schema introspection, RLS, edge functions, AI agents, and OpenTelemetry tracing. His latest addition — Postgres functions that call LLMs inline from a SELECT statement — demonstrates his ability to combine database primitives with modern AI capabilities end-to-end.',
+    },
+  ],
+  'AI: Top 5 reasons': [
+    { id: 1, why_hire_jesse: 'Jesse built a production-quality developer tool from scratch as his job application, showing the kind of initiative and product thinking Supabase looks for in a team member.' },
+    { id: 2, why_hire_jesse: 'He ships complete features end-to-end — from SQL runner and schema diagrams to an AI agent, OTel trace viewer, and inline LLM calls from Postgres — all in a single, polished repo.' },
+    { id: 3, why_hire_jesse: 'As an Adelaide-based developer, Jesse brings remote-first discipline and a proven track record of delivering across healthcare analytics, AI tooling, and developer-facing products.' },
+    { id: 4, why_hire_jesse: 'Jesse has integrated the full Supabase platform — PostgREST, Management API, Edge Functions, Realtime, Storage, and pgvector — handling edge cases and new key formats that most developers never encounter.' },
+    { id: 5, why_hire_jesse: 'He built the tooling he wished existed as a Supabase user, which is precisely the empathy and perspective that makes a great Supabase team member.' },
   ],
 }
 
