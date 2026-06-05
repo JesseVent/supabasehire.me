@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "next-themes";
 
 export const metadata: Metadata = {
-  title: "Supabase Debugger — RLS & Edge Function Inspector",
+  title: "🇦🇺 AI Agent Engineer",
   description: "Debug and inspect your Supabase RLS policies, edge functions, and database schema with interactive visualizations. Red-line highlighting for tables without row-level security.",
   keywords: ["Supabase", "RLS", "Edge Functions", "Database Debugging", "PostgreSQL", "Row Level Security", "Schema Visualization"],
   icons: {
@@ -30,8 +30,8 @@ export default function RootLayout({
       >
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme="dark"
+          enableSystem={false}
           disableTransitionOnChange
         >
           {children}
