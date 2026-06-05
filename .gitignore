@@ -74,3 +74,6 @@ supabase/.temp/
 .agents/skills/
 .antigravitycli/
 /supabasehireme/
+
+# Eval results
+evals/results/

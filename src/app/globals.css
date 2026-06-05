@@ -553,6 +553,9 @@ button, a, [role="button"] {
   animation: shimmer 1.5s ease-in-out infinite;
 }
 
+.scrollbar-none { scrollbar-width: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+
 ::-webkit-scrollbar       { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--gray-24, var(--gray-universal-36)); border-radius: 4px; }

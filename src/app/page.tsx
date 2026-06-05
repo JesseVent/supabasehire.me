@@ -973,52 +973,54 @@ export default function Home() {
           >
             <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 -mx-4 px-4 py-2 border-b border-border/50">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <TabsList className="grid grid-cols-11 w-full sm:w-auto">
+                <div className="w-full overflow-x-auto scrollbar-none">
+                <TabsList className="flex w-max min-w-full sm:min-w-0 sm:w-auto">
                 <TabsTrigger value="dashboard" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
                   <LayoutDashboard className="size-3.5" />
-                  <span className="hidden sm:inline">Dashboard</span>
+                  <span className="inline">Dashboard</span>
                 </TabsTrigger>
                 <TabsTrigger value="schema" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
                   <GitFork className="size-3.5" />
-                  <span className="hidden sm:inline">Schema</span>
+                  <span className="inline">Schema</span>
                 </TabsTrigger>
                 <TabsTrigger value="rls" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
                   <Shield className="size-3.5" />
-                  <span className="hidden sm:inline">RLS</span>
+                  <span className="inline">RLS</span>
                 </TabsTrigger>
                 <TabsTrigger value="edge-functions" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
                   <Zap className="size-3.5" />
-                  <span className="hidden sm:inline">Functions</span>
+                  <span className="inline">Functions</span>
                 </TabsTrigger>
                 <TabsTrigger value="realtime" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
                   <Radio className="size-3.5" />
-                  <span className="hidden sm:inline">Realtime</span>
+                  <span className="inline">Realtime</span>
                 </TabsTrigger>
                 <TabsTrigger value="sql" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
                   <Terminal className="size-3.5" />
-                  <span className="hidden sm:inline">SQL</span>
+                  <span className="inline">SQL</span>
                 </TabsTrigger>
                 <TabsTrigger value="storage" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
                   <HardDrive className="size-3.5" />
-                  <span className="hidden sm:inline">Storage</span>
+                  <span className="inline">Storage</span>
                 </TabsTrigger>
                 <TabsTrigger value="catalog" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
                   <BookOpen className="size-3.5" />
-                  <span className="hidden sm:inline">Catalog</span>
+                  <span className="inline">Catalog</span>
                 </TabsTrigger>
                 <TabsTrigger value="analytics" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
                   <Layers className="size-3.5" />
-                  <span className="hidden sm:inline">Analytics</span>
+                  <span className="inline">Analytics</span>
                 </TabsTrigger>
                 <TabsTrigger value="traces" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
                   <Activity className="size-3.5" />
-                  <span className="hidden sm:inline">Traces</span>
+                  <span className="inline">Traces</span>
                 </TabsTrigger>
                 <TabsTrigger value="settings" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
                   <Settings className="size-3.5" />
-                  <span className="hidden sm:inline">Settings</span>
+                  <span className="inline">Settings</span>
                 </TabsTrigger>
               </TabsList>
+                </div>
 
               {/* Schema tab actions */}
               {(activePanel === 'schema') && (
@@ -1034,7 +1036,7 @@ export default function Home() {
                           className="gap-1.5"
                         >
                           <Camera className="size-3.5" />
-                          <span className="hidden sm:inline">Snapshot</span>
+                          <span className="inline">Snapshot</span>
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>Take a schema snapshot</TooltipContent>
