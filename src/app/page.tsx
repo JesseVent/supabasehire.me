@@ -126,6 +126,7 @@ import { DbViewsFunctions } from '@/components/db-views-functions'
 import { DataCatalogPanel } from '@/components/data-catalog-panel'
 import { AnalyticsPanel } from '@/components/analytics-panel'
 import { TracePanel } from '@/components/trace-panel'
+import { apiFetch } from '@/lib/api-auth'
 
 // Dynamic import for SchemaDiagram to avoid SSR issues with ReactFlow
 const SchemaDiagram = dynamic(
@@ -233,11 +234,7 @@ export default function Home() {
     setConnectionHealthMap(prev => ({ ...prev, ...checking }))
     realConnections.forEach(async (c) => {
       try {
-        const res = await fetch(`/api/connections/${c.id}/health`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ connection: c }),
-        })
+        const res = await apiFetch(`/api/connections/${c.id}/health`, c)
         const data = await res.json()
         if (!data.error && data.status) {
           setConnectionHealthMap(prev => ({ ...prev, [c.id]: data.status as 'healthy' | 'degraded' | 'unhealthy' }))
@@ -320,11 +317,7 @@ export default function Home() {
     setSchemaError(null)
     try {
       // Fetch schema
-      const schemaRes = await fetch('/api/schema', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection: activeConn }),
-      })
+      const schemaRes = await apiFetch('/api/schema', activeConn)
       const schemaData = await schemaRes.json()
       if (schemaData.error) {
         setSchemaError(schemaData.error)
@@ -334,11 +327,7 @@ export default function Home() {
       }
 
       // Fetch RLS info
-      const rlsRes = await fetch('/api/rls', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection: activeConn }),
-      })
+      const rlsRes = await apiFetch('/api/rls', activeConn)
       const rlsData = await rlsRes.json()
       if (rlsData.error) {
         // Don't overwrite schema error, but show RLS error
@@ -1929,11 +1918,7 @@ function SettingsPanel({
     setIsRunningHealthCheck(true)
     setHealthCheckError(null)
     try {
-      const res = await fetch(`/api/connections/${connection.id}/health`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection }),
-      })
+      const res = await apiFetch(`/api/connections/${connection.id}/health`, connection)
       const data = await res.json()
       if (data.error) {
         setHealthCheckError(data.error)
