@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
+import { apiFetch } from '@/lib/api-auth'
 import {
   Activity,
   AlertTriangle,
@@ -798,14 +799,9 @@ export function QueryAnalyzer({ activeConnectionId, query: initialQuery }: Query
     }
 
     try {
-      const res = await fetch('/api/sql', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          connection: activeConnection,
+      const res = await apiFetch('/api/sql', activeConnection, {
           query: `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${query.trim()}`,
-        }),
-      })
+        })
 
       const data = await res.json()
       if (data.error) {

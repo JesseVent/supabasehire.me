@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { apiFetch } from '@/lib/api-auth'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Activity,
@@ -189,11 +190,7 @@ export function LatencyMonitor() {
       } else {
         // Real connection — ping /api/project
         const start = performance.now()
-        await fetch('/api/project', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ connection: activeConnection }),
-        })
+        await apiFetch('/api/project', activeConnection)
         duration = Math.round(performance.now() - start)
       }
 

@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
+import { apiFetch } from '@/lib/api-auth'
 import {
   Play,
   Loader2,
@@ -208,14 +209,9 @@ export function MigrationRunner() {
         return
       }
 
-      const res = await fetch('/api/sql', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          connection: activeConnection,
+      const res = await apiFetch('/api/sql', activeConnection, {
           query: migrationSQL.trim(),
-        }),
-      })
+        })
 
       const data = await res.json()
       const sqlResult: SQLQueryResult = data.error

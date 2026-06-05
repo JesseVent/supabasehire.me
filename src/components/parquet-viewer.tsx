@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
+import { apiFetch } from '@/lib/api-auth'
 import {
   FileIcon,
   Loader2,
@@ -150,11 +151,7 @@ export function ParquetViewer({ open, onClose, connection, bucket, filePath, fil
 
     try {
       // 1. Download via proxy
-      const res = await fetch('/api/storage/download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection, bucket, path: filePath }),
-      })
+      const res = await apiFetch('/api/storage/download', connection, { bucket, path: filePath })
       if (!res.ok) {
         let errMsg = 'Download failed'
         try {

@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { executeManagementSQL } from "@/lib/supabase-helpers";
+import { getConnectionFromHeaders } from "@/lib/api-auth";
 import type { SupabaseConnection } from "@/lib/supabase-types";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const connection: SupabaseConnection | null = body.connection || null;
     const { tableId, schemaName, tableName } = body as {
       tableId: string;
       schemaName: string;
       tableName: string;
     };
+    const connection = getConnectionFromHeaders(request);
 
     if (!connection || !tableId || !schemaName || !tableName) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });

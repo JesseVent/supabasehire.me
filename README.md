@@ -20,6 +20,176 @@ A dev tool for Supabase projects. Surfaces everything the platform exposes — M
 
 ---
 
+## Security
+
+### Credentials are stored in `localStorage`
+
+All Supabase connection credentials — URL, anon key, service role key, and access token — are persisted in your browser's `localStorage` via Zustand's `persist` middleware. **This means they are readable from the browser DevTools console and any extension with access to the page's storage.** This is an intentional trade-off for a local dev tool: no server-side session, no database, no cookies. But you should understand the implications:
+
+- **Do not use this tool on a shared or public machine** without clearing storage afterwards
+- **Do not enter production service role keys** — prefer a personal access token (`sbp_...`) for schema inspection, or use the anon key for read-only operations
+- **Do not deploy this app to a public URL** without adding server-side session management and removing `localStorage` persistence
+
+### Credentials are sent in request headers (not body)
+
+Connection credentials are passed to API routes via `X-Supabase-*` request headers, not in the request body. This keeps credentials out of request body logs and payloads. The server-side `getConnectionFromHeaders()` helper extracts them from headers only. See `src/lib/api-auth.ts` for the implementation.
+
+### LLM API keys never reach the browser
+
+The AI agent feature routes all LLM calls through a server-side proxy (`/api/agent/chat`) that injects the API key from an environment variable. The client never sees the key. Provider base URLs are resolved from a hardcoded allowlist to prevent SSRF.
+
+---
+
+## AI Agent
+
+The devtool includes an AI agent that can autonomously query schemas, run SQL, inspect RLS policies, and more. It's powered by [PageAgent](https://github.com/page-agent) and supports OpenAI, Anthropic, and Google models.
+
+### Agent Tools
+
+The agent has 10 custom tools that call the same API routes as the UI, bypassing DOM interactions for structured data:
+
+| Tool | Description |
+|------|-------------|
+| `execute_sql` | Execute any SQL query (SELECT, INSERT, UPDATE, DELETE, DDL) |
+| `explain_query` | Run `EXPLAIN (ANALYZE, BUFFERS)` and return execution time, buffer hit ratio, and detected issues (sequential scans, disk-spilling sorts, nested loop N+1s) with fix suggestions |
+| `get_schema` | Inspect database tables, columns, types, foreign keys, and defaults |
+| `get_rls_policies` | Check Row Level Security status and policies for all tables |
+| `list_storage` | Browse storage buckets and files |
+| `list_edge_functions` | List deployed edge functions |
+| `get_project_info` | Get project metadata (region, size, status) |
+| `get_indexes` | Get database index usage statistics |
+| `get_triggers` | List all database triggers |
+| `get_views_functions` | List all views and stored functions |
+
+### How it works
+
+1. The agent runs in the browser via `page-agent`, which manages the execution loop (plan → act → observe → repeat)
+2. Custom Supabase tools are registered alongside standard DOM tools (click, type, scroll)
+3. LLM calls are proxied through `/api/agent/chat` to keep API keys server-side
+4. An optional **Skill Router** (Supabase Edge Function) provides RAG-based reference loading for domain-specific guidance
+
+### Configuration
+
+The agent is configured per-session via the Agent panel (sidebar). Settings persist in `localStorage`:
+
+- **Provider** — OpenAI, Anthropic, or Google
+- **Model** — e.g. `gpt-5.4`, `claude-sonnet-4-6`, `gemini-2.5-flash`
+- **Max Steps** — maximum agentic loop iterations (default: 40)
+- **Skill Router** — optional Supabase Edge Function URL for reference routing
+
+---
+
+## Skill Router
+
+The Skill Router is an optional Supabase Edge Function that gives the agent RAG-based access to domain-specific reference docs. Before each reasoning step, the agent queries the router with its current task; the router retrieves the most relevant skill chunks from a vector store and injects them into context. This means the agent has up-to-date, task-specific guidance without bloating the base system prompt.
+
+### How it works
+
+1. **User submits a task** — the agent loop starts
+2. **Route** — `SkillRouterClient.route({ prompt, skill_name, top_k })` calls the `skill-router` edge function, which does a vector similarity search over the indexed skill references and returns the top `k` chunks
+3. **Inject** — the returned chunks (each with `title`, `content`, `tags`, `impact`, and a `relevance_reason`) are injected into the agent's context for the current step
+4. **Feedback** — after the task completes, `skill-router-client.feedback({ request_id, outcome })` posts a success/failure signal to the `skill-feedback` edge function, allowing the router to learn over time
+
+### Returned chunks
+
+Each chunk the router returns looks like:
+
+```ts
+interface RoutedChunk {
+  id: string
+  title: string
+  content: string      // the reference text injected into context
+  tags: string[]
+  impact: string       // e.g. "HIGH" — how important this reference is
+  score: number        // cosine similarity score
+  rank: number         // position in result set
+  relevance_reason: string  // LLM-generated explanation of why this chunk matched
+}
+```
+
+### Configuration
+
+The router is configured in the Agent panel under **Skill Router**. All three fields are required to enable it:
+
+| Field | Description |
+|-------|-------------|
+| **URL** | Supabase project URL hosting the `skill-router` edge function |
+| **Anon Key** | Anon key for that project (used as `Authorization: Bearer`) |
+| **Skill Name** | Which skill to query — e.g. `supabase` or `supabase-postgres-best-practices` |
+
+Settings persist in `localStorage` via the agent store. If any field is missing, the agent runs without skill augmentation.
+
+### Client implementation
+
+`src/agent/skill-router-client.ts` is an inlined copy of `@page-agent/skill-router` — pure `fetch`, no runtime dependencies. It wraps the two edge function calls (`skill-router` and `skill-feedback`) and exposes an `asAdapter(skill_name)` method that returns the `SkillRouterAdapter` interface expected by `PageAgentCore`.
+
+---
+
+## Skill Coverage Eval
+
+The devtool includes a **Skill Coverage Matrix** (in the Traces panel) that shows which Supabase skill references are loaded for different user prompts. This is powered by an evaluation harness in the companion [`supabase-devtools`](https://github.com/supabase/supabase-devtools) repository.
+
+### What it evaluates
+
+The eval measures whether the agent loads the **right** skill references for a given user prompt — not too many (wasted tokens) and not too few (missing context). It tests 97 prompts across 8 categories:
+
+| Category | Examples |
+|----------|---------|
+| Schema | "create a table", "foreign key", "partitioning" |
+| Security | "RLS policies", "least privilege", "multi-tenant" |
+| Performance | "slow query", "missing index", "N+1" |
+| Connections | "connection pooling", "idle timeout" |
+| Data Ops | "batch insert", "pagination", "upsert" |
+| Locking | "deadlock prevention", "advisory locks" |
+| Monitoring | "EXPLAIN ANALYZE", "pg_stat_statements" |
+| General | "database health", "backup strategy" |
+
+### How the eval works
+
+1. **Discover** — scans all `SKILL.md` files and reference files from the skills repo
+2. **Prompt** — sends each of the 97 prompts to an LLM (via OpenRouter) along with the full skill catalog
+3. **Classify** — the LLM returns which skills trigger and which specific references it would load
+4. **Report** — results are saved as a coverage matrix (`eval/results/matrix.json`)
+
+The `--noisy` flag injects simulated prior-conversation context (~20K tokens of TypeScript refactoring, CI debugging, etc.) to test whether the skill router drifts when the context window is polluted.
+
+### Running the eval
+
+The eval harness lives in the `supabase-devtools` repo (the skills repository, not this app):
+
+```bash
+# In supabase-devtools/
+pnpm eval                     # run all 97 prompts (clean context)
+pnpm eval --noisy             # run with noisy prior context
+pnpm eval --concurrency 15    # control parallelism
+pnpm eval --model google/gemini-2.5-flash-lite  # use a specific model
+
+pnpm eval:report              # render coverage matrix in terminal
+pnpm eval:report --noisy      # noisy run matrix
+pnpm eval:report --diff       # side-by-side clean vs noisy diff
+pnpm eval:report --md         # also write results/matrix.md
+pnpm eval:report --zero       # show only never-hit references
+```
+
+Requires `OPENROUTER_API_KEY` in `.env`.
+
+### Skill Coverage Matrix in the UI
+
+The `SkillCoverageMatrix` component (`src/components/skill-coverage-matrix.tsx`) renders the eval results as an interactive heatmap inside the Traces panel. Each row is a prompt, each column is a reference file, and cells show whether that reference was loaded (✓) or skipped (·). The sidebar shows hit-rate percentages per reference.
+
+### Key files
+
+| File | Purpose |
+|------|---------|
+| `src/components/skill-coverage-matrix.tsx` | Interactive eval heatmap component |
+| `src/components/trace-panel.tsx` | Traces panel that hosts the matrix |
+| `eval/run.ts` (devtools repo) | Eval runner — prompts → LLM → results |
+| `eval/prompts.ts` (devtools repo) | 97 test prompts across 8 categories |
+| `eval/contexts.ts` (devtools repo) | Simulated noisy conversation contexts |
+| `eval/report.ts` (devtools repo) | Terminal coverage matrix renderer |
+
+---
+
 ## Features
 
 - **Schema Inspector** — browse tables, columns, foreign keys, and constraints with a visual ER diagram (dagre auto-layout, force-directed, and LR modes)
@@ -87,7 +257,7 @@ No environment variables are required to run the app. See `.env.example` for opt
 
 The app is a single-page shell (`src/app/page.tsx`) that manages navigation, connection state, and panel rendering. Feature panels are lazily loaded via `next/dynamic`, keeping the initial bundle small.
 
-All backend logic lives in API routes (`src/app/api/`) — each route reads connection credentials from the request body and proxies calls to the appropriate Supabase API. There is no server-side database; all state (connections, SQL history, schema snapshots, latency records) is persisted client-side via Zustand's `localStorage` middleware.
+All backend logic lives in API routes (`src/app/api/`) — each route reads connection credentials from `X-Supabase-*` request headers (via `getConnectionFromHeaders()` from `src/lib/api-auth.ts`) and proxies calls to the appropriate Supabase API. There is no server-side database; all state (connections, SQL history, schema snapshots, latency records) is persisted client-side via Zustand's `localStorage` middleware.
 
 There are two Supabase auth paths:
 - **Management API** (`api.supabase.com/v1/projects/{ref}/...`) — requires `accessToken` (`sbp_...`). Used for schema introspection, SQL execution, RLS queries, and data catalog profiling.
@@ -135,6 +305,7 @@ src/
     trace-panel.tsx       # Traces panel — invokes edge function, renders OTLP trace
     ...                   # Feature panels (lazy-loaded)
   lib/
+    api-auth.ts            # Header-based auth helpers (client + server)
     supabase-helpers.ts   # Server-side Supabase API calls
     supabase-types.ts     # Shared TypeScript interfaces
     demo-data.ts          # Mock data for Demo Mode

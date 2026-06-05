@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { apiFetch } from '@/lib/api-auth'
 import {
   Zap,
   Search,
@@ -339,11 +340,7 @@ export function TriggerViewer() {
     setIsLimited(false)
 
     try {
-      const res = await fetch('/api/database/triggers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection: activeConnection }),
-      })
+      const res = await apiFetch('/api/database/triggers', activeConnection)
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => null)

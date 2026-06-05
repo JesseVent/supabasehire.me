@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useCallback } from 'react'
+import { apiFetch } from '@/lib/api-auth'
 import {
   Database,
   Search,
@@ -226,11 +227,7 @@ export function IndexViewer() {
     setIsLimited(false)
 
     try {
-      const res = await fetch('/api/database/indexes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection: activeConnection }),
-      })
+      const res = await apiFetch('/api/database/indexes', activeConnection)
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => null)

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractProjectRef } from "@/lib/supabase-types";
+import { getConnectionFromHeaders } from "@/lib/api-auth";
 import type { SupabaseConnection } from "@/lib/supabase-types";
 
 // POST /api/edge-functions/source — Fetch the raw source body of a deployed
@@ -13,10 +14,10 @@ import type { SupabaseConnection } from "@/lib/supabase-types";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { connection, functionName } = body as {
-      connection: SupabaseConnection | null;
+    const { functionName } = body as {
       functionName: string;
     };
+    const connection = getConnectionFromHeaders(request);
 
     if (!connection || !functionName) {
       return NextResponse.json(

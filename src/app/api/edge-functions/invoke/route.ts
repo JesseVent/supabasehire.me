@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getConnectionFromHeaders } from "@/lib/api-auth";
 import type { SupabaseConnection } from "@/lib/supabase-types";
 
 // POST /api/edge-functions/invoke — Invoke an edge function
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { connection, functionName, method, body: functionBody, headers: customHeaders } = body as {
-      connection: SupabaseConnection | null;
+    const { functionName, method, body: functionBody, headers: customHeaders } = body as {
       functionName: string;
       method?: string;
       body?: unknown;
       headers?: Record<string, string>;
     };
+    const connection = getConnectionFromHeaders(request);
 
     if (!connection || !functionName) {
       return NextResponse.json(

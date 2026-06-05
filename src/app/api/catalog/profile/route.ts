@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { executeManagementSQL } from "@/lib/supabase-helpers";
+import { getConnectionFromHeaders } from "@/lib/api-auth";
 import type { SupabaseConnection } from "@/lib/supabase-types";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const connection: SupabaseConnection | null = body.connection || null;
     const tableNames: string[] | undefined = body.tableNames;
+    const connection = getConnectionFromHeaders(request);
 
     if (!connection) {
       return NextResponse.json({ error: "No connection provided" }, { status: 400 });

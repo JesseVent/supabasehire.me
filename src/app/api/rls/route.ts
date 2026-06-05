@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchRLSViaManagementAPI, fetchSchemaViaOpenAPI } from "@/lib/supabase-helpers";
+import { getConnectionFromHeaders } from "@/lib/api-auth";
 import type { TableRLSInfo } from "@/lib/supabase-types";
 import type { SupabaseConnection } from "@/lib/supabase-types";
 
@@ -11,7 +12,7 @@ import type { SupabaseConnection } from "@/lib/supabase-types";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const connection: SupabaseConnection | null = body.connection || null;
+    const connection = getConnectionFromHeaders(request);
 
     if (!connection) {
       return NextResponse.json(

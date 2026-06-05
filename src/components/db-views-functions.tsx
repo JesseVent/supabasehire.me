@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useCallback } from 'react'
+import { apiFetch } from '@/lib/api-auth'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Eye,
@@ -614,11 +615,7 @@ export function DbViewsFunctions() {
     setLimitedMeta(null)
 
     try {
-      const res = await fetch('/api/database/views-functions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection: activeConnection }),
-      })
+      const res = await apiFetch('/api/database/views-functions', activeConnection)
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => null)

@@ -3,6 +3,7 @@
 import '@/components/agent-prism/theme/theme.css'
 
 import { useState } from 'react'
+import { apiFetch } from '@/lib/api-auth'
 import { Activity, Play, AlertCircle, CheckCircle2, Clock, Grid3x3 } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { SkillCoverageMatrix } from '@/components/skill-coverage-matrix'
@@ -61,11 +62,7 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
     setError(null)
 
     try {
-      const res = await fetch('/api/edge-functions/invoke', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection, functionName: 'agent-query' }),
-      })
+      const res = await apiFetch('/api/edge-functions/invoke', connection, { functionName: 'agent-query' })
       const json = await res.json()
 
       if (json.error) {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
+import { apiFetch } from '@/lib/api-auth'
 import {
   RefreshCw,
   Loader2,
@@ -97,11 +98,7 @@ export function TableDataViewer({ connection, tableName, isDemoMode }: TableData
     setIsLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/tables/rows', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection, tableName, limit, offset }),
-      })
+      const res = await apiFetch('/api/tables/rows', connection, { tableName, limit, offset })
       const data: FetchResult = await res.json()
       if (data.error) {
         setError(typeof data.error === 'string' ? data.error : 'Failed to fetch rows')

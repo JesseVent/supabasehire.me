@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getConnectionFromHeaders } from "@/lib/api-auth";
 import type { SupabaseConnection } from "@/lib/supabase-types";
 
 const DEMO_CONNECTION_ID = "__demo__";
@@ -8,11 +9,11 @@ const DEMO_CONNECTION_ID = "__demo__";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { connection, bucket, path } = body as {
-      connection: SupabaseConnection | null;
+    const { bucket, path } = body as {
       bucket: string;
       path: string;
     };
+    const connection = getConnectionFromHeaders(request);
 
     if (!connection || !bucket || !path) {
       return NextResponse.json(

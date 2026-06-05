@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { toast } from 'sonner'
+import { apiFetch } from '@/lib/api-auth'
 import {
   Database,
   Loader2,
@@ -411,11 +412,7 @@ export function AnalyticsPanel({
       let pgError: string | undefined
       try {
         const t0 = performance.now()
-        const res = await fetch('/api/sql', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ connection, query: pgSql }),
-        })
+        const res = await apiFetch('/api/sql', connection, { query: pgSql })
         const data = await res.json()
         pgMs = performance.now() - t0
         if (data.success) {

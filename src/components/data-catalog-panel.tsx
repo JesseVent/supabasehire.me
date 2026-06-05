@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
+import { apiFetch } from '@/lib/api-auth'
 import {
   BookOpen,
   Search,
@@ -329,11 +330,7 @@ export function DataCatalogPanel({
     if (!activeConnection) return
     setIsLoading(true)
     try {
-      const res = await fetch('/api/catalog/load', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection: activeConnection }),
-      })
+      const res = await apiFetch('/api/catalog/load', activeConnection)
       const data = await res.json()
       if (data.error) {
         toast.error('Failed to load catalog', { description: data.error })
@@ -363,11 +360,7 @@ export function DataCatalogPanel({
     if (!activeConnection) return
     setIsSettingUp(true)
     try {
-      const res = await fetch('/api/catalog/setup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection: activeConnection }),
-      })
+      const res = await apiFetch('/api/catalog/setup', activeConnection)
       const data = await res.json()
       if (data.error) {
         toast.error('Setup failed', { description: data.error })
@@ -386,11 +379,7 @@ export function DataCatalogPanel({
     if (!activeConnection) return
     setIsProfilingAll(true)
     try {
-      const res = await fetch('/api/catalog/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection: activeConnection }),
-      })
+      const res = await apiFetch('/api/catalog/profile', activeConnection)
       const data = await res.json()
       if (data.error) {
         toast.error('Profiling failed', { description: data.error })
@@ -409,11 +398,7 @@ export function DataCatalogPanel({
     if (!activeConnection) return
     setReprofilingTable(tableName)
     try {
-      const res = await fetch('/api/catalog/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection: activeConnection, tableNames: [tableName] }),
-      })
+      const res = await apiFetch('/api/catalog/profile', activeConnection, { tableNames: [tableName] })
       const data = await res.json()
       if (data.error) {
         toast.error('Re-profile failed', { description: data.error })
@@ -441,11 +426,7 @@ export function DataCatalogPanel({
       sampleValues: Array.isArray(c.sample_values) ? c.sample_values : [],
     }))
 
-    const res = await fetch('/api/edge-functions/invoke', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        connection: activeConnection,
+    const res = await apiFetch('/api/edge-functions/invoke', activeConnection, {
         functionName: 'catalog-generator',
         method: 'POST',
         body: {
@@ -454,8 +435,7 @@ export function DataCatalogPanel({
           rowCount: table.row_count ?? 0,
           columns: columnPayload,
         },
-      }),
-    })
+      })
     const result = await res.json()
 
     if (result.error) {
@@ -477,14 +457,9 @@ export function DataCatalogPanel({
     // Save table description
     if (aiData.tableDescription) {
       const safe = aiData.tableDescription.replace(/'/g, "''")
-      await fetch('/api/sql', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          connection: activeConnection,
+      await apiFetch('/api/sql', activeConnection, {
           query: `UPDATE catalog_tables SET ai_description = '${safe}' WHERE id = '${table.id}';`,
-        }),
-      })
+        })
     }
 
     // Save column descriptions
@@ -492,14 +467,9 @@ export function DataCatalogPanel({
       for (const [colName, desc] of Object.entries(aiData.columnDescriptions)) {
         const safeDesc = (desc as string).replace(/'/g, "''")
         const safeCol = colName.replace(/'/g, "''")
-        await fetch('/api/sql', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            connection: activeConnection,
+        await apiFetch('/api/sql', activeConnection, {
             query: `UPDATE catalog_columns SET ai_description = '${safeDesc}' WHERE table_id = '${table.id}' AND column_name = '${safeCol}';`,
-          }),
-        })
+          })
       }
     }
 
@@ -547,16 +517,11 @@ export function DataCatalogPanel({
     if (!activeConnection) return
     setCommittingTable(table.table_name)
     try {
-      const res = await fetch('/api/catalog/commit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          connection: activeConnection,
+      const res = await apiFetch('/api/catalog/commit', activeConnection, {
           tableId: table.id,
           schemaName: table.schema_name,
           tableName: table.table_name,
-        }),
-      })
+        })
       const data = await res.json()
       if (data.error) {
         toast.error('Commit failed', { description: data.error })

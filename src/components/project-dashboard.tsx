@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState, useMemo, useRef } from 'react'
+import { apiFetch } from '@/lib/api-auth'
 import { motion } from 'framer-motion'
 import {
   Globe,
@@ -244,11 +245,7 @@ export function ProjectDashboard() {
     setIsLoadingProject(true)
     setProjectError(null)
     try {
-      const res = await fetch('/api/project', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection: activeConnection }),
-      })
+      const res = await apiFetch('/api/project', activeConnection)
       const data = await res.json()
       if (data.project) {
         setProjectInfo(data.project)
@@ -271,11 +268,7 @@ export function ProjectDashboard() {
     if (!activeConnectionId || isDemoMode) return
     setIsLoadingHealth(true)
     try {
-      const res = await fetch(`/api/connections/${activeConnectionId}/health`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection: activeConnection }),
-      })
+      const res = await apiFetch(`/api/connections/${activeConnectionId}/health`, activeConnection)
       const data = await res.json()
       if (data.status) {
         setHealthStatus({ status: data.status, checks: data.checks || [] })

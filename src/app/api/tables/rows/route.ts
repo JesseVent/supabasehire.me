@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getValidApiKey } from '@/lib/supabase-helpers'
+import { getConnectionFromHeaders } from '@/lib/api-auth'
 import { DEMO_TABLE_ROWS } from '@/lib/demo-data'
 import type { SupabaseConnection } from '@/lib/supabase-types'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { connection, tableName, limit = 50, offset = 0 } = body as {
-      connection: SupabaseConnection | null
+    const { tableName, limit = 50, offset = 0 } = body as {
       tableName: string
       limit?: number
       offset?: number
     }
+    const connection = getConnectionFromHeaders(request)
 
     if (!tableName) {
       return NextResponse.json(

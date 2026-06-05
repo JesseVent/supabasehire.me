@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useMemo, Fragment } from 'react'
+import { apiFetch } from '@/lib/api-auth'
 import { toast } from 'sonner'
 import {
   Zap,
@@ -87,11 +88,7 @@ export function EdgeFunctionsPanel() {
     setIsLoading(true)
     setFetchError(null)
     try {
-      const res = await fetch('/api/edge-functions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection: activeConnection }),
-      })
+      const res = await apiFetch('/api/edge-functions', activeConnection)
       const data = await res.json()
       if (data.error) {
         setFetchError(data.error)
@@ -151,17 +148,12 @@ export function EdgeFunctionsPanel() {
         }
       }
 
-      const res = await fetch('/api/edge-functions/invoke', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          connection: activeConnection,
+      const res = await apiFetch('/api/edge-functions/invoke', activeConnection, {
           functionName: selectedFunction.name,
           method: httpMethod,
           body,
           headers: Object.keys(headersObj).length > 0 ? headersObj : undefined,
-        }),
-      })
+        })
 
       const data = await res.json()
       const responseTime = Date.now() - startTime
@@ -231,14 +223,9 @@ export function EdgeFunctionsPanel() {
     setIsAutoFetchingNotes(true)
     ;(async () => {
       try {
-        const res = await fetch('/api/edge-functions/source', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            connection: activeConnection,
+        const res = await apiFetch('/api/edge-functions/source', activeConnection, {
             functionName: selectedFunction.name,
-          }),
-        })
+          })
         if (!res.ok) return
         const data = (await res.json()) as { source?: string; error?: string }
         if (cancelled || !data.source) return

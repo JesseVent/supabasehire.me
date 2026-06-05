@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import { apiFetch } from '@/lib/api-auth'
 import { toast } from 'sonner'
 import {
   Shield,
@@ -84,11 +85,7 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
     }
 
     try {
-      const res = await fetch('/api/rls', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection: activeConnection }),
-      })
+      const res = await apiFetch('/api/rls', activeConnection)
       const data = await res.json()
       if (data.error) {
         setRlsError(data.error)
@@ -114,11 +111,7 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
     setDeletingPolicy(policyName)
     try {
       const sql = `DROP POLICY IF EXISTS "${policyName}" ON "${tableName}";`
-      const res = await fetch('/api/sql', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection: activeConnection, query: sql }),
-      })
+      const res = await apiFetch('/api/sql', activeConnection, { query: sql })
       const data = await res.json()
       if (data.error) {
         toast.error('Failed to delete policy', { description: data.error })
@@ -192,16 +185,11 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
         }
       }
 
-      const res = await fetch('/api/rls/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          connection: activeConnection,
-          tableName: selectedTable,
-          operation: testOperation,
-          role: testRole,
-          filters,
-        }),
+      const res = await apiFetch('/api/rls/test', activeConnection, {
+        tableName: selectedTable,
+        operation: testOperation,
+        role: testRole,
+        filters,
       })
       const data = await res.json()
       const result: RLSTestResult = data.error

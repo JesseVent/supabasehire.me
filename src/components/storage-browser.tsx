@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
+import { apiFetch } from '@/lib/api-auth'
 import { ParquetViewer } from '@/components/parquet-viewer'
 import {
   FolderOpen,
@@ -183,11 +184,7 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
     if (isDemoMode || !connection) return
     setIsLoadingBuckets(true)
     try {
-      const res = await fetch('/api/storage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection, action: 'list-buckets' }),
-      })
+      const res = await apiFetch('/api/storage', connection, { action: 'list-buckets' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to fetch buckets')
       // Normalize API shape → our StorageBucket shape
@@ -216,11 +213,7 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
     if (!connection) return
     setIsLoadingFiles(true)
     try {
-      const res = await fetch('/api/storage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection, action: 'list-files', bucket: bucket.name, prefix: path }),
-      })
+      const res = await apiFetch('/api/storage', connection, { action: 'list-files', bucket: bucket.name, prefix: path })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to fetch files')
       const normalized: StorageFile[] = (data.files || []).map((f: Record<string, unknown>) => {
@@ -290,11 +283,7 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
     if (!connection || !selectedBucket) return
     setIsDeletingId(file.id)
     try {
-      const res = await fetch('/api/storage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection, action: 'delete-file', bucket: selectedBucket.name, prefix: file.fullPath }),
-      })
+      const res = await apiFetch('/api/storage', connection, { action: 'delete-file', bucket: selectedBucket.name, prefix: file.fullPath })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to delete file')
       toast.success(`Deleted ${file.name}`)
@@ -336,17 +325,12 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
       // using a pre-signed approach — simplest: POST to the API route with base64
       const reader = new FileReader()
       reader.onload = async () => {
-        const res = await fetch(`/api/storage/upload`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            connection,
+        const res = await apiFetch('/api/storage/upload', connection, {
             bucket: selectedBucket.name,
             fileName: file.name,
             mimeType: file.type,
             data: (reader.result as string).split(',')[1],
-          }),
-        })
+          })
         const result = await res.json()
         if (!res.ok) throw new Error(result.error || 'Upload failed')
         setUploadProgress(100)

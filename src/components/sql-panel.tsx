@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
+import { apiFetch } from '@/lib/api-auth'
 import {
   Terminal,
   Loader2,
@@ -326,14 +327,7 @@ export function SQLPanel() {
     }
 
     try {
-      const res = await fetch('/api/sql', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          connection: activeConnection,
-          query: query.trim(),
-        }),
-      })
+      const res = await apiFetch('/api/sql', activeConnection, { query: query.trim() })
 
       const data = await res.json()
       const sqlResult: SQLQueryResult = data.error
@@ -396,11 +390,7 @@ export function SQLPanel() {
     }
 
     try {
-      const res = await fetch('/api/sql', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection: activeConnection, query: demo.sql.trim() }),
-      })
+      const res = await apiFetch('/api/sql', activeConnection, { query: demo.sql.trim() })
       const data = await res.json()
       const sqlResult: SQLQueryResult = data.error ? { success: false, error: data.error } : data
       setResult(sqlResult)

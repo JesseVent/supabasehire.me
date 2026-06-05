@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getConnectionFromHeaders } from "@/lib/api-auth";
 import type { SupabaseConnection } from "@/lib/supabase-types";
 
 // POST /api/storage
@@ -6,12 +7,12 @@ import type { SupabaseConnection } from "@/lib/supabase-types";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { connection, action, bucket, prefix = "" } = body as {
-      connection: SupabaseConnection | null;
+    const { action, bucket, prefix = "" } = body as {
       action: string;
       bucket?: string;
       prefix?: string;
     };
+    const connection = getConnectionFromHeaders(request);
 
     if (!connection) {
       return NextResponse.json({ error: "No connection provided" }, { status: 400 });

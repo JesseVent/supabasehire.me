@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractProjectRef } from "@/lib/supabase-types";
+import { getConnectionFromHeaders } from "@/lib/api-auth";
 import type { EdgeFunction, SupabaseConnection } from "@/lib/supabase-types";
 
 // POST /api/edge-functions — List edge functions from Supabase
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const connection: SupabaseConnection | null = body.connection || null;
+    const connection = getConnectionFromHeaders(request);
 
     if (!connection) {
       return NextResponse.json(
