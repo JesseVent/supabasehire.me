@@ -49,10 +49,6 @@ export async function POST(request: NextRequest) {
     const columns = parseMcpSqlRows<ColumnInfo>(colsRaw)
     const foreignKeys = parseMcpSqlRows<ForeignKeyInfo>(fkRaw)
 
-    // DEBUG: log raw and parsed counts to verify parser is working
-    console.log('[DEBUG schema] colsRaw length:', colsRaw.length, 'colsRaw prefix:', colsRaw.substring(0, 200))
-    console.log('[DEBUG schema] parsed columns count:', columns.length)
-
     const tableMap = new Map<string, TableSchema>()
     for (const col of columns) {
       if (!tableMap.has(col.table_name)) {
