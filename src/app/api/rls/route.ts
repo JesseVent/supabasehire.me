@@ -1,98 +1,61 @@
-import { NextRequest, NextResponse } from "next/server";
-import { fetchRLSViaManagementAPI, fetchSchemaViaOpenAPI } from "@/lib/supabase-helpers";
-import { getConnectionFromHeaders } from "@/lib/api-auth";
-import type { TableRLSInfo } from "@/lib/supabase-types";
-import type { SupabaseConnection } from "@/lib/supabase-types";
+import { NextRequest, NextResponse } from 'next/server'
+import { mcpClientFromRequest } from '@/lib/mcp-server-client'
+import type { RLSPolicy, RLSEnabledStatus, TableRLSInfo } from '@/lib/supabase-types'
 
-// POST /api/rls — Fetch RLS policies for all tables
-// Strategy:
-//   1. Management API with access token (full RLS info: policies, enabled status)
-//   2. Secret key — attempt to infer basic access info
-//   3. Publishable key only — return tables with unknown RLS status, note that management token is needed
-export async function POST(request: NextRequest) {
+function parseRows<T>(raw: string): T[] {
   try {
-    const body = await request.json();
-    const connection = getConnectionFromHeaders(request);
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) return parsed as T[]
+    if (Array.isArray(parsed.rows)) return parsed.rows as T[]
+    if (Array.isArray(parsed.data)) return parsed.data as T[]
+  } catch { /* ignore */ }
+  return []
+}
 
-    if (!connection) {
-      return NextResponse.json(
-        { error: "No connection provided" },
-        { status: 400 }
-      );
+const POLICIES_SQL = `
+SELECT
+  schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
+FROM pg_policies
+WHERE schemaname = 'public';
+`
+
+const RLS_STATUS_SQL = `
+SELECT schemaname, tablename, rowsecurity AS rls_enabled
+FROM pg_tables
+WHERE schemaname = 'public';
+`
+
+export async function POST(request: NextRequest) {
+  const client = mcpClientFromRequest(request)
+  if (!client) {
+    return NextResponse.json({ error: 'OAuth access token required.' }, { status: 403 })
+  }
+
+  try {
+    const [policiesRaw, statusRaw] = await Promise.all([
+      client.callTool('execute_sql', { query: POLICIES_SQL }),
+      client.callTool('execute_sql', { query: RLS_STATUS_SQL }),
+    ])
+
+    const policies = parseRows<RLSPolicy>(policiesRaw)
+    const statuses = parseRows<RLSEnabledStatus>(statusRaw)
+
+    const tableMap = new Map<string, TableRLSInfo>()
+    for (const s of statuses) {
+      tableMap.set(s.tablename, { tableName: s.tablename, rlsEnabled: Boolean(s.rls_enabled), policies: [] })
+    }
+    for (const p of policies) {
+      if (!tableMap.has(p.tablename)) {
+        tableMap.set(p.tablename, { tableName: p.tablename, rlsEnabled: false, policies: [] })
+      }
+      tableMap.get(p.tablename)!.policies.push(p)
     }
 
-    // Strategy 1: Use Management API if access token or sbp_ token is available
-    // Check both accessToken and serviceRoleKey — users sometimes store their
-    // personal access token (sbp_...) in the serviceRoleKey field
-    const managementToken = connection.accessToken ||
-      (connection.serviceRoleKey?.startsWith('sbp_') ? connection.serviceRoleKey : null);
-
-    if (managementToken) {
-      const result = await fetchRLSViaManagementAPI(
-        connection.supabaseUrl,
-        managementToken
-      );
-
-      if (result.tables && result.tables.length > 0) {
-        return NextResponse.json({ tables: result.tables });
-      }
-
-      // If Management API fails, fall through to partial approach
-      if (result.error) {
-      }
-    }
-
-    // Strategy 2: Use PostgREST OpenAPI to get table list, then mark RLS as unknown
-    // Only use the actual API key (not sbp_ tokens) for PostgREST
-    const postgrestKey = connection.serviceRoleKey?.startsWith('sbp_')
-      ? connection.anonKey
-      : (connection.serviceRoleKey || connection.anonKey);
-    if (postgrestKey) {
-      const schemaResult = await fetchSchemaViaOpenAPI(
-        connection.supabaseUrl,
-        postgrestKey
-      );
-
-      if (schemaResult.tables && schemaResult.tables.length > 0) {
-        // We know the tables exist but can't determine RLS status
-        // Default to rlsEnabled: false (safer assumption) and note the limitation
-        const tables: TableRLSInfo[] = schemaResult.tables.map((t) => ({
-          tableName: t.tableName,
-          rlsEnabled: false, // Unknown — default to false for safety
-          rlsUnknown: true,
-          policies: [],
-        }));
-
-        return NextResponse.json({
-          tables,
-          _meta: {
-            method: postgrestKey === connection.anonKey ? "publishable_key_inferred" : "secret_key_inferred",
-            rlsStatusUnknown: true,
-            note: "RLS status could not be determined without a management API token. All tables are shown as 'RLS OFF' by default. Add a Supabase management API token for accurate RLS policy information.",
-          },
-        });
-      }
-
-      if (schemaResult.error) {
-        return NextResponse.json(
-          { error: schemaResult.error },
-          { status: 502 }
-        );
-      }
-    }
-
-    // No method available
+    return NextResponse.json({ tables: Array.from(tableMap.values()) })
+  } catch (err) {
     return NextResponse.json(
-      {
-        error: "Cannot fetch RLS info: no management API token or valid API key. Please add a Supabase management API token for RLS policy information.",
-        tables: [],
-      },
-      { status: 400 }
-    );
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to fetch RLS policies" },
+      { error: `RLS fetch failed: ${err instanceof Error ? err.message : String(err)}` },
       { status: 500 }
-    );
+    )
   }
 }

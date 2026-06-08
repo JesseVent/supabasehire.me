@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { extractProjectRef } from "@/lib/supabase-types";
 import { getValidApiKey } from "@/lib/supabase-helpers";
 import { getConnectionFromHeaders } from "@/lib/api-auth";
+import { mcpClientFromRequest } from "@/lib/mcp-server-client";
 import type { SupabaseConnection } from "@/lib/supabase-types";
 
 interface HealthCheck {
@@ -94,60 +95,30 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 2. Check if access token is valid via Management API
+    // 2. Check if access token is valid via MCP
     if (accessToken) {
       try {
-        if (!projectRef) {
-          checks.push({
-            name: "Access Token",
-            status: "warn",
-            message: "Cannot verify — could not extract project ref from URL",
-          });
-        } else {
-          const mgmtResponse = await fetch(
-            `https://api.supabase.com/v1/projects/${projectRef}`,
-            {
-              method: "GET",
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-              },
-              signal: AbortSignal.timeout(10000),
-            }
-          );
-
-          if (mgmtResponse.ok) {
-            accessTokenValid = true;
-            checks.push({
-              name: "Access Token",
-              status: "pass",
-              message: "Access token is valid — Management API accessible",
-            });
-          } else if (mgmtResponse.status === 401 || mgmtResponse.status === 403) {
-            checks.push({
-              name: "Access Token",
-              status: "fail",
-              message: `Access token is invalid or expired (status: ${mgmtResponse.status})`,
-            });
-          } else {
-            checks.push({
-              name: "Access Token",
-              status: "warn",
-              message: `Management API returned status ${mgmtResponse.status}`,
-            });
-          }
-        }
+        const client = mcpClientFromRequest(request);
+        if (!client) throw new Error("no client");
+        await client.callTool("execute_sql", { query: "SELECT 1" });
+        accessTokenValid = true;
+        checks.push({
+          name: "Access Token",
+          status: "pass",
+          message: "Access token is valid — MCP server accessible",
+        });
       } catch {
         checks.push({
           name: "Access Token",
-          status: "warn",
-          message: "Could not reach Supabase Management API — network error",
+          status: "fail",
+          message: "Access token is invalid or expired",
         });
       }
     } else {
       checks.push({
         name: "Access Token",
         status: "warn",
-        message: "No access token configured — RLS & SQL features will not work",
+        message: "No access token configured — connect via OAuth for full access",
       });
     }
 

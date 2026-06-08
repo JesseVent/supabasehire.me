@@ -38,7 +38,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useSupabaseStore } from '@/store/supabase-store'
 import type { EdgeFunction } from '@/lib/supabase-types'
 import { DEMO_CONNECTION_ID, DEMO_FUNCTION_NOTES } from '@/lib/demo-data'
-import { parseFunctionNotes, generateBodyFromSchema, extractCommentFrontmatter } from '@/lib/edge-function-utils'
+import { parseFunctionNotes, generateBodyFromSchema } from '@/lib/edge-function-utils'
 import { BUILT_IN_FUNCTION_SCHEMAS } from '@/config/function-schemas'
 
 interface InvokeResult {
@@ -71,8 +71,6 @@ export function EdgeFunctionsPanel() {
   // Schema / notes state
   const [isEditingNotes, setIsEditingNotes] = useState(false)
   const [draftNotes, setDraftNotes] = useState('')
-  const [isAutoFetchingNotes, setIsAutoFetchingNotes] = useState(false)
-  const [sourceFetchResult, setSourceFetchResult] = useState<'ok' | 'bundle' | 'error' | null>(null)
 
   const notesKey = activeConnectionId && selectedFunction
     ? `${activeConnectionId}:${selectedFunction.name}`
@@ -188,7 +186,6 @@ export function EdgeFunctionsPanel() {
     setCustomHeaders([{ key: '', value: '' }])
     setIsEditingNotes(false)
     setDraftNotes('')
-    setSourceFetchResult(null)
 
     if (!selectedFunction) return
     const name = selectedFunction.name
@@ -210,44 +207,6 @@ export function EdgeFunctionsPanel() {
     }
   }, [selectedFunction])
 
-  // Auto-seed schema annotations from the deployed source's leading comment
-  // block. Only runs when we have no saved notes for this (connection, function)
-  // and we're on a real (non-demo) connection with an access token.
-  useEffect(() => {
-    if (!notesKey || !selectedFunction || !activeConnection) return
-    if (savedNotes) return
-    if (activeConnectionId === DEMO_CONNECTION_ID) return
-    if (!activeConnection.accessToken) return
-
-    let cancelled = false
-    setIsAutoFetchingNotes(true)
-    ;(async () => {
-      try {
-        const res = await apiFetch('/api/edge-functions/source', activeConnection, {
-            functionName: selectedFunction.name,
-          })
-        if (!res.ok) return
-        const data = (await res.json()) as { source?: string; error?: string }
-        if (cancelled || !data.source) return
-        const extracted = extractCommentFrontmatter(data.source)
-        if (extracted) {
-          setFunctionNotes(notesKey, extracted)
-          if (!cancelled) setSourceFetchResult('ok')
-        } else {
-          // Binary eszip bundle or no recognizable frontmatter
-          if (!cancelled) setSourceFetchResult('bundle')
-        }
-      } catch {
-        if (!cancelled) setSourceFetchResult('error')
-      } finally {
-        if (!cancelled) setIsAutoFetchingNotes(false)
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [notesKey, savedNotes, selectedFunction, activeConnection, activeConnectionId, setFunctionNotes])
 
 
   const addHeader = useCallback(() => {
@@ -513,17 +472,8 @@ export function EdgeFunctionsPanel() {
                   )}
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground italic flex items-center gap-2">
-                  {isAutoFetchingNotes ? (
-                    <>
-                      <Loader2 className="size-3 animate-spin" />
-                      Looking for <code className="font-mono not-italic">@param</code> frontmatter in the deployed source…
-                    </>
-                  ) : sourceFetchResult === 'bundle' ? (
-                    <>Deployed as a compiled bundle — source cannot be read. Click <span className="font-medium not-italic">Add schema</span> to annotate inputs manually.</>
-                  ) : (
-                    <>No schema annotations yet. Click <span className="font-medium not-italic">Add schema</span> to document the expected inputs for this function.</>
-                  )}
+                <p className="text-xs text-muted-foreground italic">
+                  No schema annotations yet. Click <span className="font-medium not-italic">Add schema</span> to document the expected inputs for this function.
                 </p>
               )}
             </div>
@@ -539,9 +489,7 @@ export function EdgeFunctionsPanel() {
               Invoke: <span className="font-mono">{selectedFunction.name}</span>
             </CardTitle>
             <CardDescription>
-              {selectedFunction.name === 'insert-person'
-                ? 'Inserts an OMOP person record — subscribe to the person table in Realtime to see the INSERT event live.'
-                : 'Send a request to this edge function'}
+              Send a request to this edge function
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -1,52 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const MGMT_API = 'https://api.supabase.com'
+// Server-side proxy for Supabase token exchange and refresh.
+// api.supabase.com/v1/oauth/token blocks CORS from browser origins,
+// so both exchangeCode() and refreshAccessToken() route through here.
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.text()
 
-export async function POST(req: NextRequest) {
-  const clientId = process.env.NEXT_PUBLIC_OAUTH_CLIENT_ID
-  const clientSecret = process.env.OAUTH_CLIENT_SECRET
+    const res = await fetch('https://api.supabase.com/v1/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    })
 
-  if (!clientId || !clientSecret) {
+    const data = await res.json().catch(() => ({}))
+
+    if (!res.ok) {
+      return NextResponse.json(
+        { error: (data as Record<string, string>).error ?? `Token request failed (${res.status})` },
+        { status: res.status }
+      )
+    }
+
+    return NextResponse.json(data)
+  } catch (err) {
     return NextResponse.json(
-      { error: 'OAuth not configured — set NEXT_PUBLIC_OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET' },
-      { status: 503 }
+      { error: `Token proxy failed: ${err instanceof Error ? err.message : String(err)}` },
+      { status: 500 }
     )
   }
-
-  let body: { code?: string; code_verifier?: string; redirect_uri?: string }
-  try {
-    body = await req.json()
-  } catch {
-    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
-  }
-
-  const { code, code_verifier, redirect_uri } = body
-  if (!code || !code_verifier || !redirect_uri) {
-    return NextResponse.json({ error: 'Missing code, code_verifier, or redirect_uri' }, { status: 400 })
-  }
-
-  const tokenRes = await fetch(`${MGMT_API}/v1/oauth/token`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      Authorization: `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
-    },
-    body: new URLSearchParams({
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri,
-      code_verifier,
-    }),
-  })
-
-  if (!tokenRes.ok) {
-    const text = await tokenRes.text()
-    return NextResponse.json({ error: `Token exchange failed: ${text}` }, { status: tokenRes.status })
-  }
-
-  const tokens = await tokenRes.json()
-  return NextResponse.json({
-    access_token: tokens.access_token,
-    refresh_token: tokens.refresh_token,
-  })
 }

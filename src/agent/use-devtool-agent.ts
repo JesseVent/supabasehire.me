@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAgentStore, type AgentChatMessage } from '@/store/agent-store'
 import { useSupabaseStore } from '@/store/supabase-store'
 import type { SupabaseConnection } from '@/lib/supabase-types'
-import { supabaseTools, type ConnectionData } from '@/agent/supabase-tools'
 import { SkillRouterClient } from '@/agent/skill-router-client'
 import { adaptMcpToolsViaApi } from '@/lib/mcp-tool-adapter'
 
@@ -71,19 +70,6 @@ export function useDevtoolAgent(): UseDevtoolAgentReturn {
 	const [isReady, setIsReady] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 
-	// Get active connection data for Supabase tools
-	const getActiveConnection = useCallback(async (): Promise<ConnectionData> => {
-		const conn = connections.find((c: SupabaseConnection) => c.id === activeConnectionId)
-		if (!conn) {
-			throw new Error('No active Supabase connection. Connect to a project first.')
-		}
-		return {
-			supabaseUrl: conn.supabaseUrl,
-			anonKey: conn.anonKey,
-			serviceRoleKey: conn.serviceRoleKey,
-			accessToken: conn.accessToken,
-		}
-	}, [connections, activeConnectionId])
 
 	// Initialize the agent
 	useEffect(() => {
@@ -102,30 +88,12 @@ export function useDevtoolAgent(): UseDevtoolAgentReturn {
 
 				if (cancelled) return
 
-				// Build Supabase tools as page-agent-compatible tools
+				// Load all Supabase tools from the hosted MCP server via the server-side proxy.
 				const customToolEntries: Record<string, unknown> = {}
-
-				for (const [name, sTool] of Object.entries(supabaseTools)) {
-					customToolEntries[name] = tool({
-						description: sTool.description,
-						inputSchema: sTool.inputSchema,
-						execute: async function (this: PageAgentCore, input: unknown) {
-							try {
-								const conn = await getActiveConnection()
-								return await sTool.execute(input, () => Promise.resolve(conn))
-							} catch (err) {
-								return `Error: ${err instanceof Error ? err.message : String(err)}`
-							}
-						},
-					})
-				}
-
-				// Load MCP tools via the server-side proxy route (avoids CORS on mcp.supabase.com).
-				// These supplement the hardcoded tools above with dynamically discovered capabilities.
 				const activeConn = connections.find((c: SupabaseConnection) => c.id === activeConnectionId)
 				if (activeConn?.accessToken) {
 					try {
-						const mcpAdapted = await adaptMcpToolsViaApi(activeConn)
+						const mcpAdapted = await adaptMcpToolsViaApi(activeConn as unknown as Parameters<typeof adaptMcpToolsViaApi>[0])
 						for (const [name, mcpTool] of Object.entries(mcpAdapted)) {
 							customToolEntries[name] = tool({
 								description: mcpTool.description,
@@ -141,7 +109,7 @@ export function useDevtoolAgent(): UseDevtoolAgentReturn {
 						}
 						console.debug(`[DevtoolAgent] MCP: loaded ${Object.keys(mcpAdapted).length} tools`)
 					} catch (err) {
-						console.warn('[DevtoolAgent] MCP tools unavailable, using built-in tools only:', err)
+						console.warn('[DevtoolAgent] MCP tools unavailable:', err)
 					}
 				}
 

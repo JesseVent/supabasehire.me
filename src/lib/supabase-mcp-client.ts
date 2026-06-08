@@ -15,7 +15,7 @@ export class SupabaseMcpClient {
 	private _connected = false
 
 	constructor(opts: {
-		projectRef: string
+		projectRef?: string
 		accessToken: string
 		readOnly?: boolean
 		features?: string[]
@@ -25,7 +25,7 @@ export class SupabaseMcpClient {
 		 */
 		onTokenRefresh?: () => Promise<string | null>
 	}) {
-		this.projectRef = opts.projectRef
+		this.projectRef = opts.projectRef ?? ''
 		this._token = opts.accessToken
 		this.readOnly = opts.readOnly
 		this.features = opts.features
@@ -72,7 +72,7 @@ export class SupabaseMcpClient {
 
 	private async _doConnect(): Promise<void> {
 		const url = new URL(MCP_BASE_URL)
-		url.searchParams.set('project_ref', this.projectRef)
+		if (this.projectRef) url.searchParams.set('project_ref', this.projectRef)
 		if (this.readOnly) url.searchParams.set('read_only', 'true')
 		if (this.features?.length) url.searchParams.set('features', this.features.join(','))
 

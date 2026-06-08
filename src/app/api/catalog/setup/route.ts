@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { executeManagementSQL } from "@/lib/supabase-helpers";
-import { getConnectionFromHeaders } from "@/lib/api-auth";
-import type { SupabaseConnection } from "@/lib/supabase-types";
+import { NextRequest, NextResponse } from 'next/server'
+
+import { mcpClientFromRequest } from '@/lib/mcp-server-client'
 
 const SETUP_SQL = `
 CREATE TABLE IF NOT EXISTS catalog_tables (
@@ -29,38 +28,24 @@ CREATE TABLE IF NOT EXISTS catalog_columns (
   ai_description text,
   UNIQUE(table_id, column_name)
 );
-`;
+`
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const connection = getConnectionFromHeaders(request);
-
-    if (!connection) {
-      return NextResponse.json({ error: "No connection provided" }, { status: 400 });
-    }
-
-    const managementToken = connection.accessToken ||
-      (connection.serviceRoleKey?.startsWith("sbp_") ? connection.serviceRoleKey : null);
-
-    if (!managementToken) {
+    const client = mcpClientFromRequest(request)
+    if (!client) {
       return NextResponse.json(
-        { error: "Management API token required. Add your access token in Settings." },
+        { error: 'OAuth access token required. Connect via OAuth to enable catalog setup.' },
         { status: 403 }
-      );
+      )
     }
 
-    const result = await executeManagementSQL(connection.supabaseUrl, managementToken, SETUP_SQL);
-
-    if (result.error) {
-      return NextResponse.json({ error: result.error }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true });
+    await client.callTool('execute_sql', { query: SETUP_SQL })
+    return NextResponse.json({ success: true })
   } catch (err) {
     return NextResponse.json(
       { error: `Setup failed: ${err instanceof Error ? err.message : String(err)}` },
       { status: 500 }
-    );
+    )
   }
 }

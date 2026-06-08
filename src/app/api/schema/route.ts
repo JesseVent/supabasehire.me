@@ -1,113 +1,79 @@
-import { NextRequest, NextResponse } from "next/server";
-import { fetchSchemaViaManagementAPI, fetchSchemaViaOpenAPI, fetchSchemaViaRestAPI } from "@/lib/supabase-helpers";
-import { getConnectionFromHeaders } from "@/lib/api-auth";
-import type { SupabaseConnection } from "@/lib/supabase-types";
+import { NextRequest, NextResponse } from 'next/server'
+import { mcpClientFromRequest } from '@/lib/mcp-server-client'
+import type { TableSchema, ColumnInfo, ForeignKeyInfo } from '@/lib/supabase-types'
 
-// POST /api/schema — Fetch database schema from Supabase
-// Strategy:
-//   1. Management API with access token (most complete: columns, types, FKs, defaults)
-//   2. PostgREST OpenAPI with secret key (JWT format, basic schema)
-//   3. REST API discovery with publishable key (limited, may not work)
-export async function POST(request: NextRequest) {
+function parseRows<T>(raw: string): T[] {
   try {
-    const body = await request.json();
-    const connection = getConnectionFromHeaders(request);
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) return parsed as T[]
+    if (Array.isArray(parsed.rows)) return parsed.rows as T[]
+    if (Array.isArray(parsed.data)) return parsed.data as T[]
+  } catch { /* ignore */ }
+  return []
+}
 
-    if (!connection) {
-      return NextResponse.json(
-        { error: "No connection provided" },
-        { status: 400 }
-      );
+const COLUMNS_SQL = `
+SELECT
+  t.table_name,
+  c.column_name,
+  c.data_type,
+  c.is_nullable,
+  c.column_default,
+  c.ordinal_position
+FROM information_schema.tables t
+JOIN information_schema.columns c
+  ON t.table_name = c.table_name AND c.table_schema = 'public'
+WHERE t.table_schema = 'public'
+  AND t.table_type = 'BASE TABLE'
+ORDER BY t.table_name, c.ordinal_position;
+`
+
+const FK_SQL = `
+SELECT
+  tc.table_name,
+  kcu.column_name,
+  ccu.table_name AS foreign_table_name,
+  ccu.column_name AS foreign_column_name
+FROM information_schema.table_constraints AS tc
+JOIN information_schema.key_column_usage AS kcu
+  ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+JOIN information_schema.constraint_column_usage AS ccu
+  ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
+WHERE tc.constraint_type = 'FOREIGN KEY'
+  AND tc.table_schema = 'public';
+`
+
+export async function POST(request: NextRequest) {
+  const client = mcpClientFromRequest(request)
+  if (!client) {
+    return NextResponse.json({ error: 'OAuth access token required.' }, { status: 403 })
+  }
+
+  try {
+    const [colsRaw, fkRaw] = await Promise.all([
+      client.callTool('execute_sql', { query: COLUMNS_SQL }),
+      client.callTool('execute_sql', { query: FK_SQL }).catch(() => '[]'),
+    ])
+
+    const columns = parseRows<ColumnInfo>(colsRaw)
+    const foreignKeys = parseRows<ForeignKeyInfo>(fkRaw)
+
+    const tableMap = new Map<string, TableSchema>()
+    for (const col of columns) {
+      if (!tableMap.has(col.table_name)) {
+        tableMap.set(col.table_name, { tableName: col.table_name, columns: [], foreignKeys: [] })
+      }
+      tableMap.get(col.table_name)!.columns.push(col)
+    }
+    for (const fk of foreignKeys) {
+      tableMap.get(fk.table_name)?.foreignKeys.push(fk)
     }
 
-    const errors: string[] = [];
-
-    // Strategy 1: Use Management API if access token or sbp_ token is available
-    // Check both accessToken and serviceRoleKey — users sometimes store their
-    // personal access token (sbp_...) in the serviceRoleKey field
-    const managementToken = connection.accessToken ||
-      (connection.serviceRoleKey?.startsWith('sbp_') ? connection.serviceRoleKey : null);
-
-    if (managementToken) {
-      const result = await fetchSchemaViaManagementAPI(
-        connection.supabaseUrl,
-        managementToken
-      );
-
-      if (result.tables && result.tables.length > 0) {
-        return NextResponse.json({ tables: result.tables });
-      }
-
-      if (result.error) {
-        errors.push(`Management API: ${result.error}`);
-      }
-    }
-
-    // Strategy 2: Use PostgREST OpenAPI with secret key (old JWT format only)
-    // New sb_publishable_ keys don't work with the OpenAPI spec endpoint
-    const secretKey = connection.serviceRoleKey?.startsWith('sbp_') ||
-      connection.serviceRoleKey?.startsWith('sb_publishable_')
-        ? null  // Don't try sbp_ or sb_publishable_ with PostgREST OpenAPI
-        : connection.serviceRoleKey;
-
-    const openApiKey = secretKey || (connection.anonKey?.startsWith('eyJ') ? connection.anonKey : null);
-
-    if (openApiKey) {
-      const result = await fetchSchemaViaOpenAPI(
-        connection.supabaseUrl,
-        openApiKey
-      );
-
-      if (result.tables && result.tables.length > 0) {
-        return NextResponse.json({
-          tables: result.tables,
-          _meta: {
-            method: openApiKey === connection.anonKey ? "publishable_key" : "secret_key",
-            note: "Schema fetched via PostgREST OpenAPI. Some details (FK relationships, defaults) may be limited. Add a management API token for full schema info.",
-          },
-        });
-      }
-
-      if (result.error) {
-        errors.push(`PostgREST: ${result.error}`);
-      }
-    }
-
-    // Strategy 3: Try REST API discovery with publishable key
-    if (connection.anonKey) {
-      const result = await fetchSchemaViaRestAPI(
-        connection.supabaseUrl,
-        connection.anonKey
-      );
-
-      if (result.tables && result.tables.length > 0) {
-        return NextResponse.json({
-          tables: result.tables,
-          _meta: {
-            method: "rest_api",
-            note: "Schema fetched via REST API discovery. Add a management API token for full schema info including foreign keys and defaults.",
-          },
-        });
-      }
-
-      if (result.error) {
-        errors.push(`REST API: ${result.error}`);
-      }
-    }
-
-    // All methods failed
-    const errorDetail = errors.length > 0 ? errors.join('; ') : 'No valid credentials available';
+    return NextResponse.json({ tables: Array.from(tableMap.values()) })
+  } catch (err) {
     return NextResponse.json(
-      {
-        error: `Cannot fetch schema. ${errorDetail}. Please add a valid Supabase Management API token (Personal Access Token from your dashboard at supabase.com/dashboard/account/tokens) for full schema access.`,
-        tables: [],
-      },
-      { status: 400 }
-    );
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to fetch schema" },
+      { error: `Schema fetch failed: ${err instanceof Error ? err.message : String(err)}` },
       { status: 500 }
-    );
+    )
   }
 }

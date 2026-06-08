@@ -38,7 +38,6 @@ import {
   FileText,
   Lightbulb,
   X,
-  Radio,
   ExternalLink,
   HardDrive,
   Camera,
@@ -105,7 +104,6 @@ import { TableDataViewer } from '@/components/table-data-viewer'
 import { KeyboardShortcuts } from '@/components/keyboard-shortcuts'
 import { ProjectDashboard } from '@/components/project-dashboard'
 import { ExportReport } from '@/components/export-report'
-import { RealtimeListener } from '@/components/realtime-listener'
 import { CommandPalette } from '@/components/command-palette'
 import {
   AlertDialog,
@@ -131,14 +129,14 @@ import {
   generatePKCE,
   buildAuthorizeUrl,
   exchangeCode,
-  listProjects,
-  getProjectKeys,
   getCallbackUrl,
+  getOrRegisterDcrClient,
   openOAuthPopup,
   waitForOAuthCallback,
-  OAuthScopeError,
   type OAuthProject,
+  type DcrClient,
 } from '@/lib/supabase-oauth'
+// import { SupabaseMcpClient } from '@/lib/supabase-mcp-client'
 
 // Dynamic import for SchemaDiagram to avoid SSR issues with ReactFlow
 const SchemaDiagram = dynamic(
@@ -207,10 +205,9 @@ export default function Home() {
     setIsOAuthConnecting(true)
     setCreateError(null)
     try {
-      const clientId = process.env.NEXT_PUBLIC_OAUTH_CLIENT_ID
-      if (!clientId) throw new Error('OAuth not configured')
-
       const redirectUri = getCallbackUrl()
+      const { clientId, clientSecret } = await getOrRegisterDcrClient(redirectUri)
+
       const { codeVerifier, codeChallenge } = await generatePKCE()
       const state = crypto.randomUUID()
       const authorizeUrl = buildAuthorizeUrl(clientId, redirectUri, codeChallenge, state)
@@ -219,10 +216,26 @@ export default function Home() {
       if (!popup) throw new Error('Popup blocked — allow popups for this site and try again.')
 
       const code = await waitForOAuthCallback(state, popup)
-      console.log('[OAuth] got code, exchanging...')
-      const { accessToken, refreshToken } = await exchangeCode(code, codeVerifier, redirectUri)
-      console.log('[OAuth] token exchange ok, fetching projects...')
-      const projects = await listProjects(accessToken)
+      const { accessToken, refreshToken } = await exchangeCode(clientId, code, codeVerifier, redirectUri, clientSecret)
+
+      // List projects via MCP (account-level, no project_ref) — proxied server-side to avoid CORS
+      const projectsRes = await fetch('/api/mcp/account-call', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessToken, name: 'list_projects', args: {} }),
+      })
+      if (!projectsRes.ok) {
+        const err = await projectsRes.json().catch(() => ({}))
+        throw new Error(err.error ?? `Project list failed (${projectsRes.status})`)
+      }
+      const projectsData = await projectsRes.json()
+      let projects: OAuthProject[] = []
+      try {
+        const parsed = JSON.parse(projectsData.result ?? '[]')
+        projects = Array.isArray(parsed) ? parsed : (parsed.projects ?? [])
+      } catch {
+        projects = []
+      }
       if (projects.length === 0) throw new Error('No Supabase projects found in this account.')
 
       if (projects.length === 1) {
@@ -245,26 +258,37 @@ export default function Home() {
     setIsOAuthConnecting(true)
     setCreateError(null)
     try {
-      // Try to fetch API keys automatically via the Secrets scope.
-      // If the OAuth app has Secrets → Read, this gives us the anon and
-      // service_role keys, making the connection fully autonomous.
-      // If Secrets scope is missing, we gracefully fall back to skeleton mode
-      // and prompt the user to paste keys manually.
-      let keys: { anon: string; serviceRole: string } = { anon: '', serviceRole: '' }
+      // Fetch the publishable (anon) key via project-scoped MCP.
+      // Service role key is not exposed by MCP — user can paste it manually in Settings.
+      let anonKey = ''
       try {
-        keys = await getProjectKeys(project.ref, accessToken)
-      } catch (err) {
-        if (err instanceof OAuthScopeError) {
-          toast.warning('Connected with limited access', {
-            description: `${err.message} You can add keys manually in Settings.`,
-            duration: 8000,
-          })
-        } else {
-          toast.warning('Connected with limited access', {
-            description: 'Could not fetch API keys automatically. Add them manually in Settings.',
-            duration: 8000,
-          })
+        const keyRes = await fetch('/api/mcp/account-call', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accessToken, name: 'get_publishable_keys', args: {}, projectRef: project.ref }),
+        })
+        if (keyRes.ok) {
+          const keyData = await keyRes.json()
+          const keyRaw = keyData.result ?? ''
+          try {
+            const parsed = JSON.parse(keyRaw)
+            if (Array.isArray(parsed?.keys)) {
+              const anon = parsed.keys.find((k: any) => k.name === 'anon' || k.type === 'legacy')
+              anonKey = anon?.api_key ?? ''
+            } else if (typeof parsed === 'string') {
+              anonKey = parsed
+            } else {
+              anonKey = parsed?.key ?? parsed?.anon_key ?? ''
+            }
+          } catch {
+            anonKey = keyRaw.trim()
+          }
         }
+      } catch {
+        toast.warning('Connected with limited access', {
+          description: 'Could not fetch API key automatically. Add it manually in Settings.',
+          duration: 8000,
+        })
       }
 
       const now = new Date().toISOString()
@@ -272,8 +296,8 @@ export default function Home() {
         id: `conn-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
         name: project.name,
         supabaseUrl: `https://${project.ref}.supabase.co`,
-        anonKey: keys.anon,
-        serviceRoleKey: keys.serviceRole || null,
+        anonKey,
+        serviceRoleKey: null as null,
         accessToken,
         refreshToken: refreshToken ?? null,
         s3KeyId: null as null,
@@ -286,7 +310,7 @@ export default function Home() {
       setActiveConnectionId(newConnection.id)
       addActivityLog({ type: 'connection', action: 'Connected via OAuth', details: project.name })
 
-      if (keys.anon) {
+      if (anonKey) {
         toast.success('Connected', { description: project.name })
       } else {
         toast.success('Project linked via OAuth', {
@@ -1131,13 +1155,6 @@ export default function Home() {
                 index={3}
               />
               <FeatureCard
-                icon={<Radio className="size-4.5" />}
-                title="Realtime Monitor"
-                description="Subscribe to any table and stream INSERT, UPDATE, DELETE events live."
-                delay={0.55}
-                index={4}
-              />
-              <FeatureCard
                 icon={<HardDrive className="size-4.5" />}
                 title="Storage Browser"
                 description="Navigate buckets, preview Parquet files with DuckDB WASM, and download assets."
@@ -1193,10 +1210,6 @@ export default function Home() {
                 <TabsTrigger value="edge-functions" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
                   <Zap className="size-3.5" />
                   <span className="inline">Functions</span>
-                </TabsTrigger>
-                <TabsTrigger value="realtime" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                  <Radio className="size-3.5" />
-                  <span className="inline">Realtime</span>
                 </TabsTrigger>
                 <TabsTrigger value="sql" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
                   <Terminal className="size-3.5" />
@@ -1566,21 +1579,6 @@ export default function Home() {
               </AnimatePresence>
             </TabsContent>
 
-            <TabsContent value="realtime" className="mt-0" forceMount={activePanel === 'realtime' ? true : undefined}>
-              <AnimatePresence mode="wait">
-                {activePanel === 'realtime' && (
-                  <motion.div
-                    key="realtime"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  >
-                    <RealtimeListener />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </TabsContent>
 
             <TabsContent value="sql" className="mt-0" forceMount={activePanel === 'sql' ? true : undefined}>
               <AnimatePresence mode="wait">

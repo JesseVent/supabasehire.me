@@ -19,6 +19,10 @@ export const DEMO_CONNECTION: SupabaseConnection = {
   anonKey: 'DEMO_ANON_KEY',
   serviceRoleKey: 'DEMO_SERVICE_ROLE_KEY',
   accessToken: 'DEMO_ACCESS_TOKEN',
+  refreshToken: null,
+  s3KeyId: null,
+  s3Secret: null,
+  s3Warehouse: null,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 }

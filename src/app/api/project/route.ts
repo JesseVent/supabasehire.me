@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { extractProjectRef } from "@/lib/supabase-types";
 import { DEMO_CONNECTION_ID } from "@/lib/demo-data";
 import { getConnectionFromHeaders } from "@/lib/api-auth";
+import { mcpClientFromRequest } from "@/lib/mcp-server-client";
 import type { SupabaseConnection } from "@/lib/supabase-types";
 
 interface ProjectInfo {
@@ -56,10 +57,8 @@ function makeFallbackProject(connection: SupabaseConnection, projectRef: string)
   };
 }
 
-// POST /api/project — Fetch project info from Supabase Management API
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
     const connection = getConnectionFromHeaders(request);
 
     if (!connection) {
@@ -69,7 +68,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Demo mode
     if (connection.id === DEMO_CONNECTION_ID) {
       return NextResponse.json({
         project: DEMO_PROJECT,
@@ -77,8 +75,7 @@ export async function POST(request: NextRequest) {
       } satisfies ProjectResponse);
     }
 
-    const { supabaseUrl, accessToken } = connection;
-    const projectRef = extractProjectRef(supabaseUrl);
+    const projectRef = extractProjectRef(connection.supabaseUrl);
 
     if (!projectRef) {
       return NextResponse.json({
@@ -88,61 +85,45 @@ export async function POST(request: NextRequest) {
       } satisfies ProjectResponse);
     }
 
-    // No access token — return basic info
-    if (!accessToken) {
+    const client = mcpClientFromRequest(request);
+    if (!client) {
       return NextResponse.json({
         project: makeFallbackProject(connection, projectRef),
         stats: EMPTY_STATS,
-        error: "No access token configured — cannot fetch project details from Management API",
+        error: "No access token — connect via OAuth to fetch project details",
       } satisfies ProjectResponse);
     }
 
-    // Fetch project info from Management API
     try {
-      const mgmtResponse = await fetch(
-        `https://api.supabase.com/v1/projects/${projectRef}`,
-        {
-          method: "GET",
-          headers: { Authorization: `Bearer ${accessToken}` },
-          signal: AbortSignal.timeout(10000),
-        }
-      );
-
-      if (!mgmtResponse.ok) {
-        const errorText = await mgmtResponse.text();
-        return NextResponse.json({
-          project: makeFallbackProject(connection, projectRef),
-          stats: EMPTY_STATS,
-          error: `Management API error (${mgmtResponse.status}): ${errorText}`,
-        } satisfies ProjectResponse);
-      }
-
-      const projectData = await mgmtResponse.json();
+      // Try to enrich with project URL from MCP; fall back to constructed URL
+      let projectUrl = `https://${projectRef}.supabase.co`
+      try {
+        const urlRaw = await client.callTool("get_project_url", {})
+        const urlData = JSON.parse(urlRaw) as { url?: string; project_url?: string }
+        projectUrl = urlData?.url ?? urlData?.project_url ?? projectUrl
+      } catch { /* ignore — use fallback */ }
 
       const projectInfo: ProjectInfo = {
-        id: projectData.id || connection.id,
-        name: projectData.name || connection.name,
+        id: connection.id,
+        name: connection.name,
         ref: projectRef,
-        region: projectData.region || "unknown",
-        created_at: projectData.created_at || connection.createdAt,
-        database_version: projectData.db_version || "unknown",
-        plan_type: projectData.plan || "unknown",
-        project_url: `https://${projectRef}.supabase.co`,
-        status: projectData.status || "active",
+        region: "unknown",
+        created_at: connection.createdAt,
+        database_version: "unknown",
+        plan_type: "unknown",
+        project_url: projectUrl,
+        status: "active",
       };
 
-      return NextResponse.json({
-        project: projectInfo,
-        stats: EMPTY_STATS,
-      } satisfies ProjectResponse);
+      return NextResponse.json({ project: projectInfo, stats: EMPTY_STATS } satisfies ProjectResponse);
     } catch {
       return NextResponse.json({
         project: makeFallbackProject(connection, projectRef),
         stats: EMPTY_STATS,
-        error: "Could not reach Supabase Management API — network error",
+        error: "Could not fetch project details via MCP",
       } satisfies ProjectResponse);
     }
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Failed to fetch project info", project: null, stats: EMPTY_STATS } satisfies ProjectResponse,
       { status: 500 }

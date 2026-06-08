@@ -1,33 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
-import { executeManagementSQL } from "@/lib/supabase-helpers";
-import { getConnectionFromHeaders } from "@/lib/api-auth";
-import type { SupabaseConnection } from "@/lib/supabase-types";
+import { mcpClientFromRequest } from "@/lib/mcp-server-client";
+
+function parseRows<T>(raw: string): T[] {
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed as T[];
+    if (Array.isArray(parsed.rows)) return parsed.rows as T[];
+    if (Array.isArray(parsed.data)) return parsed.data as T[];
+  } catch {
+    // ignore
+  }
+  return [];
+}
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const tableNames: string[] | undefined = body.tableNames;
-    const connection = getConnectionFromHeaders(request);
 
-    if (!connection) {
-      return NextResponse.json({ error: "No connection provided" }, { status: 400 });
-    }
-
-    const managementToken = connection.accessToken ||
-      (connection.serviceRoleKey?.startsWith("sbp_") ? connection.serviceRoleKey : null);
-
-    if (!managementToken) {
-      return NextResponse.json(
-        { error: "Management API token required. Add your access token in Settings." },
-        { status: 403 }
-      );
+    const client = mcpClientFromRequest(request);
+    if (!client) {
+      return NextResponse.json({ error: "OAuth access token required." }, { status: 403 });
     }
 
     const tableFilter = tableNames?.length
       ? `AND relname = ANY(ARRAY[${tableNames.map((t) => `'${t.replace(/'/g, "''")}'`).join(",")}])`
       : "";
 
-    // Fetch row counts from pg_stat_user_tables
     const rowCountSQL = `
 SELECT schemaname, relname AS table_name, n_live_tup AS row_count
 FROM pg_stat_user_tables
@@ -36,7 +35,6 @@ ${tableFilter}
 ORDER BY relname;
 `;
 
-    // Fetch column stats from pg_stats joined with information_schema
     const statsSQL = `
 SELECT
   s.tablename,
@@ -60,21 +58,13 @@ ${tableNames?.length ? `AND s.tablename = ANY(ARRAY[${tableNames.map((t) => `'${
 ORDER BY s.tablename, s.attname;
 `;
 
-    const [rowCountResult, statsResult] = await Promise.all([
-      executeManagementSQL(connection.supabaseUrl, managementToken, rowCountSQL),
-      executeManagementSQL(connection.supabaseUrl, managementToken, statsSQL),
+    const [rowCountRaw, statsRaw] = await Promise.all([
+      client.callTool("execute_sql", { query: rowCountSQL }),
+      client.callTool("execute_sql", { query: statsSQL }),
     ]);
 
-    if (rowCountResult.error) {
-      return NextResponse.json({ error: rowCountResult.error }, { status: 500 });
-    }
-
-    const rowCounts = rowCountResult.data as Array<{
-      schemaname: string;
-      table_name: string;
-      row_count: number;
-    }>;
-    const columnStats = (statsResult.data || []) as Array<{
+    type RowCountRow = { schemaname: string; table_name: string; row_count: number };
+    type StatsRow = {
       tablename: string;
       column_name: string;
       null_pct: number | null;
@@ -82,9 +72,11 @@ ORDER BY s.tablename, s.attname;
       sample_values_raw: string | null;
       data_type: string;
       is_nullable: string;
-    }>;
+    };
 
-    // Parse PostgreSQL array literal: {val1,val2,...}
+    const rowCounts = parseRows<RowCountRow>(rowCountRaw);
+    const columnStats = parseRows<StatsRow>(statsRaw);
+
     function parsePgArray(raw: string | null): unknown[] {
       if (!raw) return [];
       const inner = raw.replace(/^\{/, "").replace(/\}$/, "");
@@ -107,8 +99,7 @@ ORDER BY s.tablename, s.attname;
       return items.slice(0, 10);
     }
 
-    // Group column stats by table
-    const colsByTable: Record<string, typeof columnStats> = {};
+    const colsByTable: Record<string, StatsRow[]> = {};
     for (const col of columnStats) {
       if (!colsByTable[col.tablename]) colsByTable[col.tablename] = [];
       colsByTable[col.tablename].push(col);
@@ -116,7 +107,6 @@ ORDER BY s.tablename, s.attname;
 
     const now = new Date().toISOString();
 
-    // Upsert all tables
     for (const row of rowCounts) {
       const upsertTableSQL = `
 INSERT INTO catalog_tables (schema_name, table_name, row_count, profiled_at)
@@ -125,14 +115,17 @@ ON CONFLICT (schema_name, table_name) DO UPDATE SET
   row_count = EXCLUDED.row_count,
   profiled_at = EXCLUDED.profiled_at;
 `;
-      const tableResult = await executeManagementSQL(connection.supabaseUrl, managementToken, upsertTableSQL);
-      if (tableResult.error) continue;
+      try {
+        await client.callTool("execute_sql", { query: upsertTableSQL });
+      } catch {
+        continue;
+      }
 
-      // Get the table id
       const getIdSQL = `SELECT id FROM catalog_tables WHERE schema_name = '${row.schemaname}' AND table_name = '${row.table_name.replace(/'/g, "''")}' LIMIT 1;`;
-      const idResult = await executeManagementSQL(connection.supabaseUrl, managementToken, getIdSQL);
-      if (idResult.error || !(idResult.data as Array<{ id: string }>)?.[0]?.id) continue;
-      const tableId = (idResult.data as Array<{ id: string }>)[0].id;
+      const idRaw = await client.callTool("execute_sql", { query: getIdSQL });
+      const idRows = parseRows<{ id: string }>(idRaw);
+      if (!idRows[0]?.id) continue;
+      const tableId = idRows[0].id;
 
       const cols = colsByTable[row.table_name] || [];
       for (const col of cols) {
@@ -156,7 +149,11 @@ ON CONFLICT (table_id, column_name) DO UPDATE SET
   distinct_count = EXCLUDED.distinct_count,
   sample_values = EXCLUDED.sample_values;
 `;
-        await executeManagementSQL(connection.supabaseUrl, managementToken, colUpsertSQL);
+        try {
+          await client.callTool("execute_sql", { query: colUpsertSQL });
+        } catch {
+          // non-fatal — continue with next column
+        }
       }
     }
 

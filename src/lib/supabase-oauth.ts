@@ -1,9 +1,10 @@
-// Supabase Management API OAuth (popup flow).
-// Uses the registered OAuth app — client_id is public, secret stays server-side.
-// Token exchange goes through /api/oauth/token so the secret never hits the browser.
+// Supabase Management API OAuth (popup flow) using Dynamic Client Registration (RFC 7591).
+// No pre-registered app required — the client is registered at runtime and the client_id
+// is cached in localStorage. Token exchange is fully client-side (public client, no secret).
 
 const MGMT_API = 'https://api.supabase.com'
-
+const DCR_CACHE_KEY = 'supabase_dcr_client_id'
+const DCR_SECRET_CACHE_KEY = 'supabase_dcr_client_secret'
 
 export interface OAuthProject {
   id: string
@@ -11,11 +12,6 @@ export interface OAuthProject {
   name: string
   region: string
   status: string
-}
-
-export interface ProjectKeys {
-  anon: string
-  serviceRole: string
 }
 
 // ── PKCE ──────────────────────────────────────────────────────────────────────
@@ -35,6 +31,47 @@ export async function generatePKCE(): Promise<{ codeVerifier: string; codeChalle
     .replace(/=/g, '')
 
   return { codeVerifier, codeChallenge }
+}
+
+// ── Dynamic Client Registration (RFC 7591) ─────────────────────────────────────
+
+export interface DcrClient {
+  clientId: string
+  clientSecret: string
+}
+
+/**
+ * Register a public OAuth client via DCR. The client_id and client_secret are
+ * cached in localStorage so we only register once.
+ */
+export async function getOrRegisterDcrClient(redirectUri: string): Promise<DcrClient> {
+  const cachedId = localStorage.getItem(DCR_CACHE_KEY)
+  const cachedSecret = localStorage.getItem(DCR_SECRET_CACHE_KEY)
+  if (cachedId && cachedSecret) return { clientId: cachedId, clientSecret: cachedSecret }
+
+  // DCR endpoint doesn't send CORS headers — proxy through our server route.
+  const res = await fetch('/api/oauth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      client_name: 'Supabase Devtool',
+      redirect_uris: [redirectUri],
+      token_endpoint_auth_method: 'none',
+      grant_types: ['authorization_code', 'refresh_token'],
+      response_types: ['code'],
+      scope: 'projects:read projects:write organizations:read database:read database:write analytics:read secrets:read edge_functions:read edge_functions:write environment:read environment:write storage:read',
+    }),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`DCR registration failed (${res.status}): ${text}`)
+  }
+  const data = await res.json()
+  if (!data.client_id) throw new Error('DCR response missing client_id')
+  const clientSecret = (data.client_secret as string) ?? ''
+  localStorage.setItem(DCR_CACHE_KEY, data.client_id as string)
+  localStorage.setItem(DCR_SECRET_CACHE_KEY, clientSecret)
+  return { clientId: data.client_id as string, clientSecret }
 }
 
 // ── Authorize URL ─────────────────────────────────────────────────────────────
@@ -59,84 +96,60 @@ export function buildAuthorizeUrl(
   return url.toString()
 }
 
-// ── Token Exchange (server-side — secret never in browser) ────────────────────
+// ── Token Exchange (proxied — api.supabase.com blocks CORS from browsers) ──────
 
 export async function exchangeCode(
+  clientId: string,
   code: string,
   codeVerifier: string,
-  redirectUri: string
+  redirectUri: string,
+  clientSecret?: string
 ): Promise<{ accessToken: string; refreshToken?: string }> {
+  const params = new URLSearchParams({
+    grant_type: 'authorization_code',
+    client_id: clientId,
+    code,
+    redirect_uri: redirectUri,
+    code_verifier: codeVerifier,
+  })
+  if (clientSecret) params.set('client_secret', clientSecret)
   const res = await fetch('/api/oauth/token', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code, code_verifier: codeVerifier, redirect_uri: redirectUri }),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params,
   })
-
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
     throw new Error(data.error ?? `Token exchange failed (${res.status})`)
   }
-
   const data = await res.json()
   return { accessToken: data.access_token, refreshToken: data.refresh_token }
 }
 
-// ── Token Refresh ───────────────────────────────────────────────────────────────
+// ── Token Refresh (proxied) ───────────────────────────────────────────────────
 
 export async function refreshAccessToken(
-  refreshToken: string
+  clientId: string,
+  refreshToken: string,
+  clientSecret?: string
 ): Promise<{ accessToken: string; refreshToken?: string }> {
-  const res = await fetch('/api/oauth/refresh', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh_token: refreshToken }),
+  const params = new URLSearchParams({
+    grant_type: 'refresh_token',
+    client_id: clientId,
+    refresh_token: refreshToken,
   })
-
+  if (clientSecret) params.set('client_secret', clientSecret)
+  const res = await fetch('/api/oauth/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params,
+  })
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
     throw new Error(data.error ?? `Token refresh failed (${res.status})`)
   }
-
   const data = await res.json()
   return { accessToken: data.access_token, refreshToken: data.refresh_token }
-}
-
-// ── Management API helpers ────────────────────────────────────────────────────
-
-export async function listProjects(accessToken: string): Promise<OAuthProject[]> {
-  const res = await fetch('/api/oauth/projects', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ access_token: accessToken }),
-  })
-  if (!res.ok) throw new Error(`Failed to list projects: ${res.status}`)
-  return res.json()
-}
-
-export class OAuthScopeError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'OAuthScopeError'
-  }
-}
-
-export async function getProjectKeys(ref: string, accessToken: string): Promise<ProjectKeys> {
-  const res = await fetch('/api/oauth/project-keys', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ access_token: accessToken, ref }),
-  })
-  if (res.status === 403) {
-    throw new OAuthScopeError(
-      'Your OAuth app is missing the "Secrets" scope. Enable Secrets → Read in your Supabase OAuth app settings, then re-authorize.'
-    )
-  }
-  if (!res.ok) throw new Error(`Failed to fetch API keys: ${res.status}`)
-  const keys = (await res.json()) as { name: string; api_key: string }[]
-  return {
-    anon: keys.find((k) => k.name === 'anon')?.api_key ?? '',
-    serviceRole: keys.find((k) => k.name === 'service_role')?.api_key ?? '',
-  }
 }
 
 // ── Popup flow ────────────────────────────────────────────────────────────────

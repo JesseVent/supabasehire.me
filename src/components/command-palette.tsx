@@ -24,7 +24,6 @@ import {
   RefreshCw,
   Keyboard,
   Database,
-  Radio,
 } from 'lucide-react'
 import { useSupabaseStore } from '@/store/supabase-store'
 import type { ActivePanel } from '@/lib/supabase-types'
@@ -105,7 +104,6 @@ export function CommandPalette() {
     { label: 'Schema', icon: GitFork, panel: 'schema' as ActivePanel, shortcut: `${modKey()}+1` },
     { label: 'RLS', icon: Shield, panel: 'rls' as ActivePanel, shortcut: `${modKey()}+2` },
     { label: 'Functions', icon: Zap, panel: 'edge-functions' as ActivePanel, shortcut: `${modKey()}+3` },
-    { label: 'Realtime', icon: Radio, panel: 'realtime' as ActivePanel, shortcut: '' },
     { label: 'SQL', icon: Terminal, panel: 'sql' as ActivePanel, shortcut: `${modKey()}+4` },
     { label: 'Settings', icon: Settings, panel: 'settings' as ActivePanel, shortcut: `${modKey()}+5` },
   ]
