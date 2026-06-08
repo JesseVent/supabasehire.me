@@ -1,0 +1,6 @@
+{
+  "nodeModulesDir": "auto",
+  "imports": {
+    "@supabase/server": "npm:@supabase/server"
+  }
+}

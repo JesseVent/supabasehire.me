@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
       config.resolve.fallback = { ...config.resolve.fallback, fs: false, path: false, crypto: false };
     }
     config.experiments = { ...config.experiments, asyncWebAssembly: true, layers: true };
+
     return config;
   },
 };

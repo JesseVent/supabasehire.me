@@ -1,0 +1,110 @@
+{
+  "name": "supabase-edge-debug",
+  "displayName": "Supabase Edge Debug",
+  "description": "One-click debug and test for Supabase Edge Functions (Deno runtime) via V8 inspector",
+  "version": "0.1.0",
+  "publisher": "jvent",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jvent/supabase-devtool"
+  },
+  "engines": {
+    "vscode": "^1.120.0"
+  },
+  "categories": [
+    "Debuggers",
+    "Other"
+  ],
+  "keywords": [
+    "supabase",
+    "edge functions",
+    "deno",
+    "debug",
+    "inspector"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "workspaceContains:supabase/functions",
+    "onCommand:supabase-edge-debug.start",
+    "onCommand:supabase-edge-debug.stop",
+    "onCommand:supabase-edge-debug.test",
+    "onDebugInitialConfigurations",
+    "onDebugResolve:node"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "supabase-edge-debug.start",
+        "title": "Start Edge Function Debugger",
+        "category": "Supabase Edge"
+      },
+      {
+        "command": "supabase-edge-debug.stop",
+        "title": "Stop Edge Function Serve",
+        "category": "Supabase Edge"
+      },
+      {
+        "command": "supabase-edge-debug.test",
+        "title": "Run Edge Function Tests",
+        "category": "Supabase Edge"
+      }
+    ],
+    "configuration": {
+      "title": "Supabase Edge Debug",
+      "type": "object",
+      "properties": {
+        "supabaseEdgeDebug.port": {
+          "type": "number",
+          "default": 8083,
+          "description": "V8 inspector port used by supabase functions serve --inspect-mode (default: 8083)"
+        },
+        "supabaseEdgeDebug.inspectMode": {
+          "type": "string",
+          "enum": [
+            "brk",
+            "wait"
+          ],
+          "enumDescriptions": [
+            "Pause execution on the first line of every invocation",
+            "Wait for debugger to attach before executing"
+          ],
+          "default": "brk",
+          "description": "Inspector mode passed to supabase functions serve"
+        },
+        "supabaseEdgeDebug.functionsPath": {
+          "type": "string",
+          "default": "supabase/functions",
+          "description": "Relative path from workspace root to the edge functions directory"
+        },
+        "supabaseEdgeDebug.supabaseCli": {
+          "type": "string",
+          "default": "supabase",
+          "description": "Path to the supabase CLI executable (must be v1.171.0 or later)"
+        }
+      }
+    },
+    "breakpoints": [
+      {
+        "language": "typescript"
+      },
+      {
+        "language": "javascript"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "package": "node esbuild.js --production",
+    "check-types": "tsc --noEmit",
+    "vscode:prepublish": "npm run package"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.130",
+    "@types/vscode": "^1.120.0",
+    "@vscode/vsce": "^3.9.2",
+    "esbuild": "^0.25.12",
+    "typescript": "^5.9.3"
+  }
+}

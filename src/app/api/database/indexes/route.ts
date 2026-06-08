@@ -33,6 +33,7 @@ SELECT
   pg_size_pretty(pg_relation_size(indexrelid)) AS size,
   idx_scan = 0 AS is_unused
 FROM pg_stat_user_indexes
+WHERE schemaname = 'public'
 ORDER BY idx_scan DESC;
 `;
 

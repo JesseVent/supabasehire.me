@@ -23,8 +23,7 @@
 // @param ethnicity_source_value string optional - Raw ethnicity value from source system
 // @param ethnicity_source_concept_id number optional - Source vocabulary concept for ethnicity
 
-import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { isAuthorized } from '../_shared/auth.ts';
+import { withSupabase } from 'npm:@supabase/server'
 
 interface PersonInsert {
   person_id: number;
@@ -53,64 +52,53 @@ const REQUIRED_FIELDS: (keyof PersonInsert)[] = [
   'year_of_birth',
   'race_concept_id',
   'ethnicity_concept_id',
-];
+]
 
+export default {
+  fetch: withSupabase({ auth: ['secret', 'publishable'] }, async (req, ctx) => {
+    if (req.method !== 'POST') {
+      return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+        status: 405,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
 
-Deno.serve(async (req: Request) => {
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
+    let body: PersonInsert
+    try {
+      body = await req.json()
+    } catch {
+      return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const missing = REQUIRED_FIELDS.filter((f) => body[f] === undefined || body[f] === null)
+    if (missing.length > 0) {
+      return new Response(
+        JSON.stringify({ error: `Missing required fields: ${missing.join(', ')}` }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const { data, error } = await ctx.supabaseAdmin
+      .from('person')
+      // deno-lint-ignore no-explicit-any
+      .insert(body as unknown as any)
+      .select()
+      .single()
+
+    if (error) {
+      const status = error.code === '23505' ? 409 : 500
+      return new Response(JSON.stringify({ error: error.message, code: error.code }), {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    return new Response(JSON.stringify({ data }), {
+      status: 201,
       headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  if (!isAuthorized(req)) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  let body: PersonInsert;
-  try {
-    body = await req.json();
-  } catch {
-    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  const missing = REQUIRED_FIELDS.filter((f) => body[f] === undefined || body[f] === null);
-  if (missing.length > 0) {
-    return new Response(
-      JSON.stringify({ error: `Missing required fields: ${missing.join(', ')}` }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } },
-    );
-  }
-
-  const secretKeys = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') ?? '{}');
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    secretKeys['default'] ?? '',
-  );
-
-  const { data, error } = await supabase
-    .from('person')
-    .insert(body)
-    .select()
-    .single();
-
-  if (error) {
-    const status = error.code === '23505' ? 409 : 500;
-    return new Response(JSON.stringify({ error: error.message, code: error.code }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  return new Response(JSON.stringify({ data }), {
-    status: 201,
-    headers: { 'Content-Type': 'application/json' },
-  });
-});
+    })
+  }),
+}

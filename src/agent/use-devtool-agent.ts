@@ -6,6 +6,7 @@ import { useSupabaseStore } from '@/store/supabase-store'
 import type { SupabaseConnection } from '@/lib/supabase-types'
 import { supabaseTools, type ConnectionData } from '@/agent/supabase-tools'
 import { SkillRouterClient } from '@/agent/skill-router-client'
+import { adaptMcpToolsViaApi } from '@/lib/mcp-tool-adapter'
 
 // Types we need from page-agent (imported dynamically to avoid SSR issues)
 type AgentStatus = 'idle' | 'running' | 'completed' | 'error'
@@ -96,8 +97,8 @@ export function useDevtoolAgent(): UseDevtoolAgentReturn {
 
 		async function init() {
 			try {
-				// Dynamic import to avoid SSR issues — page-agent is browser-only
-				const { PageAgentCore, tool } = await import('page-agent')
+				// Dynamic import to avoid SSR issues — supa-agent is browser-only
+				const { PageAgentCore, tool } = await import('supa-agent')
 
 				if (cancelled) return
 
@@ -117,6 +118,31 @@ export function useDevtoolAgent(): UseDevtoolAgentReturn {
 							}
 						},
 					})
+				}
+
+				// Load MCP tools via the server-side proxy route (avoids CORS on mcp.supabase.com).
+				// These supplement the hardcoded tools above with dynamically discovered capabilities.
+				const activeConn = connections.find((c: SupabaseConnection) => c.id === activeConnectionId)
+				if (activeConn?.accessToken) {
+					try {
+						const mcpAdapted = await adaptMcpToolsViaApi(activeConn)
+						for (const [name, mcpTool] of Object.entries(mcpAdapted)) {
+							customToolEntries[name] = tool({
+								description: mcpTool.description,
+								inputSchema: mcpTool.inputSchema,
+								execute: async (_input: unknown) => {
+									try {
+										return await mcpTool.execute(_input)
+									} catch (err) {
+										return `MCP tool error: ${err instanceof Error ? err.message : String(err)}`
+									}
+								},
+							})
+						}
+						console.debug(`[DevtoolAgent] MCP: loaded ${Object.keys(mcpAdapted).length} tools`)
+					} catch (err) {
+						console.warn('[DevtoolAgent] MCP tools unavailable, using built-in tools only:', err)
+					}
 				}
 
 				// Custom system prompt with Supabase context
@@ -158,11 +184,17 @@ export function useDevtoolAgent(): UseDevtoolAgentReturn {
 					pageController: noopPageController,
 					skillRouter,
 					transformRequestBody: (body: Record<string, unknown>) => {
-						// gpt-5.5 only supports verbosity:'medium'; page-agent patches all gpt-* to 'low'.
-						// Strip optional provider prefix (e.g. 'openai/gpt-5.5' → 'gpt-5.5').
-						const modelName = typeof body.model === 'string'
-							? body.model.split('/').pop() ?? ''
-							: ''
+						const rawModel = typeof body.model === 'string' ? body.model : ''
+						// Strip provider prefix: 'openai/gpt-5.5' → 'gpt-5.5'
+						const modelName = rawModel.split('/').pop() ?? ''
+						const normalizedModel = modelName.toLowerCase().replace(/[_.]/g, '')
+
+						// minimax doesn't support tool_choice on OpenRouter
+						if (normalizedModel.startsWith('minimax')) {
+							delete body.tool_choice
+						}
+
+						// gpt-5.5 only supports verbosity:'medium'; page-agent patches all gpt-* to 'low'
 						if (modelName.startsWith('gpt-5.5') && body.verbosity === 'low') {
 							body.verbosity = 'medium'
 						}
@@ -229,10 +261,11 @@ export function useDevtoolAgent(): UseDevtoolAgentReturn {
 			}
 			agentRef.current = null
 		}
-	// Re-init when LLM config, maxSteps, or skill router config changes
+	// Re-init when LLM config, maxSteps, skill router config, or active connection changes.
+	// activeConnectionId triggers re-init so MCP tools are reloaded for the new project.
 	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [llmConfig.baseURL, llmConfig.model, llmConfig.apiKey, llmConfig.provider, maxSteps,
-		skillRouterConfig.url, skillRouterConfig.key, skillRouterConfig.skill])
+		skillRouterConfig.url, skillRouterConfig.key, skillRouterConfig.skill, activeConnectionId])
 
 	const execute = useCallback(async (task: string) => {
 		const agent = agentRef.current
@@ -358,11 +391,15 @@ function createProxyFetch(
 }
 
 function buildSystemPrompt(): string {
-	return `You are an AI assistant inside a Supabase development tool. You have TWO sets of capabilities:
+	return `You are an AI assistant inside a Supabase development tool (supabasehire.me). Your primary capability is direct API access to connected Supabase projects via tool calls.
 
-## 1. Supabase Database Tools (use these for structured data operations)
+## Supabase API Tools (always prefer these)
 
-You have direct API access to the connected Supabase project:
+You have direct API access to the connected Supabase project — use these for all data and project operations.
+
+When connected via OAuth (access token present), you will have additional **Supabase MCP tools** available (prefixed \`supabase_\`). These are dynamically provided by the Supabase MCP server and cover the full platform surface: SQL, schema introspection, RLS policies, storage, edge functions, auth, migrations, secrets, and more. Prefer MCP tools when available.
+
+Built-in tools (always available regardless of auth):
 - **execute_sql**: Execute any SQL query (SELECT, INSERT, UPDATE, DELETE, DDL, etc.)
 - **get_schema**: Inspect database tables, columns, types, foreign keys
 - **get_rls_policies**: Check Row Level Security status and policies for tables
@@ -373,19 +410,27 @@ You have direct API access to the connected Supabase project:
 - **get_triggers**: List database triggers
 - **get_views_functions**: List views and stored functions
 
-## 2. Browser Automation Tools (use these for UI navigation)
+## Browser UI Tools (devtool navigation only)
 
-You can interact with the devtool UI itself:
-- **click_element_by_index**: Click elements in the UI
-- **input_text**: Type into input fields
-- **scroll**: Scroll the page
+You can interact with the devtool's own UI — not external websites:
+- **click_element_by_index**: Click elements in the devtool UI
+- **input_text**: Type into input fields in the devtool
+- **scroll**: Scroll within the devtool page
 - **done**: Complete the task with a response
+
+## URL Restrictions
+
+You operate within this devtool page only. Navigation to external URLs is not supported.
+- Do NOT attempt to navigate to supabase.com, app.supabase.com, or any external URL — use the API tools instead.
+- Do NOT attempt to open new tabs or navigate away from the devtool.
+- If you unexpectedly see a blank page or an error, a navigation may have failed — switch to an API tool call instead.
+- All Supabase data and project information is available via the API tools above — no browser navigation required.
 
 ## Guidelines
 
-1. **Prefer Supabase tools over UI clicking** for data operations. Use \`execute_sql\` instead of navigating the SQL panel.
-2. **Use UI tools** when you need to navigate to different panels, toggle views, or interact with visual elements.
-3. **Be thorough**: When asked to "check RLS", use \`get_rls_policies\` and analyze the results, don't just click buttons.
+1. **Always use API tools for data operations** — use \`execute_sql\` instead of navigating the SQL panel.
+2. **Use UI tools only** when interacting with the devtool's own panels, toggles, or visual elements.
+3. **Be thorough**: When asked to "check RLS", call \`get_rls_policies\` and analyze the results, don't click buttons.
 4. **SQL safety**: Only execute destructive SQL (DROP, DELETE without WHERE) if the user explicitly asks.
 5. **Explain what you're doing**: Each step should have clear evaluation, memory, and next_goal.
 6. **If you need clarification**, use ask_user.

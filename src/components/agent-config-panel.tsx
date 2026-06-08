@@ -32,6 +32,7 @@ const PROVIDER_LABELS: Record<LLMProvider, string> = {
 	openai: 'OpenAI',
 	anthropic: 'Anthropic',
 	google: 'Google',
+	openrouter: 'OpenRouter',
 	custom: 'Custom (OpenAI-compatible)',
 }
 
@@ -39,6 +40,7 @@ const PROVIDER_MODELS: Record<LLMProvider, string[]> = {
 	openai: ['gpt-5.4', 'gpt-5.4-mini', 'gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'gpt-4.1-mini', 'o3', 'o4-mini'],
 	anthropic: ['claude-sonnet-4-20250514', 'claude-3.5-sonnet-20241022', 'claude-3.5-haiku-20241022'],
 	google: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash'],
+	openrouter: ['google/gemini-3.1-flash-lite', 'google/gemini-3.1-flash', 'anthropic/claude-sonnet-4', 'openai/gpt-5.4'],
 	custom: [],
 }
 

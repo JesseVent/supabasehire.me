@@ -5,7 +5,7 @@ import { persist } from 'zustand/middleware'
 
 // ─── LLM Provider Types ───
 
-export type LLMProvider = 'openai' | 'anthropic' | 'google' | 'custom'
+export type LLMProvider = 'openai' | 'anthropic' | 'google' | 'openrouter' | 'custom'
 
 export interface LLMProviderConfig {
 	provider: LLMProvider
@@ -29,6 +29,11 @@ export const PROVIDER_PRESETS: Record<LLMProvider, Omit<LLMProviderConfig, 'apiK
 		provider: 'google',
 		baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai',
 		model: 'gemini-2.5-flash',
+	},
+	openrouter: {
+		provider: 'openrouter',
+		baseURL: 'https://openrouter.ai/api/v1',
+		model: 'google/gemini-3.1-flash-lite',
 	},
 	custom: {
 		provider: 'custom',
@@ -111,7 +116,7 @@ interface AgentStore {
 const initialState = {
 	agentEnabled: false as boolean,
 	llmConfig: {
-		...PROVIDER_PRESETS.openai,
+		...PROVIDER_PRESETS.openrouter,
 		apiKey: '',
 	} as LLMProviderConfig,
 	skillRouterConfig: {

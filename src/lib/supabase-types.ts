@@ -9,6 +9,7 @@ export interface SupabaseConnection {
   anonKey: string;
   serviceRoleKey: string | null;
   accessToken: string | null;
+  refreshToken: string | null;
   s3KeyId: string | null;
   s3Secret: string | null;
   s3Warehouse: string | null;

@@ -24,6 +24,7 @@ const PROVIDER_BASE_URLS: Record<string, string> = {
 	openai: 'https://api.openai.com/v1',
 	anthropic: 'https://api.anthropic.com/v1',
 	google: 'https://generativelanguage.googleapis.com/v1beta/openai',
+	openrouter: 'https://openrouter.ai/api/v1',
 }
 
 export async function POST(request: NextRequest) {

@@ -22,6 +22,7 @@
 // Deploy: supabase functions deploy ai
 // Secret: supabase secrets set OPENAI_API_KEY=sk-... (only needed for openai provider)
 
+import { withSupabase } from 'npm:@supabase/server'
 import OpenAI from 'https://deno.land/x/openai@v4.24.0/mod.ts'
 
 // Supabase.ai is a global injected by the Supabase Edge Runtime.
@@ -109,31 +110,33 @@ async function runSupabaseAI(
   return typeof output === 'string' ? output : (output?.text ?? '')
 }
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: CORS })
-  }
-
-  try {
-    const { provider, action, input, system, model, max_tokens, temperature } = await req.json()
-
-    if (!action || !input) {
-      return json({ error: 'Missing required fields: action, input' }, 400)
+export default {
+  fetch: withSupabase({ auth: 'none' }, async (req) => {
+    if (req.method === 'OPTIONS') {
+      return new Response(null, { headers: CORS })
     }
 
-    if (action !== 'complete' && action !== 'summary') {
-      return json({ error: `Unknown action "${action}". Valid values: complete, summary` }, 400)
+    try {
+      const { provider, action, input, system, model, max_tokens, temperature } = await req.json()
+
+      if (!action || !input) {
+        return json({ error: 'Missing required fields: action, input' }, 400)
+      }
+
+      if (action !== 'complete' && action !== 'summary') {
+        return json({ error: `Unknown action "${action}". Valid values: complete, summary` }, 400)
+      }
+
+      const useProvider = provider === 'supabase' ? 'supabase' : 'openai'
+
+      const text =
+        useProvider === 'supabase'
+          ? await runSupabaseAI(action, input, system, model)
+          : await runOpenAI(action, input, system, model, max_tokens, temperature)
+
+      return json({ text, provider: useProvider })
+    } catch (err) {
+      return json({ error: err instanceof Error ? err.message : 'Unknown error' }, 500)
     }
-
-    const useProvider = provider === 'supabase' ? 'supabase' : 'openai'
-
-    const text =
-      useProvider === 'supabase'
-        ? await runSupabaseAI(action, input, system, model)
-        : await runOpenAI(action, input, system, model, max_tokens, temperature)
-
-    return json({ text, provider: useProvider })
-  } catch (err) {
-    return json({ error: err instanceof Error ? err.message : 'Unknown error' }, 500)
-  }
-})
+  }),
+}

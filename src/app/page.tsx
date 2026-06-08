@@ -127,6 +127,18 @@ import { DataCatalogPanel } from '@/components/data-catalog-panel'
 import { AnalyticsPanel } from '@/components/analytics-panel'
 import { TracePanel } from '@/components/trace-panel'
 import { apiFetch } from '@/lib/api-auth'
+import {
+  generatePKCE,
+  buildAuthorizeUrl,
+  exchangeCode,
+  listProjects,
+  getProjectKeys,
+  getCallbackUrl,
+  openOAuthPopup,
+  waitForOAuthCallback,
+  OAuthScopeError,
+  type OAuthProject,
+} from '@/lib/supabase-oauth'
 
 // Dynamic import for SchemaDiagram to avoid SSR issues with ReactFlow
 const SchemaDiagram = dynamic(
@@ -184,6 +196,115 @@ export default function Home() {
   const [isCreating, setIsCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [isPrefilling, setIsPrefilling] = useState(false)
+
+  // OAuth DCR flow
+  const [isOAuthConnecting, setIsOAuthConnecting] = useState(false)
+  const [oauthProjects, setOauthProjects] = useState<OAuthProject[] | null>(null)
+  const [oauthAccessToken, setOauthAccessToken] = useState<string | null>(null)
+  const [oauthRefreshToken, setOauthRefreshToken] = useState<string | null>(null)
+
+  const connectWithOAuth = useCallback(async () => {
+    setIsOAuthConnecting(true)
+    setCreateError(null)
+    try {
+      const clientId = process.env.NEXT_PUBLIC_OAUTH_CLIENT_ID
+      if (!clientId) throw new Error('OAuth not configured')
+
+      const redirectUri = getCallbackUrl()
+      const { codeVerifier, codeChallenge } = await generatePKCE()
+      const state = crypto.randomUUID()
+      const authorizeUrl = buildAuthorizeUrl(clientId, redirectUri, codeChallenge, state)
+
+      const popup = openOAuthPopup(authorizeUrl)
+      if (!popup) throw new Error('Popup blocked — allow popups for this site and try again.')
+
+      const code = await waitForOAuthCallback(state, popup)
+      console.log('[OAuth] got code, exchanging...')
+      const { accessToken, refreshToken } = await exchangeCode(code, codeVerifier, redirectUri)
+      console.log('[OAuth] token exchange ok, fetching projects...')
+      const projects = await listProjects(accessToken)
+      if (projects.length === 0) throw new Error('No Supabase projects found in this account.')
+
+      if (projects.length === 1) {
+        // Auto-select the only project
+        await applyOAuthProject(projects[0], accessToken, refreshToken)
+      } else {
+        // Let the user pick
+        setOauthAccessToken(accessToken)
+        setOauthRefreshToken(refreshToken ?? null)
+        setOauthProjects(projects)
+      }
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'OAuth connection failed')
+    } finally {
+      setIsOAuthConnecting(false)
+    }
+  }, [])
+
+  const applyOAuthProject = useCallback(async (project: OAuthProject, accessToken: string, refreshToken?: string) => {
+    setIsOAuthConnecting(true)
+    setCreateError(null)
+    try {
+      // Try to fetch API keys automatically via the Secrets scope.
+      // If the OAuth app has Secrets → Read, this gives us the anon and
+      // service_role keys, making the connection fully autonomous.
+      // If Secrets scope is missing, we gracefully fall back to skeleton mode
+      // and prompt the user to paste keys manually.
+      let keys: { anon: string; serviceRole: string } = { anon: '', serviceRole: '' }
+      try {
+        keys = await getProjectKeys(project.ref, accessToken)
+      } catch (err) {
+        if (err instanceof OAuthScopeError) {
+          toast.warning('Connected with limited access', {
+            description: `${err.message} You can add keys manually in Settings.`,
+            duration: 8000,
+          })
+        } else {
+          toast.warning('Connected with limited access', {
+            description: 'Could not fetch API keys automatically. Add them manually in Settings.',
+            duration: 8000,
+          })
+        }
+      }
+
+      const now = new Date().toISOString()
+      const newConnection = {
+        id: `conn-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        name: project.name,
+        supabaseUrl: `https://${project.ref}.supabase.co`,
+        anonKey: keys.anon,
+        serviceRoleKey: keys.serviceRole || null,
+        accessToken,
+        refreshToken: refreshToken ?? null,
+        s3KeyId: null as null,
+        s3Secret: null as null,
+        s3Warehouse: null as null,
+        createdAt: now,
+        updatedAt: now,
+      }
+      addConnection(newConnection)
+      setActiveConnectionId(newConnection.id)
+      addActivityLog({ type: 'connection', action: 'Connected via OAuth', details: project.name })
+
+      if (keys.anon) {
+        toast.success('Connected', { description: project.name })
+      } else {
+        toast.success('Project linked via OAuth', {
+          description: `${project.name} — add your Publishable / Secret key in Settings to enable full access`,
+          duration: 6000,
+        })
+      }
+
+      setShowNewDialog(false)
+      setOauthProjects(null)
+      setOauthAccessToken(null)
+      setOauthRefreshToken(null)
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'Failed to load project details')
+    } finally {
+      setIsOAuthConnecting(false)
+    }
+  }, [addConnection, setActiveConnectionId, addActivityLog])
 
   const prefillFromEnv = useCallback(async () => {
     setIsPrefilling(true)
@@ -269,6 +390,10 @@ export default function Home() {
         anonKey: newAnonKey.trim(),
         serviceRoleKey: newServiceRoleKey.trim() || null,
         accessToken: newAccessToken.trim() || null,
+        refreshToken: null,
+        s3KeyId: null,
+        s3Secret: null,
+        s3Warehouse: null,
         createdAt: now,
         updatedAt: now,
       }
@@ -653,64 +778,122 @@ export default function Home() {
                       <AlertDescription>{createError}</AlertDescription>
                     </Alert>
                   )}
-                  <div className="flex flex-col gap-1.5">
-                    <Label>Connection Name</Label>
-                    <Input
-                      value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
-                      placeholder="My Project"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label>Supabase URL</Label>
-                    <Input
-                      value={newUrl}
-                      onChange={(e) => setNewUrl(e.target.value)}
-                      placeholder="https://yourproject.supabase.co"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label>Publishable Key</Label>
-                    <Input
-                      value={newAnonKey}
-                      onChange={(e) => setNewAnonKey(e.target.value)}
-                      placeholder="sb_publishable_..."
-                      type="password"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label>Secret Key (optional)</Label>
-                    <Input
-                      value={newServiceRoleKey}
-                      onChange={(e) => setNewServiceRoleKey(e.target.value)}
-                      placeholder="Bypasses RLS — use with caution"
-                      type="password"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label>Management API Token (optional — for SQL &amp; full RLS info)</Label>
-                    <Input
-                      value={newAccessToken}
-                      onChange={(e) => setNewAccessToken(e.target.value)}
-                      placeholder="sbp_..."
-                      type="password"
-                    />
-                  </div>
-                  <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-3 py-2.5 text-xs text-amber-800 dark:text-amber-300 flex gap-2">
-                    <ShieldAlert className="size-3.5 shrink-0 mt-0.5" />
-                    <span>
-                      <strong>Only enter Secret Key or Management Token if you are running this app locally.</strong>{' '}
-                      On a hosted site, credentials are stored in your browser only — but you should only trust self-hosted instances with sensitive keys.
-                    </span>
-                  </div>
-                  <Button onClick={createConnection} disabled={isCreating}>
-                    {isCreating ? (
-                      <Loader2 className="mr-2 size-4 animate-spin" />
-                    ) : (
-                      <Plug className="mr-2 size-4" />
-                    )}
-                    Connect
-                  </Button>
+
+                  {/* OAuth project picker — shown after successful auth with multiple projects */}
+                  {oauthProjects ? (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-xs text-muted-foreground">Select a project to connect:</p>
+                      {oauthProjects.map((p) => (
+                        <Button
+                          key={p.ref}
+                          variant="outline"
+                          className="justify-start gap-2 h-auto py-2.5"
+                          disabled={isOAuthConnecting}
+                          onClick={() => applyOAuthProject(p, oauthAccessToken!, oauthRefreshToken ?? undefined)}
+                        >
+                          {isOAuthConnecting ? (
+                            <Loader2 className="size-3.5 shrink-0 animate-spin" />
+                          ) : (
+                            <Database className="size-3.5 shrink-0" />
+                          )}
+                          <div className="text-left">
+                            <div className="text-sm font-medium">{p.name}</div>
+                            <div className="text-xs text-muted-foreground">{p.ref} · {p.region}</div>
+                          </div>
+                        </Button>
+                      ))}
+                      <Button variant="ghost" size="sm" className="mt-1" onClick={() => { setOauthProjects(null); setOauthAccessToken(null) }}>
+                        ← Back
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Primary: OAuth */}
+                      <Button
+                        onClick={connectWithOAuth}
+                        disabled={isOAuthConnecting}
+                        className="w-full gap-2"
+                      >
+                        {isOAuthConnecting ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <svg className="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <path d="M21.362 9.354H12V.396a.396.396 0 0 0-.716-.233L2.203 12.424l-.401.562a.396.396 0 0 0 .32.625H12v8.958a.396.396 0 0 0 .716.233l9.081-12.261.401-.562a.396.396 0 0 0-.32-.625z" />
+                          </svg>
+                        )}
+                        Connect with Supabase
+                      </Button>
+
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 h-px bg-border" />
+                        <span className="text-xs text-muted-foreground">or enter manually</span>
+                        <div className="flex-1 h-px bg-border" />
+                      </div>
+
+                      {/* Fallback: manual form */}
+                      <div className="flex flex-col gap-1.5">
+                        <Label>Connection Name</Label>
+                        <Input
+                          value={newName}
+                          onChange={(e) => setNewName(e.target.value)}
+                          placeholder="My Project"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label>Supabase URL</Label>
+                        <Input
+                          value={newUrl}
+                          onChange={(e) => setNewUrl(e.target.value)}
+                          placeholder="https://yourproject.supabase.co"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label>Publishable Key</Label>
+                        <Input
+                          value={newAnonKey}
+                          onChange={(e) => setNewAnonKey(e.target.value)}
+                          placeholder="sb_publishable_..."
+                          type="password"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center gap-2">
+                          <Label>Secret Key</Label>
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                            Local only
+                          </span>
+                        </div>
+                        <Input
+                          value={newServiceRoleKey}
+                          onChange={(e) => setNewServiceRoleKey(e.target.value)}
+                          placeholder="Bypasses RLS — use with caution"
+                          type="password"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center gap-2">
+                          <Label>Management API Token</Label>
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                            Local only
+                          </span>
+                        </div>
+                        <Input
+                          value={newAccessToken}
+                          onChange={(e) => setNewAccessToken(e.target.value)}
+                          placeholder="sbp_..."
+                          type="password"
+                        />
+                      </div>
+                      <Button onClick={createConnection} disabled={isCreating}>
+                        {isCreating ? (
+                          <Loader2 className="mr-2 size-4 animate-spin" />
+                        ) : (
+                          <Plug className="mr-2 size-4" />
+                        )}
+                        Connect
+                      </Button>
+                    </>
+                  )}
                 </div>
               </DialogContent>
             </Dialog>
@@ -1254,9 +1437,9 @@ export default function Home() {
                   </div>
 
                   {/* Diagram + side panel */}
-                  <div className="flex flex-col lg:flex-row gap-4 min-h-[600px]">
+                  <div className="flex flex-col lg:flex-row gap-4 h-[600px] min-h-[600px]">
                     {/* Diagram area */}
-                    <div className="flex-1 border border-border rounded-xl overflow-hidden bg-card shadow-sm relative">
+                    <div className="flex-1 border border-border rounded-xl overflow-hidden bg-card shadow-sm relative h-full">
                       {filteredTables.length > 0 ? (
                         <SchemaDiagram
                           tables={filteredTables}
@@ -1318,9 +1501,9 @@ export default function Home() {
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="w-full lg:w-[420px] shrink-0 border rounded-lg overflow-hidden"
+                        className="w-full lg:w-[420px] shrink-0 border rounded-lg overflow-hidden h-full"
                       >
-                        <ScrollArea className="h-full max-h-[600px]">
+                        <ScrollArea className="h-full">
                           <TableDetailPanel
                             tableName={selectedTable}
                             schema={selectedTableInfo.schema}
