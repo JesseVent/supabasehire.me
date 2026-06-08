@@ -1,18 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { mcpClientFromRequest } from '@/lib/mcp-server-client'
-
-function parseRows<T>(raw: string): T[] {
-  try {
-    const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed)) return parsed as T[]
-    if (Array.isArray(parsed.rows)) return parsed.rows as T[]
-    if (Array.isArray(parsed.data)) return parsed.data as T[]
-  } catch {
-    // ignore parse errors
-  }
-  return []
-}
+import { parseMcpSqlRows } from '@/lib/mcp-response-parser'
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,8 +25,8 @@ export async function POST(request: NextRequest) {
       client.callTool('execute_sql', { query: columnsSQL }),
     ])
 
-    const tableRows = parseRows<{ ai_description: string | null }>(tableRaw)
-    const colRows = parseRows<{ column_name: string; ai_description: string | null }>(colsRaw)
+    const tableRows = parseMcpSqlRows<{ ai_description: string | null }>(tableRaw)
+    const colRows = parseMcpSqlRows<{ column_name: string; ai_description: string | null }>(colsRaw)
 
     const statements: string[] = []
     const safeSchema = schemaName.replace(/"/g, '""')

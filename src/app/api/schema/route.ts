@@ -1,16 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { mcpClientFromRequest } from '@/lib/mcp-server-client'
 import type { TableSchema, ColumnInfo, ForeignKeyInfo } from '@/lib/supabase-types'
-
-function parseRows<T>(raw: string): T[] {
-  try {
-    const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed)) return parsed as T[]
-    if (Array.isArray(parsed.rows)) return parsed.rows as T[]
-    if (Array.isArray(parsed.data)) return parsed.data as T[]
-  } catch { /* ignore */ }
-  return []
-}
+import { parseMcpSqlRows } from '@/lib/mcp-response-parser'
 
 const COLUMNS_SQL = `
 SELECT
@@ -55,8 +46,8 @@ export async function POST(request: NextRequest) {
       client.callTool('execute_sql', { query: FK_SQL }).catch(() => '[]'),
     ])
 
-    const columns = parseRows<ColumnInfo>(colsRaw)
-    const foreignKeys = parseRows<ForeignKeyInfo>(fkRaw)
+    const columns = parseMcpSqlRows<ColumnInfo>(colsRaw)
+    const foreignKeys = parseMcpSqlRows<ForeignKeyInfo>(fkRaw)
 
     const tableMap = new Map<string, TableSchema>()
     for (const col of columns) {

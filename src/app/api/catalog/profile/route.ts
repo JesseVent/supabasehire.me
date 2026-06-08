@@ -1,17 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mcpClientFromRequest } from "@/lib/mcp-server-client";
 
-function parseRows<T>(raw: string): T[] {
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed as T[];
-    if (Array.isArray(parsed.rows)) return parsed.rows as T[];
-    if (Array.isArray(parsed.data)) return parsed.data as T[];
-  } catch {
-    // ignore
-  }
-  return [];
-}
+import { parseMcpSqlRows } from '@/lib/mcp-response-parser'
 
 export async function POST(request: NextRequest) {
   try {
@@ -74,8 +64,8 @@ ORDER BY s.tablename, s.attname;
       is_nullable: string;
     };
 
-    const rowCounts = parseRows<RowCountRow>(rowCountRaw);
-    const columnStats = parseRows<StatsRow>(statsRaw);
+    const rowCounts = parseMcpSqlRows<RowCountRow>(rowCountRaw);
+    const columnStats = parseMcpSqlRows<StatsRow>(statsRaw);
 
     function parsePgArray(raw: string | null): unknown[] {
       if (!raw) return [];
@@ -123,7 +113,7 @@ ON CONFLICT (schema_name, table_name) DO UPDATE SET
 
       const getIdSQL = `SELECT id FROM catalog_tables WHERE schema_name = '${row.schemaname}' AND table_name = '${row.table_name.replace(/'/g, "''")}' LIMIT 1;`;
       const idRaw = await client.callTool("execute_sql", { query: getIdSQL });
-      const idRows = parseRows<{ id: string }>(idRaw);
+      const idRows = parseMcpSqlRows<{ id: string }>(idRaw);
       if (!idRows[0]?.id) continue;
       const tableId = idRows[0].id;
 

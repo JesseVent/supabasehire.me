@@ -1,16 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { mcpClientFromRequest } from '@/lib/mcp-server-client'
 import type { RLSPolicy, RLSEnabledStatus, TableRLSInfo } from '@/lib/supabase-types'
-
-function parseRows<T>(raw: string): T[] {
-  try {
-    const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed)) return parsed as T[]
-    if (Array.isArray(parsed.rows)) return parsed.rows as T[]
-    if (Array.isArray(parsed.data)) return parsed.data as T[]
-  } catch { /* ignore */ }
-  return []
-}
+import { parseMcpSqlRows } from '@/lib/mcp-response-parser'
 
 const POLICIES_SQL = `
 SELECT
@@ -37,8 +28,8 @@ export async function POST(request: NextRequest) {
       client.callTool('execute_sql', { query: RLS_STATUS_SQL }),
     ])
 
-    const policies = parseRows<RLSPolicy>(policiesRaw)
-    const statuses = parseRows<RLSEnabledStatus>(statusRaw)
+    const policies = parseMcpSqlRows<RLSPolicy>(policiesRaw)
+    const statuses = parseMcpSqlRows<RLSEnabledStatus>(statusRaw)
 
     const tableMap = new Map<string, TableRLSInfo>()
     for (const s of statuses) {

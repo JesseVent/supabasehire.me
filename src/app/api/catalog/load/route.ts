@@ -1,19 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { mcpClientFromRequest } from '@/lib/mcp-server-client'
-import type { CatalogColumn, CatalogTable } from '@/lib/supabase-types'
+import { parseMcpSqlRows } from '@/lib/mcp-response-parser'
 
-function parseRows<T>(raw: string): T[] {
-  try {
-    const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed)) return parsed as T[]
-    if (Array.isArray(parsed.rows)) return parsed.rows as T[]
-    if (Array.isArray(parsed.data)) return parsed.data as T[]
-  } catch {
-    // ignore parse errors
-  }
-  return []
-}
+import type { CatalogColumn, CatalogTable } from '@/lib/supabase-types'
 
 const JOIN_SQL = `
 SELECT
@@ -46,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     type CheckRow = { exists: string | null }
-    const checkRows = parseRows<CheckRow>(checkRaw)
+    const checkRows = parseMcpSqlRows<CheckRow>(checkRaw)
     if (!checkRows[0]?.exists) {
       return NextResponse.json({ schemaReady: false, tables: [] })
     }
@@ -73,7 +63,7 @@ export async function POST(request: NextRequest) {
       col_ai_description: string | null
     }
 
-    const rows = parseRows<JoinRow>(raw)
+    const rows = parseMcpSqlRows<JoinRow>(raw)
     const tableMap = new Map<string, CatalogTable>()
 
     for (const row of rows) {
