@@ -1,25 +1,36 @@
 /**
  * Parse MCP `execute_sql` response from the hosted Supabase MCP server.
  *
- * The hosted server wraps SQL results in security boundaries:
- *   <untrusted-data-uuid>
- *   [{"col":"val"},...]
- *   </untrusted-data-uuid>
+ * The hosted server returns results wrapped in a JSON object:
+ *   {"result":"Below is the result of the SQL query...\n\n<untrusted-data-uuid>\n[{\"col\":\"val\"},...]\n</untrusted-data-uuid>\n\n..."}
  *
- * This parser finds ALL opening tags, tries to parse the content between each
- * opening tag and the next closing tag, and returns the first successful parse.
- * Falls back to the plain formats (raw array, { rows: [...] }, { data: [...] }).
+ * This parser:
+ *   1. Unwraps the {"result":"..."} layer if present.
+ *   2. Finds the <untrusted-data-...> block and parses the JSON inside.
+ *   3. Falls back to plain formats (raw array, { rows: [...] }, { data: [...] }).
  */
 export function parseMcpSqlRows<T>(raw: string): T[] {
-  // 1. Try each <untrusted-data-...> block (there may be multiple mentions in text)
+  let text = raw
+
+  // 1. Unwrap {"result":"..."} if present (hosted MCP wraps text in this)
+  try {
+    const parsed = JSON.parse(raw)
+    if (typeof parsed?.result === 'string') {
+      text = parsed.result
+    }
+  } catch {
+    // not JSON — use raw as-is
+  }
+
+  // 2. Try each <untrusted-data-...> block (there may be multiple mentions in text)
   const openingRegex = /<untrusted-data-[\w-]+>\s*/g
   let match
-  while ((match = openingRegex.exec(raw)) !== null) {
+  while ((match = openingRegex.exec(text)) !== null) {
     const startIdx = match.index + match[0].length
-    const nextClosing = raw.slice(startIdx).match(/<\/untrusted-data-[\w-]+>/)
+    const nextClosing = text.slice(startIdx).match(/<\/untrusted-data-[\w-]+>/)
     if (nextClosing && nextClosing.index !== undefined) {
       const endIdx = startIdx + nextClosing.index
-      const payload = raw.slice(startIdx, endIdx).trim()
+      const payload = text.slice(startIdx, endIdx).trim()
       try {
         const parsed = JSON.parse(payload)
         if (Array.isArray(parsed)) return parsed as T[]
@@ -31,9 +42,9 @@ export function parseMcpSqlRows<T>(raw: string): T[] {
     }
   }
 
-  // 2. Fallback: try to parse the full payload as JSON
+  // 3. Fallback: try to parse the (unwrapped) payload as JSON directly
   try {
-    const parsed = JSON.parse(raw)
+    const parsed = JSON.parse(text)
     if (Array.isArray(parsed)) return parsed as T[]
     if (Array.isArray(parsed?.rows)) return parsed.rows as T[]
     if (Array.isArray(parsed?.data)) return parsed.data as T[]
