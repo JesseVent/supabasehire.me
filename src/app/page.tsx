@@ -894,20 +894,6 @@ export default function Home() {
                           type="password"
                         />
                       </div>
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex items-center gap-2">
-                          <Label>Management API Token</Label>
-                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-                            Local only
-                          </span>
-                        </div>
-                        <Input
-                          value={newAccessToken}
-                          onChange={(e) => setNewAccessToken(e.target.value)}
-                          placeholder="sbp_..."
-                          type="password"
-                        />
-                      </div>
                       <Button onClick={createConnection} disabled={isCreating}>
                         {isCreating ? (
                           <Loader2 className="mr-2 size-4 animate-spin" />
@@ -2121,7 +2107,6 @@ function SettingsPanel({
           { name: 'Supabase URL', status: 'pass', message: 'URL is reachable (demo)' },
           { name: 'Publishable Key', status: 'pass', message: 'Publishable key is valid (demo)' },
           { name: 'Secret Key', status: 'pass', message: 'Secret key is valid (demo)' },
-          { name: 'Management API Token', status: 'pass', message: 'Management API token is valid (demo)' },
         ],
       })
       return
@@ -2213,17 +2198,6 @@ function SettingsPanel({
                 disabled={isDemoMode}
               />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Management API Token</Label>
-              <Input
-                value={accessToken}
-                onChange={(e) => setAccessToken(e.target.value)}
-                type="password"
-                placeholder="Personal access token (sbp_...) — for SQL & full RLS info"
-                disabled={isDemoMode}
-              />
-            </div>
-
             {!isDemoMode && (
               <div className="flex items-center gap-3 pt-2">
                 <Button onClick={saveSettings} disabled={isSaving}>
