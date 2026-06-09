@@ -1,8 +1,8 @@
 'use client'
 
+import { Monitor, Moon, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useSyncExternalStore } from 'react'
-import { Sun, Moon, Monitor } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 const emptySubscribe = () => () => {}

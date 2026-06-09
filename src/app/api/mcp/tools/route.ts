@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { getConnectionFromHeaders } from '@/lib/api-auth'
-import { SupabaseMcpClient, projectRefFromUrl } from '@/lib/supabase-mcp-client'
+import { projectRefFromUrl, SupabaseMcpClient } from '@/lib/supabase-mcp-client'
 
 // POST /api/mcp/tools — Return the tool list from the Supabase hosted MCP server.
 // Runs server-side to avoid CORS restrictions on mcp.supabase.com.

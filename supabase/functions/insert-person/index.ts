@@ -26,24 +26,24 @@
 import { withSupabase } from 'npm:@supabase/server'
 
 interface PersonInsert {
-  person_id: number;
-  gender_concept_id: number;
-  year_of_birth: number;
-  race_concept_id: number;
-  ethnicity_concept_id: number;
-  month_of_birth?: number;
-  day_of_birth?: number;
-  birth_datetime?: string;
-  location_id?: number;
-  provider_id?: number;
-  care_site_id?: number;
-  person_source_value?: string;
-  gender_source_value?: string;
-  gender_source_concept_id?: number;
-  race_source_value?: string;
-  race_source_concept_id?: number;
-  ethnicity_source_value?: string;
-  ethnicity_source_concept_id?: number;
+  person_id: number
+  gender_concept_id: number
+  year_of_birth: number
+  race_concept_id: number
+  ethnicity_concept_id: number
+  month_of_birth?: number
+  day_of_birth?: number
+  birth_datetime?: string
+  location_id?: number
+  provider_id?: number
+  care_site_id?: number
+  person_source_value?: string
+  gender_source_value?: string
+  gender_source_concept_id?: number
+  race_source_value?: string
+  race_source_concept_id?: number
+  ethnicity_source_value?: string
+  ethnicity_source_concept_id?: number
 }
 
 const REQUIRED_FIELDS: (keyof PersonInsert)[] = [
@@ -77,7 +77,7 @@ export default {
     if (missing.length > 0) {
       return new Response(
         JSON.stringify({ error: `Missing required fields: ${missing.join(', ')}` }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } },
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
       )
     }
 

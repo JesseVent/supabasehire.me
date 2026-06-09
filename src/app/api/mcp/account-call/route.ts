@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { SupabaseMcpClient } from '@/lib/supabase-mcp-client'
 
 // POST /api/mcp/account-call — Execute an account-level Supabase MCP tool server-side.
@@ -19,7 +19,10 @@ export async function POST(request: NextRequest) {
     if (!accessToken) throw new Error('missing accessToken')
     if (!name) throw new Error('missing name')
   } catch {
-    return NextResponse.json({ error: 'Body must be { accessToken, name, args?, projectRef? }' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'Body must be { accessToken, name, args?, projectRef? }' },
+      { status: 400 }
+    )
   }
 
   const client = new SupabaseMcpClient({ projectRef, accessToken })

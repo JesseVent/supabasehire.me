@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
-
-import { mcpClientFromRequest } from '@/lib/mcp-server-client'
+import { type NextRequest, NextResponse } from 'next/server'
 import { parseMcpSqlRows } from '@/lib/mcp-response-parser'
+import { mcpClientFromRequest } from '@/lib/mcp-server-client'
 
 import type { CatalogColumn, CatalogTable } from '@/lib/supabase-types'
 

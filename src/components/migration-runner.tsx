@@ -1,35 +1,25 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
-import { toast } from 'sonner'
-import { apiFetch } from '@/lib/api-auth'
 import {
-  Play,
-  Loader2,
   AlertTriangle,
   CheckCircle2,
-  XCircle,
-  History,
   ChevronDown,
   ChevronUp,
-  Trash2,
-  Eye,
-  Database,
-  Plus,
   Columns3,
-  Shield,
-  Lock,
+  Database,
+  Eye,
   FileCode2,
+  History,
+  Loader2,
+  Lock,
+  Play,
+  Plus,
+  Shield,
+  Trash2,
+  XCircle,
 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Textarea } from '@/components/ui/textarea'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { Separator } from '@/components/ui/separator'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import { useCallback, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   AlertDialog,
@@ -42,6 +32,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
   SelectContent,
@@ -49,9 +45,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useSupabaseStore } from '@/store/supabase-store'
-import type { MigrationRecord } from '@/store/supabase-store'
+import { Separator } from '@/components/ui/separator'
+import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
+import { apiFetch } from '@/lib/api-auth'
 import type { SQLQueryResult } from '@/lib/supabase-types'
+import type { MigrationRecord } from '@/store/supabase-store'
+import { useSupabaseStore } from '@/store/supabase-store'
 
 // ─── Migration Templates ───
 
@@ -210,13 +210,11 @@ export function MigrationRunner() {
       }
 
       const res = await apiFetch('/api/sql', activeConnection, {
-          query: migrationSQL.trim(),
-        })
+        query: migrationSQL.trim(),
+      })
 
       const data = await res.json()
-      const sqlResult: SQLQueryResult = data.error
-        ? { success: false, error: data.error }
-        : data
+      const sqlResult: SQLQueryResult = data.error ? { success: false, error: data.error } : data
 
       if (sqlResult.success) {
         addMigration({
@@ -262,7 +260,16 @@ export function MigrationRunner() {
     } finally {
       setIsExecuting(false)
     }
-  }, [activeConnectionId, migrationSQL, migrationName, dryRun, isDestructive, destructiveKeywords, addMigration, addActivityLog])
+  }, [
+    activeConnectionId,
+    migrationSQL,
+    migrationName,
+    dryRun,
+    isDestructive,
+    destructiveKeywords,
+    addMigration,
+    addActivityLog,
+  ])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -293,11 +300,29 @@ export function MigrationRunner() {
   const statusBadge = (status: MigrationRecord['status']) => {
     switch (status) {
       case 'success':
-        return <Badge variant="secondary" className="bg-primary/10 text-primary dark:text-primary border-primary/20 text-[10px]">Success</Badge>
+        return (
+          <Badge
+            variant="secondary"
+            className="bg-primary/10 text-primary dark:text-primary border-primary/20 text-[10px]"
+          >
+            Success
+          </Badge>
+        )
       case 'failed':
-        return <Badge variant="destructive" className="text-[10px]">Failed</Badge>
+        return (
+          <Badge variant="destructive" className="text-[10px]">
+            Failed
+          </Badge>
+        )
       case 'pending':
-        return <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 text-[10px]">Dry Run</Badge>
+        return (
+          <Badge
+            variant="secondary"
+            className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 text-[10px]"
+          >
+            Dry Run
+          </Badge>
+        )
     }
   }
 
@@ -312,9 +337,7 @@ export function MigrationRunner() {
         <CardContent className="py-12">
           <div className="flex flex-col items-center justify-center text-center">
             <Database className="mb-3 size-12 text-muted-foreground/30" />
-            <p className="text-sm font-medium text-muted-foreground">
-              No connection selected
-            </p>
+            <p className="text-sm font-medium text-muted-foreground">No connection selected</p>
             <p className="text-xs text-muted-foreground">
               Connect to a Supabase project to run migrations
             </p>
@@ -371,11 +394,7 @@ export function MigrationRunner() {
             <CardTitle className="text-base">Migration Editor</CardTitle>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
-                <Switch
-                  id="dry-run"
-                  checked={dryRun}
-                  onCheckedChange={setDryRun}
-                />
+                <Switch id="dry-run" checked={dryRun} onCheckedChange={setDryRun} />
                 <Label htmlFor="dry-run" className="text-xs font-medium cursor-pointer">
                   Dry Run
                 </Label>
@@ -434,9 +453,15 @@ export function MigrationRunner() {
             {/* SQL Editor */}
             <div className="relative flex rounded-lg overflow-hidden border border-zinc-800 dark:border-zinc-700 bg-zinc-950 dark:bg-zinc-900 focus-within:ring-1 focus-within:ring-zinc-600">
               {/* Line numbers */}
-              <div className="flex-shrink-0 py-3 px-2 text-right select-none border-r border-zinc-800 dark:border-zinc-700 bg-zinc-900/50 dark:bg-zinc-800/50 overflow-hidden" aria-hidden="true">
+              <div
+                className="flex-shrink-0 py-3 px-2 text-right select-none border-r border-zinc-800 dark:border-zinc-700 bg-zinc-900/50 dark:bg-zinc-800/50 overflow-hidden"
+                aria-hidden="true"
+              >
                 {Array.from({ length: lineCount }, (_, i) => (
-                  <div key={i} className="text-[11px] leading-[1.375rem] text-zinc-600 dark:text-zinc-500 font-mono">
+                  <div
+                    key={i}
+                    className="text-[11px] leading-[1.375rem] text-zinc-600 dark:text-zinc-500 font-mono"
+                  >
                     {i + 1}
                   </div>
                 ))}
@@ -457,7 +482,9 @@ export function MigrationRunner() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">
-                  {migrationSQL.trim() ? `${migrationSQL.trim().length} characters` : 'Enter migration SQL'}
+                  {migrationSQL.trim()
+                    ? `${migrationSQL.trim().length} characters`
+                    : 'Enter migration SQL'}
                 </span>
                 {isDestructive && (
                   <Badge variant="destructive" className="text-[10px] gap-1">
@@ -466,7 +493,10 @@ export function MigrationRunner() {
                   </Badge>
                 )}
                 {dryRun && (
-                  <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 text-[10px] gap-1">
+                  <Badge
+                    variant="secondary"
+                    className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 text-[10px] gap-1"
+                  >
                     <Eye className="size-3" />
                     Dry Run
                   </Badge>
@@ -499,7 +529,8 @@ export function MigrationRunner() {
                       <AlertDialogDescription asChild>
                         <div className="flex flex-col gap-3">
                           <p>
-                            This migration contains destructive operations that may permanently modify or delete data:
+                            This migration contains destructive operations that may permanently
+                            modify or delete data:
                           </p>
                           <div className="flex flex-wrap gap-1">
                             {destructiveKeywords.map((kw) => (
@@ -516,14 +547,18 @@ export function MigrationRunner() {
                             </pre>
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            Are you sure you want to apply this migration? This action cannot be undone.
+                            Are you sure you want to apply this migration? This action cannot be
+                            undone.
                           </p>
                         </div>
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={executeMigration} className="bg-destructive hover:bg-destructive/90">
+                      <AlertDialogAction
+                        onClick={executeMigration}
+                        className="bg-destructive hover:bg-destructive/90"
+                      >
                         Apply Migration
                       </AlertDialogAction>
                     </AlertDialogFooter>
@@ -578,7 +613,11 @@ export function MigrationRunner() {
                 <History className="size-3.5" />
                 Migration History ({connectionMigrations.length})
               </span>
-              {showHistory ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+              {showHistory ? (
+                <ChevronUp className="size-3.5" />
+              ) : (
+                <ChevronDown className="size-3.5" />
+              )}
             </button>
             {showHistory && (
               <div className="border-t">

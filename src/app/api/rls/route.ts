@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { mcpClientFromRequest } from '@/lib/mcp-server-client'
-import type { RLSPolicy, RLSEnabledStatus, TableRLSInfo } from '@/lib/supabase-types'
+import { type NextRequest, NextResponse } from 'next/server'
 import { parseMcpSqlRows } from '@/lib/mcp-response-parser'
+import { mcpClientFromRequest } from '@/lib/mcp-server-client'
+import type { RLSEnabledStatus, RLSPolicy, TableRLSInfo } from '@/lib/supabase-types'
 
 const POLICIES_SQL = `
 SELECT
@@ -33,7 +33,11 @@ export async function POST(request: NextRequest) {
 
     const tableMap = new Map<string, TableRLSInfo>()
     for (const s of statuses) {
-      tableMap.set(s.tablename, { tableName: s.tablename, rlsEnabled: Boolean(s.rls_enabled), policies: [] })
+      tableMap.set(s.tablename, {
+        tableName: s.tablename,
+        rlsEnabled: Boolean(s.rls_enabled),
+        policies: [],
+      })
     }
     for (const p of policies) {
       if (!tableMap.has(p.tablename)) {

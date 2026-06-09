@@ -1,19 +1,15 @@
-import { type FC } from "react";
-import JSONPretty from "react-json-pretty";
+import type { FC } from 'react'
+import JSONPretty from 'react-json-pretty'
 
-import { agentPrismPrefix } from "../theme";
+import { agentPrismPrefix } from '../theme'
 
 export interface JsonViewerProps {
-  content: string;
-  id: string;
-  className?: string;
+  content: string
+  id: string
+  className?: string
 }
 
-export const DetailsViewJsonOutput: FC<JsonViewerProps> = ({
-  content,
-  id,
-  className = "",
-}) => {
+export const DetailsViewJsonOutput: FC<JsonViewerProps> = ({ content, id, className = '' }) => {
   return (
     <JSONPretty
       booleanStyle="color: #1e40af;"
@@ -25,5 +21,5 @@ export const DetailsViewJsonOutput: FC<JsonViewerProps> = ({
       stringStyle={`color: oklch(var(--${agentPrismPrefix}-code-string));`}
       valueStyle={`color: oklch(var(--${agentPrismPrefix}-code-number));`}
     />
-  );
-};
+  )
+}

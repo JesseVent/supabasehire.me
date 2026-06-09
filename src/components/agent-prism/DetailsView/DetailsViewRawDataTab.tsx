@@ -1,17 +1,15 @@
-import type { TraceSpan } from "@evilmartians/agent-prism-types";
+import type { TraceSpan } from '@evilmartians/agent-prism-types'
 
-import { type ReactElement } from "react";
+import type { ReactElement } from 'react'
 
-import { CopyButton } from "../CopyButton";
-import { DetailsViewJsonOutput } from "./DetailsViewJsonOutput";
+import { CopyButton } from '../CopyButton'
+import { DetailsViewJsonOutput } from './DetailsViewJsonOutput'
 
 interface RawDataTabProps {
-  data: TraceSpan;
+  data: TraceSpan
 }
 
-export const DetailsViewRawDataTab = ({
-  data,
-}: RawDataTabProps): ReactElement => (
+export const DetailsViewRawDataTab = ({ data }: RawDataTabProps): ReactElement => (
   <div className="border-agentprism-border rounded-md border bg-transparent">
     <div className="relative">
       <div className="pointer-events-none sticky top-0 z-10 flex justify-end p-1.5">
@@ -21,11 +19,8 @@ export const DetailsViewRawDataTab = ({
       </div>
 
       <div className="-mt-12">
-        <DetailsViewJsonOutput
-          content={data.raw}
-          id={data.id || "span-details"}
-        />
+        <DetailsViewJsonOutput content={data.raw} id={data.id || 'span-details'} />
       </div>
     </div>
   </div>
-);
+)

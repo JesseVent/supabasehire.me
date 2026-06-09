@@ -1,13 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getValidApiKey } from '@/lib/supabase-helpers'
+import { type NextRequest, NextResponse } from 'next/server'
 import { getConnectionFromHeaders } from '@/lib/api-auth'
 import { DEMO_TABLE_ROWS } from '@/lib/demo-data'
+import { getValidApiKey } from '@/lib/supabase-helpers'
 import type { SupabaseConnection } from '@/lib/supabase-types'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { tableName, limit = 50, offset = 0 } = body as {
+    const {
+      tableName,
+      limit = 50,
+      offset = 0,
+    } = body as {
       tableName: string
       limit?: number
       offset?: number
@@ -15,10 +19,7 @@ export async function POST(request: NextRequest) {
     const connection = getConnectionFromHeaders(request)
 
     if (!tableName) {
-      return NextResponse.json(
-        { error: 'tableName is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'tableName is required' }, { status: 400 })
     }
 
     // Demo mode
@@ -33,19 +34,13 @@ export async function POST(request: NextRequest) {
     }
 
     if (!connection) {
-      return NextResponse.json(
-        { error: 'No connection provided' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'No connection provided' }, { status: 400 })
     }
 
     const { supabaseUrl, anonKey, serviceRoleKey } = connection
     const apiKey = serviceRoleKey || anonKey
     if (!supabaseUrl || !apiKey) {
-      return NextResponse.json(
-        { error: 'Connection missing URL or API key' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Connection missing URL or API key' }, { status: 400 })
     }
 
     // Get a valid JWT (exchanges publishable key if needed)

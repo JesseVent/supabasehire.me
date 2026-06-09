@@ -1,9 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
-import { toast } from 'sonner'
-import { motion, AnimatePresence } from 'framer-motion'
-import { apiFetch } from '@/lib/api-auth'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
   Activity,
   AlertTriangle,
@@ -20,17 +17,13 @@ import {
   TreePine,
   Zap,
 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { useCallback, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
-import { Textarea } from '@/components/ui/textarea'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
-import {
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsibleContent,
-} from '@/components/ui/collapsible'
 import {
   Select,
   SelectContent,
@@ -38,6 +31,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
+import { Textarea } from '@/components/ui/textarea'
+import { apiFetch } from '@/lib/api-auth'
 import { DEMO_CONNECTION_ID } from '@/lib/demo-data'
 import { useSupabaseStore } from '@/store/supabase-store'
 
@@ -47,10 +43,10 @@ interface PlanNode {
   'Node Type': string
   'Parent Relationship'?: string
   'Relation Name'?: string
-  'Alias'?: string
+  Alias?: string
   'Index Name'?: string
   'Index Cond'?: string
-  'Filter'?: string
+  Filter?: string
   'Recheck Cond'?: string
   'Hash Cond'?: string
   'Join Type'?: string
@@ -84,7 +80,7 @@ interface PlanNode {
 interface ExplainResult {
   Plan: PlanNode
   'Planning Time'?: number
-  'Triggers'?: unknown[]
+  Triggers?: unknown[]
   'Execution Time'?: number
 }
 
@@ -137,13 +133,13 @@ const DEMO_EXPLAIN_RESULT: ExplainResult[] = [
               'Parent Relationship': 'Outer',
               'Index Name': 'idx_posts_user_id',
               'Relation Name': 'posts',
-              'Alias': 'posts',
+              Alias: 'posts',
               'Index Cond': '(user_id = 1)',
               'Startup Cost': 0.29,
               'Total Cost': 8.31,
               'Plan Rows': 10,
               'Plan Width': 156,
-              'Actual Startup Time': 0.020,
+              'Actual Startup Time': 0.02,
               'Actual Total Time': 0.028,
               'Actual Rows': 10,
               'Actual Loops': 1,
@@ -211,7 +207,7 @@ const DEMO_EXPLAIN_RESULT_COMPLEX: ExplainResult[] = [
                   'Parent Relationship': 'Outer',
                   'Index Name': 'idx_posts_user_id',
                   'Relation Name': 'posts',
-                  'Alias': 'p',
+                  Alias: 'p',
                   'Index Cond': '(user_id = 1)',
                   'Startup Cost': 0.29,
                   'Total Cost': 8.31,
@@ -229,7 +225,7 @@ const DEMO_EXPLAIN_RESULT_COMPLEX: ExplainResult[] = [
                   'Parent Relationship': 'Inner',
                   'Index Name': 'idx_comments_post_id',
                   'Relation Name': 'comments',
-                  'Alias': 'c',
+                  Alias: 'c',
                   'Index Cond': '(post_id = p.id)',
                   'Startup Cost': 0.13,
                   'Total Cost': 14.72,
@@ -280,7 +276,7 @@ const DEMO_EXPLAIN_RESULT_SEQSCAN: ExplainResult[] = [
           'Plan Rows': 10,
           'Plan Width': 156,
           'Actual Startup Time': 145.231,
-          'Actual Total Time': 145.280,
+          'Actual Total Time': 145.28,
           'Actual Rows': 10,
           'Actual Loops': 1,
           'Shared Hit Blocks': 248,
@@ -290,8 +286,8 @@ const DEMO_EXPLAIN_RESULT_SEQSCAN: ExplainResult[] = [
               'Node Type': 'Seq Scan',
               'Parent Relationship': 'Outer',
               'Relation Name': 'audit_logs',
-              'Alias': 'audit_logs',
-              'Filter': '(user_id = 1)',
+              Alias: 'audit_logs',
+              Filter: '(user_id = 1)',
               'Startup Cost': 0.0,
               'Total Cost': 2847.42,
               'Plan Rows': 89,
@@ -326,7 +322,12 @@ function getDemoExplainResult(query: string): ExplainResult[] {
 
 // ─── Helper Functions ───
 
-function getNodePerformanceColor(time: number): { bg: string; border: string; text: string; dot: string } {
+function getNodePerformanceColor(time: number): {
+  bg: string
+  border: string
+  text: string
+  dot: string
+} {
   if (time < 1) {
     return {
       bg: 'bg-primary/10 dark:bg-primary/15',
@@ -617,7 +618,10 @@ function PlanTreeNode({
                   </Badge>
                 )}
                 {node['Index Name'] && (
-                  <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0 gap-1 border-primary/30 text-primary dark:text-primary">
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] font-mono px-1.5 py-0 gap-1 border-primary/30 text-primary dark:text-primary"
+                  >
                     <Zap className="size-2.5" />
                     {node['Index Name']}
                   </Badge>
@@ -635,7 +639,9 @@ function PlanTreeNode({
                   <Timer className="size-3" />
                   {time.toFixed(3)}ms
                   {timePercent > 0 && (
-                    <span className={`ml-0.5 ${timePercent > 80 ? 'text-red-500 font-semibold' : timePercent > 40 ? 'text-amber-500' : ''}`}>
+                    <span
+                      className={`ml-0.5 ${timePercent > 80 ? 'text-red-500 font-semibold' : timePercent > 40 ? 'text-amber-500' : ''}`}
+                    >
                       ({timePercent.toFixed(1)}%)
                     </span>
                   )}
@@ -645,22 +651,23 @@ function PlanTreeNode({
                   {rows.toLocaleString()} rows
                 </span>
                 {loops > 1 && (
-                  <span className="text-[11px] text-muted-foreground">
-                    ×{loops} loops
-                  </span>
+                  <span className="text-[11px] text-muted-foreground">×{loops} loops</span>
                 )}
-                <span className="text-[11px] text-muted-foreground">
-                  cost {cost.toFixed(2)}
-                </span>
+                <span className="text-[11px] text-muted-foreground">cost {cost.toFixed(2)}</span>
                 {totalBlocks > 0 && (
-                  <span className={`text-[11px] ${hitRatio >= 99 ? 'text-primary' : hitRatio >= 90 ? 'text-amber-500' : 'text-red-500'}`}>
+                  <span
+                    className={`text-[11px] ${hitRatio >= 99 ? 'text-primary' : hitRatio >= 90 ? 'text-amber-500' : 'text-red-500'}`}
+                  >
                     cache {hitRatio.toFixed(0)}%
                   </span>
                 )}
               </div>
 
               {/* Conditions */}
-              {(node['Index Cond'] || node['Filter'] || node['Hash Cond'] || node['Recheck Cond']) && (
+              {(node['Index Cond'] ||
+                node['Filter'] ||
+                node['Hash Cond'] ||
+                node['Recheck Cond']) && (
                 <div className="mt-1 flex flex-wrap gap-1">
                   {node['Index Cond'] && (
                     <code className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary dark:text-primary font-mono">
@@ -688,7 +695,11 @@ function PlanTreeNode({
                   </code>
                   {node['Sort Method'] && (
                     <span className="text-[10px] text-muted-foreground ml-1.5">
-                      ({node['Sort Method']}{node['Sort Space Used'] ? `: ${node['Sort Space Used']}KB ${node['Sort Space Type']?.toLowerCase() ?? ''}` : ''})
+                      ({node['Sort Method']}
+                      {node['Sort Space Used']
+                        ? `: ${node['Sort Space Used']}KB ${node['Sort Space Type']?.toLowerCase() ?? ''}`
+                        : ''}
+                      )
                     </span>
                   )}
                 </div>
@@ -750,9 +761,7 @@ function StatCard({
         <span className="text-xs font-medium text-muted-foreground">{label}</span>
       </div>
       <div className="text-xl font-bold tracking-tight">{value}</div>
-      {subValue && (
-        <div className="text-[11px] text-muted-foreground mt-0.5">{subValue}</div>
-      )}
+      {subValue && <div className="text-[11px] text-muted-foreground mt-0.5">{subValue}</div>}
     </div>
   )
 }
@@ -767,7 +776,9 @@ interface QueryAnalyzerProps {
 export function QueryAnalyzer({ activeConnectionId, query: initialQuery }: QueryAnalyzerProps) {
   const { connections } = useSupabaseStore()
   const activeConnection = connections.find((c) => c.id === activeConnectionId) || null
-  const [query, setQuery] = useState(initialQuery ?? 'SELECT * FROM posts WHERE user_id = 1 ORDER BY created_at DESC LIMIT 10;')
+  const [query, setQuery] = useState(
+    initialQuery ?? 'SELECT * FROM posts WHERE user_id = 1 ORDER BY created_at DESC LIMIT 10;'
+  )
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [explainResult, setExplainResult] = useState<ExplainResult[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -800,8 +811,8 @@ export function QueryAnalyzer({ activeConnectionId, query: initialQuery }: Query
 
     try {
       const res = await apiFetch('/api/sql', activeConnection, {
-          query: `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${query.trim()}`,
-        })
+        query: `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${query.trim()}`,
+      })
 
       const data = await res.json()
       if (data.error) {
@@ -816,7 +827,8 @@ export function QueryAnalyzer({ activeConnectionId, query: initialQuery }: Query
           const planKey = Object.keys(firstRow)[0]
           if (planKey) {
             const planData = firstRow[planKey]
-            parsed = typeof planData === 'string' ? JSON.parse(planData) : (planData as ExplainResult[])
+            parsed =
+              typeof planData === 'string' ? JSON.parse(planData) : (planData as ExplainResult[])
           } else {
             parsed = data.data as ExplainResult[]
           }
@@ -845,9 +857,8 @@ export function QueryAnalyzer({ activeConnectionId, query: initialQuery }: Query
   const nodeCount = plan ? countNodes(plan) : 0
   const totalRows = plan ? getTotalRows(plan) : 0
   const buffers = plan ? getTotalBuffers(plan) : { hit: 0, read: 0 }
-  const hitRatio = buffers.hit + buffers.read > 0
-    ? ((buffers.hit / (buffers.hit + buffers.read)) * 100)
-    : 100
+  const hitRatio =
+    buffers.hit + buffers.read > 0 ? (buffers.hit / (buffers.hit + buffers.read)) * 100 : 100
   const warnings = plan ? detectWarnings(plan, executionTime) : []
 
   const criticalCount = warnings.filter((w) => w.severity === 'critical').length
@@ -862,7 +873,10 @@ export function QueryAnalyzer({ activeConnectionId, query: initialQuery }: Query
             <Gauge className="size-5 text-primary" />
             <CardTitle>Query Performance Analyzer</CardTitle>
             {isDemo && (
-              <Badge variant="outline" className="gap-1 text-amber-600 border-amber-200 dark:text-amber-400 dark:border-amber-800 text-[10px]">
+              <Badge
+                variant="outline"
+                className="gap-1 text-amber-600 border-amber-200 dark:text-amber-400 dark:border-amber-800 text-[10px]"
+              >
                 <Eye className="size-3" />
                 Demo
               </Badge>
@@ -902,13 +916,19 @@ export function QueryAnalyzer({ activeConnectionId, query: initialQuery }: Query
                   onValueChange={(v: string) => {
                     switch (v) {
                       case 'join':
-                        setQuery('SELECT p.*, c.content FROM posts p JOIN comments c ON c.post_id = p.id WHERE p.user_id = 1 ORDER BY p.created_at DESC LIMIT 10;')
+                        setQuery(
+                          'SELECT p.*, c.content FROM posts p JOIN comments c ON c.post_id = p.id WHERE p.user_id = 1 ORDER BY p.created_at DESC LIMIT 10;'
+                        )
                         break
                       case 'seqscan':
-                        setQuery('SELECT * FROM audit_logs WHERE user_id = 1 ORDER BY created_at DESC LIMIT 10;')
+                        setQuery(
+                          'SELECT * FROM audit_logs WHERE user_id = 1 ORDER BY created_at DESC LIMIT 10;'
+                        )
                         break
                       default:
-                        setQuery('SELECT * FROM posts WHERE user_id = 1 ORDER BY created_at DESC LIMIT 10;')
+                        setQuery(
+                          'SELECT * FROM posts WHERE user_id = 1 ORDER BY created_at DESC LIMIT 10;'
+                        )
                     }
                     setExplainResult(null)
                   }}
@@ -993,13 +1013,14 @@ export function QueryAnalyzer({ activeConnectionId, query: initialQuery }: Query
                 icon={<Clock className="size-4 text-amber-700 dark:text-amber-300" />}
                 label="Execution Time"
                 value={executionTime != null ? `${executionTime.toFixed(2)}ms` : '—'}
-                subValue={executionTime != null
-                  ? executionTime < 10
-                    ? '⚡ Fast'
-                    : executionTime < 100
-                      ? '👍 Moderate'
-                      : '🐌 Slow'
-                  : undefined
+                subValue={
+                  executionTime != null
+                    ? executionTime < 10
+                      ? '⚡ Fast'
+                      : executionTime < 100
+                        ? '👍 Moderate'
+                        : '🐌 Slow'
+                    : undefined
                 }
                 gradient="bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/20 border-amber-200/50 dark:border-amber-800/30"
               />
@@ -1007,9 +1028,10 @@ export function QueryAnalyzer({ activeConnectionId, query: initialQuery }: Query
                 icon={<Timer className="size-4 text-sky-700 dark:text-sky-300" />}
                 label="Planning Time"
                 value={planningTime != null ? `${planningTime.toFixed(2)}ms` : '—'}
-                subValue={planningTime != null && executionTime != null
-                  ? `${((planningTime / (planningTime + executionTime)) * 100).toFixed(1)}% of total`
-                  : undefined
+                subValue={
+                  planningTime != null && executionTime != null
+                    ? `${((planningTime / (planningTime + executionTime)) * 100).toFixed(1)}% of total`
+                    : undefined
                 }
                 gradient="bg-gradient-to-br from-sky-50 to-sky-100/50 dark:from-sky-950/30 dark:to-sky-900/20 border-sky-200/50 dark:border-sky-800/30"
               />
@@ -1031,7 +1053,13 @@ export function QueryAnalyzer({ activeConnectionId, query: initialQuery }: Query
                 icon={<AlertTriangle className="size-4 text-orange-700 dark:text-orange-300" />}
                 label="Warnings"
                 value={`${criticalCount + warningCount}`}
-                subValue={criticalCount > 0 ? `${criticalCount} critical, ${warningCount} warning` : warningCount > 0 ? `${warningCount} warning` : 'No issues detected'}
+                subValue={
+                  criticalCount > 0
+                    ? `${criticalCount} critical, ${warningCount} warning`
+                    : warningCount > 0
+                      ? `${warningCount} warning`
+                      : 'No issues detected'
+                }
                 gradient={`bg-gradient-to-br ${criticalCount > 0 ? 'from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/20 border-red-200/50 dark:border-red-800/30' : warningCount > 0 ? 'from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/20 border-amber-200/50 dark:border-amber-800/30' : 'from-primary/10 to-primary/15/50 dark:from-primary/10/30 dark:to-primary/50/20 border-primary/30/50 dark:border-primary/30/30'}`}
               />
             </div>
@@ -1044,24 +1072,23 @@ export function QueryAnalyzer({ activeConnectionId, query: initialQuery }: Query
                   <CardTitle className="text-base">Execution Plan</CardTitle>
                 </div>
                 <CardDescription>
-                  Visual representation of the query execution plan. Color indicates performance: green (fast), amber (moderate), red (slow).
+                  Visual representation of the query execution plan. Color indicates performance:
+                  green (fast), amber (moderate), red (slow).
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <ScrollArea className="flex-1 min-h-0">
                   <div className="space-y-1.5 pb-4 pr-2">
-                    <PlanTreeNode
-                      node={plan}
-                      depth={0}
-                      executionTime={executionTime}
-                    />
+                    <PlanTreeNode node={plan} depth={0} executionTime={executionTime} />
                   </div>
                 </ScrollArea>
 
                 {/* Legend */}
                 <Separator className="my-3" />
                 <div className="flex items-center gap-4 flex-wrap">
-                  <span className="text-[11px] text-muted-foreground font-medium">Performance:</span>
+                  <span className="text-[11px] text-muted-foreground font-medium">
+                    Performance:
+                  </span>
                   <div className="flex items-center gap-1.5">
                     <div className="size-2.5 rounded-full bg-primary" />
                     <span className="text-[11px] text-muted-foreground">&lt; 1ms (fast)</span>
@@ -1091,7 +1118,10 @@ export function QueryAnalyzer({ activeConnectionId, query: initialQuery }: Query
                       </Badge>
                     )}
                     {warningCount > 0 && (
-                      <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 text-[10px] gap-1">
+                      <Badge
+                        variant="secondary"
+                        className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 text-[10px] gap-1"
+                      >
                         {warningCount} Warning{warningCount !== 1 ? 's' : ''}
                       </Badge>
                     )}
@@ -1115,20 +1145,24 @@ export function QueryAnalyzer({ activeConnectionId, query: initialQuery }: Query
                         }`}
                       >
                         <div className="flex items-start gap-2">
-                          <div className={`mt-0.5 shrink-0 size-5 rounded flex items-center justify-center ${
-                            warning.severity === 'critical'
-                              ? 'bg-red-500/20 text-red-600 dark:text-red-400'
-                              : 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
-                          }`}>
+                          <div
+                            className={`mt-0.5 shrink-0 size-5 rounded flex items-center justify-center ${
+                              warning.severity === 'critical'
+                                ? 'bg-red-500/20 text-red-600 dark:text-red-400'
+                                : 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                            }`}
+                          >
                             <AlertTriangle className="size-3" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`text-sm font-medium ${
-                                warning.severity === 'critical'
-                                  ? 'text-red-600 dark:text-red-400'
-                                  : 'text-amber-600 dark:text-amber-400'
-                              }`}>
+                              <span
+                                className={`text-sm font-medium ${
+                                  warning.severity === 'critical'
+                                    ? 'text-red-600 dark:text-red-400'
+                                    : 'text-amber-600 dark:text-amber-400'
+                                }`}
+                              >
                                 {warning.message}
                               </span>
                               <Badge
@@ -1147,9 +1181,7 @@ export function QueryAnalyzer({ activeConnectionId, query: initialQuery }: Query
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {warning.detail}
-                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">{warning.detail}</p>
                           </div>
                         </div>
                       </motion.div>
@@ -1194,9 +1226,7 @@ export function QueryAnalyzer({ activeConnectionId, query: initialQuery }: Query
           <CardContent className="py-10">
             <div className="flex flex-col items-center justify-center text-center">
               <Gauge className="mb-3 size-12 text-muted-foreground/30" />
-              <p className="text-sm font-medium text-muted-foreground">
-                Ready to analyze
-              </p>
+              <p className="text-sm font-medium text-muted-foreground">Ready to analyze</p>
               <p className="text-xs text-muted-foreground mt-1">
                 {isDemo
                   ? 'Click "Explain Analyze" to see a demo execution plan visualization'
@@ -1204,21 +1234,38 @@ export function QueryAnalyzer({ activeConnectionId, query: initialQuery }: Query
               </p>
               {isDemo && (
                 <div className="flex flex-col gap-1.5 mt-4">
-                  <p className="text-[11px] text-muted-foreground font-medium">Try these demo queries:</p>
+                  <p className="text-[11px] text-muted-foreground font-medium">
+                    Try these demo queries:
+                  </p>
                   <button
-                    onClick={() => { setQuery('SELECT * FROM posts WHERE user_id = 1 ORDER BY created_at DESC LIMIT 10;'); setExplainResult(null) }}
+                    onClick={() => {
+                      setQuery(
+                        'SELECT * FROM posts WHERE user_id = 1 ORDER BY created_at DESC LIMIT 10;'
+                      )
+                      setExplainResult(null)
+                    }}
                     className="text-[11px] font-mono text-primary hover:underline"
                   >
                     Simple index scan →
                   </button>
                   <button
-                    onClick={() => { setQuery('SELECT p.*, c.content FROM posts p JOIN comments c ON c.post_id = p.id WHERE p.user_id = 1 ORDER BY p.created_at DESC LIMIT 10;'); setExplainResult(null) }}
+                    onClick={() => {
+                      setQuery(
+                        'SELECT p.*, c.content FROM posts p JOIN comments c ON c.post_id = p.id WHERE p.user_id = 1 ORDER BY p.created_at DESC LIMIT 10;'
+                      )
+                      setExplainResult(null)
+                    }}
                     className="text-[11px] font-mono text-primary hover:underline"
                   >
                     JOIN with nested loop →
                   </button>
                   <button
-                    onClick={() => { setQuery('SELECT * FROM audit_logs WHERE user_id = 1 ORDER BY created_at DESC LIMIT 10;'); setExplainResult(null) }}
+                    onClick={() => {
+                      setQuery(
+                        'SELECT * FROM audit_logs WHERE user_id = 1 ORDER BY created_at DESC LIMIT 10;'
+                      )
+                      setExplainResult(null)
+                    }}
                     className="text-[11px] font-mono text-primary hover:underline"
                   >
                     Sequential scan (slow!) →

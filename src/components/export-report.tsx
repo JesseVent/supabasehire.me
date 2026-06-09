@@ -1,13 +1,9 @@
 'use client'
 
+import { Check, Copy, FileDown, FileText } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import {
-  FileDown,
-  Copy,
-  Check,
-  FileText,
-} from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -18,10 +14,9 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Badge } from '@/components/ui/badge'
-import { useSupabaseStore } from '@/store/supabase-store'
 import { DEMO_CONNECTION_ID } from '@/lib/demo-data'
 import type { TableRLSInfo, TableSchema } from '@/lib/supabase-types'
+import { useSupabaseStore } from '@/store/supabase-store'
 
 function generateMarkdownReport(
   rlsStatuses: TableRLSInfo[],
@@ -43,9 +38,13 @@ function generateMarkdownReport(
   lines.push('## Security Score')
   lines.push('')
   const scoreLabel =
-    securityScore >= 80 ? 'Good' :
-    securityScore >= 60 ? 'Fair' :
-    securityScore >= 40 ? 'Poor' : 'Critical'
+    securityScore >= 80
+      ? 'Good'
+      : securityScore >= 60
+        ? 'Fair'
+        : securityScore >= 40
+          ? 'Poor'
+          : 'Critical'
   lines.push(`**Score: ${securityScore}/100** (${scoreLabel})`)
   lines.push('')
 
@@ -74,11 +73,7 @@ function generateMarkdownReport(
   for (const rls of rlsStatuses) {
     const rlsStatus = rls.rlsEnabled ? '✅ Yes' : '❌ No'
     const policyCount = rls.policies.length
-    const risk = !rls.rlsEnabled
-      ? '🔴 Critical'
-      : policyCount === 0
-        ? '🟡 Warning'
-        : '🟢 Good'
+    const risk = !rls.rlsEnabled ? '🔴 Critical' : policyCount === 0 ? '🟡 Warning' : '🟢 Good'
     lines.push(`| \`${rls.tableName}\` | ${rlsStatus} | ${policyCount} | ${risk} |`)
   }
   lines.push('')
@@ -94,7 +89,7 @@ function generateMarkdownReport(
       lines.push('| Policy | Command | Permissive | Roles |')
       lines.push('|--------|---------|------------|-------|')
       for (const p of rls.policies) {
-        const roles = Array.isArray(p.roles) ? p.roles.join(', ') : (p.roles || '—')
+        const roles = Array.isArray(p.roles) ? p.roles.join(', ') : p.roles || '—'
         lines.push(`| \`${p.policyname}\` | ${p.cmd} | ${p.permissive} | ${roles} |`)
       }
       lines.push('')
@@ -108,7 +103,9 @@ function generateMarkdownReport(
   if (rlsDisabled.length > 0) {
     lines.push('### Tables without RLS (Critical)')
     lines.push('')
-    lines.push('The following tables have no row-level security enabled. All rows are accessible to all users:')
+    lines.push(
+      'The following tables have no row-level security enabled. All rows are accessible to all users:'
+    )
     lines.push('')
     for (const t of rlsDisabled) {
       lines.push(`- \`${t.tableName}\``)
@@ -119,7 +116,9 @@ function generateMarkdownReport(
   if (noPolicies.length > 0) {
     lines.push('### Tables with RLS but no policies (Warning)')
     lines.push('')
-    lines.push('The following tables have RLS enabled but no policies defined. This means all access is denied by default:')
+    lines.push(
+      'The following tables have RLS enabled but no policies defined. This means all access is denied by default:'
+    )
     lines.push('')
     for (const t of noPolicies) {
       lines.push(`- \`${t.tableName}\``)
@@ -128,7 +127,9 @@ function generateMarkdownReport(
   }
 
   if (rlsDisabled.length === 0 && noPolicies.length === 0) {
-    lines.push('All tables have RLS enabled with policies defined. Your database security posture looks good! 🎉')
+    lines.push(
+      'All tables have RLS enabled with policies defined. Your database security posture looks good! 🎉'
+    )
     lines.push('')
   }
 
@@ -154,12 +155,7 @@ function generateMarkdownReport(
 }
 
 export function ExportReport() {
-  const {
-    activeConnectionId,
-    connections,
-    tables,
-    rlsStatuses,
-  } = useSupabaseStore()
+  const { activeConnectionId, connections, tables, rlsStatuses } = useSupabaseStore()
 
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)

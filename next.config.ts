@@ -1,7 +1,7 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  output: process.env.VERCEL ? undefined : "standalone",
+  output: process.env.VERCEL ? undefined : 'standalone',
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -10,12 +10,17 @@ const nextConfig: NextConfig = {
   turbopack: {},
   webpack: (config, { isServer }) => {
     if (!isServer) {
-      config.resolve.fallback = { ...config.resolve.fallback, fs: false, path: false, crypto: false };
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        crypto: false,
+      }
     }
-    config.experiments = { ...config.experiments, asyncWebAssembly: true, layers: true };
+    config.experiments = { ...config.experiments, asyncWebAssembly: true, layers: true }
 
-    return config;
+    return config
   },
-};
+}
 
-export default nextConfig;
+export default nextConfig

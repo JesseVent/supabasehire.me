@@ -1,22 +1,13 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
-import {
-  Wand2,
-  Copy,
-  Check,
-  Terminal,
-  ArrowRight,
-  Layers,
-} from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
+import { ArrowRight, Check, Copy, Layers, Terminal, Wand2 } from 'lucide-react'
+import { useCallback, useMemo, useState } from 'react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -24,6 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
+import { Switch } from '@/components/ui/switch'
 import type { TableRLSInfo, TableSchema } from '@/lib/supabase-types'
 import { useSupabaseStore } from '@/store/supabase-store'
 
@@ -109,7 +102,12 @@ const POLICY_TEMPLATES: PolicyTemplate[] = [
 
 type GeneratorMode = 'single' | 'batch'
 
-export function PolicyGenerator({ tables, rlsStatuses, onCopyToSQL, initialTable }: PolicyGeneratorProps) {
+export function PolicyGenerator({
+  tables,
+  rlsStatuses,
+  onCopyToSQL,
+  initialTable,
+}: PolicyGeneratorProps) {
   const { setActivePanel, setSqlEditorContent } = useSupabaseStore()
 
   const [mode, setMode] = useState<GeneratorMode>('single')
@@ -176,10 +174,7 @@ export function PolicyGenerator({ tables, rlsStatuses, onCopyToSQL, initialTable
   }, [selectedTable, selectedTemplate, columnName])
 
   // Tables without RLS for batch mode
-  const tablesWithoutRLS = useMemo(
-    () => rlsStatuses.filter((t) => !t.rlsEnabled),
-    [rlsStatuses]
-  )
+  const tablesWithoutRLS = useMemo(() => rlsStatuses.filter((t) => !t.rlsEnabled), [rlsStatuses])
 
   // Batch generated SQL
   const batchSQL = useMemo(() => {
@@ -226,11 +221,14 @@ export function PolicyGenerator({ tables, rlsStatuses, onCopyToSQL, initialTable
     }
   }, [])
 
-  const openInSQLRunner = useCallback((sql: string) => {
-    setSqlEditorContent(sql)
-    setActivePanel('sql')
-    onCopyToSQL?.(sql)
-  }, [setSqlEditorContent, setActivePanel, onCopyToSQL])
+  const openInSQLRunner = useCallback(
+    (sql: string) => {
+      setSqlEditorContent(sql)
+      setActivePanel('sql')
+      onCopyToSQL?.(sql)
+    },
+    [setSqlEditorContent, setActivePanel, onCopyToSQL]
+  )
 
   return (
     <div className="flex flex-col gap-4">
@@ -326,9 +324,7 @@ export function PolicyGenerator({ tables, rlsStatuses, onCopyToSQL, initialTable
                   </SelectContent>
                 </Select>
                 {selectedTemplate && (
-                  <p className="text-xs text-muted-foreground">
-                    {selectedTemplate.description}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{selectedTemplate.description}</p>
                 )}
               </div>
 
@@ -360,7 +356,8 @@ export function PolicyGenerator({ tables, rlsStatuses, onCopyToSQL, initialTable
                     )}
                   </div>
                   <p className="text-[10px] text-muted-foreground">
-                    The column that references the authenticated user (used in auth.uid() comparison)
+                    The column that references the authenticated user (used in auth.uid()
+                    comparison)
                   </p>
                 </div>
               )}
@@ -373,7 +370,8 @@ export function PolicyGenerator({ tables, rlsStatuses, onCopyToSQL, initialTable
                   <div className="flex items-center justify-between">
                     <Label className="text-xs font-medium">Generated SQL</Label>
                     <Badge variant="outline" className="text-[10px]">
-                      {generatedSQL.split('\n').length} line{generatedSQL.split('\n').length !== 1 ? 's' : ''}
+                      {generatedSQL.split('\n').length} line
+                      {generatedSQL.split('\n').length !== 1 ? 's' : ''}
                     </Badge>
                   </div>
                   <div className="relative rounded-lg overflow-hidden border border-zinc-800 dark:border-zinc-700 bg-zinc-950 dark:bg-zinc-900">
@@ -469,7 +467,8 @@ export function PolicyGenerator({ tables, rlsStatuses, onCopyToSQL, initialTable
                   <div className="flex flex-col gap-0.5">
                     <span className="text-sm font-medium">Include basic SELECT policies</span>
                     <span className="text-xs text-muted-foreground">
-                      Auto-generate a SELECT policy for each table (auth.uid() based or authenticated-only)
+                      Auto-generate a SELECT policy for each table (auth.uid() based or
+                      authenticated-only)
                     </span>
                   </div>
                   <Switch
@@ -485,7 +484,8 @@ export function PolicyGenerator({ tables, rlsStatuses, onCopyToSQL, initialTable
                   <div className="flex items-center justify-between">
                     <Label className="text-xs font-medium">Generated SQL</Label>
                     <Badge variant="outline" className="text-[10px]">
-                      {batchSQL.split('\n').length} line{batchSQL.split('\n').length !== 1 ? 's' : ''}
+                      {batchSQL.split('\n').length} line
+                      {batchSQL.split('\n').length !== 1 ? 's' : ''}
                     </Badge>
                   </div>
                   <div className="relative rounded-lg overflow-hidden border border-zinc-800 dark:border-zinc-700 bg-zinc-950 dark:bg-zinc-900">
@@ -510,11 +510,7 @@ export function PolicyGenerator({ tables, rlsStatuses, onCopyToSQL, initialTable
                       )}
                       {batchCopied ? 'Copied!' : 'Copy All'}
                     </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => openInSQLRunner(batchSQL)}
-                      className="gap-1.5"
-                    >
+                    <Button size="sm" onClick={() => openInSQLRunner(batchSQL)} className="gap-1.5">
                       <ArrowRight className="size-3.5" />
                       <Terminal className="size-3.5" />
                       Open in SQL Runner

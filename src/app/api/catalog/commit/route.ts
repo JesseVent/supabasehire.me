@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
-
-import { mcpClientFromRequest } from '@/lib/mcp-server-client'
+import { type NextRequest, NextResponse } from 'next/server'
 import { parseMcpSqlRows } from '@/lib/mcp-response-parser'
+import { mcpClientFromRequest } from '@/lib/mcp-server-client'
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,7 +47,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (statements.length === 0) {
-      return NextResponse.json({ success: true, committed: 0, message: 'No AI descriptions to commit.' })
+      return NextResponse.json({
+        success: true,
+        committed: 0,
+        message: 'No AI descriptions to commit.',
+      })
     }
 
     await client.callTool('execute_sql', { query: statements.join('\n') })

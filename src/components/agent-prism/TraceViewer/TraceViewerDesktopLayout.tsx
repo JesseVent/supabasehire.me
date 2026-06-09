@@ -1,10 +1,10 @@
-import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from "react-resizable-panels";
+import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from 'react-resizable-panels'
 
-import { DetailsView } from "../DetailsView/DetailsView";
-import { TraceList } from "../TraceList/TraceList";
-import { type TraceViewerLayoutProps } from "./TraceViewer";
-import { TraceViewerPlaceholder } from "./TraceViewerPlaceholder";
-import { TraceViewerTreeViewContainer } from "./TraceViewerTreeViewContainer";
+import { DetailsView } from '../DetailsView/DetailsView'
+import { TraceList } from '../TraceList/TraceList'
+import type { TraceViewerLayoutProps } from './TraceViewer'
+import { TraceViewerPlaceholder } from './TraceViewerPlaceholder'
+import { TraceViewerTreeViewContainer } from './TraceViewerTreeViewContainer'
 
 export const TraceViewerDesktopLayout = ({
   traceRecords,
@@ -24,16 +24,15 @@ export const TraceViewerDesktopLayout = ({
   handleTraceSelect,
   spanCardViewOptions,
 }: TraceViewerLayoutProps) => {
-  const actualSelectedTrace =
-    traceRecords.find((t) => t.id === selectedTraceId) || selectedTrace;
+  const actualSelectedTrace = traceRecords.find((t) => t.id === selectedTraceId) || selectedTrace
 
   return (
     <PanelGroup direction="horizontal" className="h-full">
       <Panel
         id="trace-list"
-        defaultSize={traceListExpanded ? "20%" : "2%"}
-        minSize={traceListExpanded ? "15%" : "2%"}
-        maxSize={traceListExpanded ? "40%" : "2%"}
+        defaultSize={traceListExpanded ? '20%' : '2%'}
+        minSize={traceListExpanded ? '15%' : '2%'}
+        maxSize={traceListExpanded ? '40%' : '2%'}
         collapsible={false}
         className="flex h-full min-h-0 flex-col overflow-hidden"
       >
@@ -94,5 +93,5 @@ export const TraceViewerDesktopLayout = ({
         )}
       </Panel>
     </PanelGroup>
-  );
-};
+  )
+}

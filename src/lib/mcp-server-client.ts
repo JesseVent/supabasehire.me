@@ -5,10 +5,10 @@
  * mcp.supabase.com/mcp without duplicating the auth plumbing everywhere.
  * Used by catalog routes and any other server route that needs MCP access.
  */
-import { NextRequest } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-import { H, getConnectionFromHeaders } from '@/lib/api-auth'
-import { SupabaseMcpClient, projectRefFromUrl } from '@/lib/supabase-mcp-client'
+import { getConnectionFromHeaders, H } from '@/lib/api-auth'
+import { projectRefFromUrl, SupabaseMcpClient } from '@/lib/supabase-mcp-client'
 
 /**
  * Build a project-scoped SupabaseMcpClient from the X-Supabase-* request headers.

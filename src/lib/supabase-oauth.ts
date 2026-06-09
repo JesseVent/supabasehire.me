@@ -59,7 +59,8 @@ export async function getOrRegisterDcrClient(redirectUri: string): Promise<DcrCl
       token_endpoint_auth_method: 'none',
       grant_types: ['authorization_code', 'refresh_token'],
       response_types: ['code'],
-      scope: 'projects:read projects:write organizations:read database:read database:write analytics:read secrets:read edge_functions:read edge_functions:write environment:read environment:write storage:read',
+      scope:
+        'projects:read projects:write organizations:read database:read database:write analytics:read secrets:read edge_functions:read edge_functions:write environment:read environment:write storage:read',
     }),
   })
   if (!res.ok) {

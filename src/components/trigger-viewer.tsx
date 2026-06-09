@@ -1,32 +1,33 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { apiFetch } from '@/lib/api-auth'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
-  Zap,
-  Search,
-  Filter,
+  Activity,
+  AlertCircle,
+  AlertTriangle,
   ChevronDown,
   ChevronRight,
-  Database,
-  Activity,
+  Clock,
   Code2,
+  Database,
+  Filter,
+  FlaskConical,
+  Info,
+  Loader2,
+  RefreshCw,
+  Search,
+  Table2,
   ToggleLeft,
   ToggleRight,
-  Clock,
-  Table2,
-  AlertCircle,
-  RefreshCw,
-  Loader2,
-  Info,
-  AlertTriangle,
-  FlaskConical,
+  Zap,
 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
   SelectContent,
@@ -34,12 +35,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { useSupabaseStore } from '@/store/supabase-store'
+import { apiFetch } from '@/lib/api-auth'
 import { DEMO_CONNECTION_ID } from '@/lib/demo-data'
 import { cn } from '@/lib/utils'
+import { useSupabaseStore } from '@/store/supabase-store'
 
 // ─── Types ───
 
@@ -215,9 +215,9 @@ function mapApiTriggerToTriggerInfo(row: ApiTriggerRow): TriggerInfo {
     )
 
   // Map timing
-  const timing = (['BEFORE', 'AFTER', 'INSTEAD OF'].includes(row.timing)
-    ? row.timing
-    : 'AFTER') as TriggerTiming
+  const timing = (
+    ['BEFORE', 'AFTER', 'INSTEAD OF'].includes(row.timing) ? row.timing : 'AFTER'
+  ) as TriggerTiming
 
   // Map orientation
   const orientation = (row.orientation === 'STATEMENT' ? 'STATEMENT' : 'ROW') as TriggerOrientation
@@ -573,9 +573,7 @@ export function TriggerViewer() {
       {isLimited && metaNote && !isLoading && activeConnectionId && (
         <Alert className="border-sky-200 bg-sky-50/50 dark:border-sky-800 dark:bg-sky-950/20">
           <Info className="size-4 text-sky-600 dark:text-sky-400" />
-          <AlertDescription className="text-sky-700 dark:text-sky-300">
-            {metaNote}
-          </AlertDescription>
+          <AlertDescription className="text-sky-700 dark:text-sky-300">{metaNote}</AlertDescription>
         </Alert>
       )}
 
@@ -606,7 +604,9 @@ export function TriggerViewer() {
                   </div>
                   <span className="text-xs font-medium text-muted-foreground">Active</span>
                 </div>
-                <p className="text-2xl font-bold tracking-tight text-cyan-600 dark:text-cyan-400">{activeTriggers}</p>
+                <p className="text-2xl font-bold tracking-tight text-cyan-600 dark:text-cyan-400">
+                  {activeTriggers}
+                </p>
               </CardContent>
             </Card>
 
@@ -617,7 +617,9 @@ export function TriggerViewer() {
                   <div className="size-7 rounded-lg bg-amber-500/10 flex items-center justify-center">
                     <Database className="size-3.5 text-amber-500" />
                   </div>
-                  <span className="text-xs font-medium text-muted-foreground">Tables with Triggers</span>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Tables with Triggers
+                  </span>
                 </div>
                 <p className="text-2xl font-bold tracking-tight">{perTableCount.size}</p>
               </CardContent>
@@ -633,17 +635,18 @@ export function TriggerViewer() {
                   <span className="text-xs font-medium text-muted-foreground">Event Types</span>
                 </div>
                 <div className="flex items-center gap-1 flex-wrap">
-                  {(['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE'] as TriggerEvent[]).map((evt) => (
-                    eventDistribution[evt] > 0 && (
-                      <Badge
-                        key={evt}
-                        variant="outline"
-                        className={cn('text-[10px] px-1.5 py-0 border', getEventBadgeColor(evt))}
-                      >
-                        {evt}:{eventDistribution[evt]}
-                      </Badge>
-                    )
-                  ))}
+                  {(['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE'] as TriggerEvent[]).map(
+                    (evt) =>
+                      eventDistribution[evt] > 0 && (
+                        <Badge
+                          key={evt}
+                          variant="outline"
+                          className={cn('text-[10px] px-1.5 py-0 border', getEventBadgeColor(evt))}
+                        >
+                          {evt}:{eventDistribution[evt]}
+                        </Badge>
+                      )
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -654,7 +657,9 @@ export function TriggerViewer() {
             <Card>
               <CardContent className="py-10 flex flex-col items-center justify-center text-center">
                 <Zap className="size-8 text-muted-foreground/40 mb-3" />
-                <p className="text-sm font-medium text-muted-foreground">No trigger data available</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  No trigger data available
+                </p>
                 <p className="text-xs text-muted-foreground/70 mt-1">
                   Trigger information requires a Management API token with SQL query access.
                 </p>
@@ -726,10 +731,7 @@ export function TriggerViewer() {
                                       {trigger.timing}
                                     </Badge>
                                     {/* Orientation badge */}
-                                    <Badge
-                                      variant="outline"
-                                      className="text-[10px] px-1.5 py-0"
-                                    >
+                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                                       {trigger.orientation}
                                     </Badge>
                                     {/* Enabled/disabled */}
@@ -765,19 +767,29 @@ export function TriggerViewer() {
 
                               {/* Event badges + table name row */}
                               <div className="flex items-center gap-2 mt-3 flex-wrap">
-                                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Events:</span>
+                                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                                  Events:
+                                </span>
                                 {trigger.events.map((evt) => (
                                   <Badge
                                     key={evt}
                                     variant="outline"
-                                    className={cn('text-[10px] px-1.5 py-0 border font-semibold', getEventBadgeColor(evt))}
+                                    className={cn(
+                                      'text-[10px] px-1.5 py-0 border font-semibold',
+                                      getEventBadgeColor(evt)
+                                    )}
                                   >
                                     {evt}
                                   </Badge>
                                 ))}
                                 <Separator orientation="vertical" className="h-3.5 mx-1" />
-                                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">On:</span>
-                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono gap-1">
+                                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                                  On:
+                                </span>
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] px-1.5 py-0 font-mono gap-1"
+                                >
                                   <Table2 className="size-2.5" />
                                   {trigger.tableName}
                                 </Badge>
@@ -798,7 +810,9 @@ export function TriggerViewer() {
                                       <div>
                                         <div className="flex items-center gap-1.5 mb-1.5">
                                           <Code2 className="size-3.5 text-primary" />
-                                          <span className="text-xs font-medium">Trigger Function</span>
+                                          <span className="text-xs font-medium">
+                                            Trigger Function
+                                          </span>
                                         </div>
                                         <div className="rounded-lg border bg-muted/30 dark:bg-muted/10 p-3">
                                           <code className="text-[11px] font-mono text-primary/80 block mb-2">
@@ -815,7 +829,9 @@ export function TriggerViewer() {
                                         <div>
                                           <div className="flex items-center gap-1.5 mb-1.5">
                                             <AlertCircle className="size-3.5 text-amber-500" />
-                                            <span className="text-xs font-medium">WHEN Condition</span>
+                                            <span className="text-xs font-medium">
+                                              WHEN Condition
+                                            </span>
                                           </div>
                                           <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 p-3">
                                             <code className="text-[11px] font-mono text-amber-700 dark:text-amber-300 whitespace-pre-wrap">
@@ -828,25 +844,45 @@ export function TriggerViewer() {
                                       {/* Metadata summary */}
                                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                         <div className="rounded-lg border p-2.5">
-                                          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-0.5">Timing</span>
-                                          <span className="text-xs font-semibold">{trigger.timing}</span>
+                                          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-0.5">
+                                            Timing
+                                          </span>
+                                          <span className="text-xs font-semibold">
+                                            {trigger.timing}
+                                          </span>
                                         </div>
                                         <div className="rounded-lg border p-2.5">
-                                          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-0.5">Orientation</span>
-                                          <span className="text-xs font-semibold">{trigger.orientation === 'ROW' ? 'Per-Row' : 'Per-Statement'}</span>
+                                          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-0.5">
+                                            Orientation
+                                          </span>
+                                          <span className="text-xs font-semibold">
+                                            {trigger.orientation === 'ROW'
+                                              ? 'Per-Row'
+                                              : 'Per-Statement'}
+                                          </span>
                                         </div>
                                         <div className="rounded-lg border p-2.5">
-                                          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-0.5">Status</span>
-                                          <span className={cn(
-                                            'text-xs font-semibold',
-                                            trigger.enabled ? 'text-primary dark:text-primary' : 'text-muted-foreground'
-                                          )}>
+                                          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-0.5">
+                                            Status
+                                          </span>
+                                          <span
+                                            className={cn(
+                                              'text-xs font-semibold',
+                                              trigger.enabled
+                                                ? 'text-primary dark:text-primary'
+                                                : 'text-muted-foreground'
+                                            )}
+                                          >
                                             {trigger.enabled ? 'Enabled' : 'Disabled'}
                                           </span>
                                         </div>
                                         <div className="rounded-lg border p-2.5">
-                                          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-0.5">Table</span>
-                                          <span className="text-xs font-mono font-semibold">{trigger.tableName}</span>
+                                          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-0.5">
+                                            Table
+                                          </span>
+                                          <span className="text-xs font-mono font-semibold">
+                                            {trigger.tableName}
+                                          </span>
                                         </div>
                                       </div>
                                     </div>

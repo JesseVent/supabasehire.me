@@ -1,8 +1,5 @@
-import {
-  CollapseAllButton,
-  ExpandAllButton,
-} from "../CollapseAndExpandControls";
-import { SearchInput } from "../SearchInput";
+import { CollapseAllButton, ExpandAllButton } from '../CollapseAndExpandControls'
+import { SearchInput } from '../SearchInput'
 
 export const TraceViewerSearchAndControls = ({
   searchValue,
@@ -10,10 +7,10 @@ export const TraceViewerSearchAndControls = ({
   handleExpandAll,
   handleCollapseAll,
 }: {
-  searchValue: string;
-  setSearchValue: (value: string) => void;
-  handleExpandAll: () => void;
-  handleCollapseAll: () => void;
+  searchValue: string
+  setSearchValue: (value: string) => void
+  handleExpandAll: () => void
+  handleCollapseAll: () => void
 }) => (
   <div className="flex shrink-0 items-center justify-between gap-3 px-4 pb-2 pt-1">
     <SearchInput
@@ -27,4 +24,4 @@ export const TraceViewerSearchAndControls = ({
       <CollapseAllButton onCollapseAll={handleCollapseAll} />
     </div>
   </div>
-);
+)

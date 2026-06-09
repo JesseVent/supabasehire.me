@@ -1,30 +1,30 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { apiFetch } from '@/lib/api-auth'
-import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
   Activity,
+  Clock,
+  Loader2,
+  Minus,
+  Play,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
   Wifi,
   WifiOff,
-  Clock,
-  TrendingUp,
-  TrendingDown,
-  Minus,
   Zap,
-  Loader2,
-  Trash2,
-  Play,
 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { useSupabaseStore, type LatencyRecord } from '@/store/supabase-store'
+import { Switch } from '@/components/ui/switch'
+import { apiFetch } from '@/lib/api-auth'
 import { DEMO_CONNECTION_ID } from '@/lib/demo-data'
 import { cn } from '@/lib/utils'
+import { type LatencyRecord, useSupabaseStore } from '@/store/supabase-store'
 
 // ─── Helpers ───
 
@@ -36,41 +36,56 @@ function getLatencyStatus(duration: number): LatencyRecord['status'] {
 
 function getStatusColor(status: LatencyRecord['status']) {
   switch (status) {
-    case 'good': return 'text-primary'
-    case 'warning': return 'text-amber-500'
-    case 'critical': return 'text-red-500'
+    case 'good':
+      return 'text-primary'
+    case 'warning':
+      return 'text-amber-500'
+    case 'critical':
+      return 'text-red-500'
   }
 }
 
 function getStatusBg(status: LatencyRecord['status']) {
   switch (status) {
-    case 'good': return 'bg-primary'
-    case 'warning': return 'bg-amber-500'
-    case 'critical': return 'bg-red-500'
+    case 'good':
+      return 'bg-primary'
+    case 'warning':
+      return 'bg-amber-500'
+    case 'critical':
+      return 'bg-red-500'
   }
 }
 
 function getStatusBgLight(status: LatencyRecord['status']) {
   switch (status) {
-    case 'good': return 'bg-primary/10'
-    case 'warning': return 'bg-amber-500/10'
-    case 'critical': return 'bg-red-500/10'
+    case 'good':
+      return 'bg-primary/10'
+    case 'warning':
+      return 'bg-amber-500/10'
+    case 'critical':
+      return 'bg-red-500/10'
   }
 }
 
 function getStatusRing(status: LatencyRecord['status']) {
   switch (status) {
-    case 'good': return 'ring-primary/30'
-    case 'warning': return 'ring-amber-500/30'
-    case 'critical': return 'ring-red-500/30'
+    case 'good':
+      return 'ring-primary/30'
+    case 'warning':
+      return 'ring-amber-500/30'
+    case 'critical':
+      return 'ring-red-500/30'
   }
 }
 
 function getStatusBadgeVariant(status: LatencyRecord['status']) {
   switch (status) {
-    case 'good': return 'bg-primary/10 text-primary dark:text-primary border-primary/30 dark:border-primary/30'
-    case 'warning': return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'
-    case 'critical': return 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800'
+    case 'good':
+      return 'bg-primary/10 text-primary dark:text-primary border-primary/30 dark:border-primary/30'
+    case 'warning':
+      return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+    case 'critical':
+      return 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800'
   }
 }
 
@@ -109,21 +124,19 @@ function Sparkline({ data, maxPoints = 20 }: { data: number[]; maxPoints?: numbe
       {points.map((value, i) => {
         const height = Math.max(4, (value / max) * 100)
         const status = getLatencyStatus(value)
-        const colorClass = status === 'good'
-          ? 'bg-primary/70'
-          : status === 'warning'
-          ? 'bg-amber-500/70'
-          : 'bg-red-500/70'
+        const colorClass =
+          status === 'good'
+            ? 'bg-primary/70'
+            : status === 'warning'
+              ? 'bg-amber-500/70'
+              : 'bg-red-500/70'
         return (
           <motion.div
             key={i}
             initial={{ height: 0 }}
             animate={{ height: `${height}%` }}
             transition={{ duration: 0.3, delay: i * 0.02 }}
-            className={cn(
-              'flex-1 rounded-t-sm min-w-[3px] transition-colors',
-              colorClass
-            )}
+            className={cn('flex-1 rounded-t-sm min-w-[3px] transition-colors', colorClass)}
           />
         )
       })}
@@ -134,13 +147,8 @@ function Sparkline({ data, maxPoints = 20 }: { data: number[]; maxPoints?: numbe
 // ─── Main Component ───
 
 export function LatencyMonitor() {
-  const {
-    activeConnectionId,
-    connections,
-    latencyHistory,
-    addLatencyRecord,
-    clearLatencyHistory,
-  } = useSupabaseStore()
+  const { activeConnectionId, connections, latencyHistory, addLatencyRecord, clearLatencyHistory } =
+    useSupabaseStore()
   const activeConnection = connections.find((c) => c.id === activeConnectionId) || null
 
   const isDemoMode = activeConnectionId === DEMO_CONNECTION_ID
@@ -168,7 +176,11 @@ export function LatencyMonitor() {
 
   // Sparkline data (last 20, reversed to be chronological)
   const sparklineData = useMemo(
-    () => latencyHistory.slice(0, 20).map((r) => r.duration).reverse(),
+    () =>
+      latencyHistory
+        .slice(0, 20)
+        .map((r) => r.duration)
+        .reverse(),
     [latencyHistory]
   )
 
@@ -280,19 +292,26 @@ export function LatencyMonitor() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Current Latency Card */}
         <Card className="lg:col-span-2 overflow-hidden stat-card-enhanced">
-          <div className={cn(
-            'h-1.5 bg-gradient-to-r',
-            currentStatus === 'good' ? 'from-primary to-primary' :
-            currentStatus === 'warning' ? 'from-amber-400 to-amber-600' :
-            'from-red-400 to-red-600'
-          )} />
+          <div
+            className={cn(
+              'h-1.5 bg-gradient-to-r',
+              currentStatus === 'good'
+                ? 'from-primary to-primary'
+                : currentStatus === 'warning'
+                  ? 'from-amber-400 to-amber-600'
+                  : 'from-red-400 to-red-600'
+            )}
+          />
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Activity className="size-5 text-primary" />
                 <CardTitle>Connection Latency</CardTitle>
                 {isDemoMode && (
-                  <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800">
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800"
+                  >
                     Demo
                   </Badge>
                 )}
@@ -306,7 +325,10 @@ export function LatencyMonitor() {
                     onCheckedChange={setAutoPing}
                     disabled={!activeConnectionId}
                   />
-                  <Label htmlFor="auto-ping" className="text-xs text-muted-foreground cursor-pointer">
+                  <Label
+                    htmlFor="auto-ping"
+                    className="text-xs text-muted-foreground cursor-pointer"
+                  >
                     Auto-ping
                   </Label>
                 </div>
@@ -333,26 +355,42 @@ export function LatencyMonitor() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
               {/* Current latency value + pulse */}
               <div className="flex items-center gap-3">
-                <div className={cn(
-                  'size-12 rounded-full flex items-center justify-center ring-4',
-                  getStatusBgLight(currentStatus),
-                  getStatusRing(currentStatus)
-                )}>
-                  <div className={cn(
-                    'size-4 rounded-full animate-pulse',
-                    getStatusBg(currentStatus)
-                  )} />
+                <div
+                  className={cn(
+                    'size-12 rounded-full flex items-center justify-center ring-4',
+                    getStatusBgLight(currentStatus),
+                    getStatusRing(currentStatus)
+                  )}
+                >
+                  <div
+                    className={cn('size-4 rounded-full animate-pulse', getStatusBg(currentStatus))}
+                  />
                 </div>
                 <div>
                   <div className="flex items-baseline gap-1.5">
-                    <span className={cn('text-4xl font-bold tracking-tight', getStatusColor(currentStatus))}>
+                    <span
+                      className={cn(
+                        'text-4xl font-bold tracking-tight',
+                        getStatusColor(currentStatus)
+                      )}
+                    >
                       {currentLatency ? currentLatency.duration : '—'}
                     </span>
                     <span className="text-sm text-muted-foreground font-medium">ms</span>
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', getStatusBadgeVariant(currentStatus))}>
-                      {currentStatus === 'good' ? 'Fast' : currentStatus === 'warning' ? 'Slow' : 'Critical'}
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'text-[10px] px-1.5 py-0',
+                        getStatusBadgeVariant(currentStatus)
+                      )}
+                    >
+                      {currentStatus === 'good'
+                        ? 'Fast'
+                        : currentStatus === 'warning'
+                          ? 'Slow'
+                          : 'Critical'}
                     </Badge>
                     {currentLatency && (
                       <span className="text-[10px] text-muted-foreground">
@@ -441,38 +479,58 @@ export function LatencyMonitor() {
 
           {/* Trend */}
           <Card className="overflow-hidden stat-card-enhanced group press-effect">
-            <div className={cn(
-              'h-1 bg-gradient-to-r',
-              trend === 'improving' ? 'from-primary to-primary' :
-              trend === 'degrading' ? 'from-amber-400 to-amber-600' :
-              'from-muted-foreground/40 to-muted-foreground/60'
-            )} />
-            <div className={cn(
-              'bg-gradient-to-b to-transparent',
-              trend === 'improving' ? 'from-primary/5' :
-              trend === 'degrading' ? 'from-amber-500/5' :
-              'from-muted-foreground/5'
-            )}>
+            <div
+              className={cn(
+                'h-1 bg-gradient-to-r',
+                trend === 'improving'
+                  ? 'from-primary to-primary'
+                  : trend === 'degrading'
+                    ? 'from-amber-400 to-amber-600'
+                    : 'from-muted-foreground/40 to-muted-foreground/60'
+              )}
+            />
+            <div
+              className={cn(
+                'bg-gradient-to-b to-transparent',
+                trend === 'improving'
+                  ? 'from-primary/5'
+                  : trend === 'degrading'
+                    ? 'from-amber-500/5'
+                    : 'from-muted-foreground/5'
+              )}
+            >
               <CardContent className="pt-3 pb-3 px-3">
                 <div className="flex items-center gap-1.5 mb-1.5">
-                  <div className={cn(
-                    'size-6 rounded-md flex items-center justify-center',
-                    trend === 'improving' ? 'bg-primary/10' :
-                    trend === 'degrading' ? 'bg-amber-500/10' :
-                    'bg-muted-foreground/10'
-                  )}>
-                    {trend === 'improving' ? <TrendingDown className="size-3 text-primary" /> :
-                     trend === 'degrading' ? <TrendingUp className="size-3 text-amber-500" /> :
-                     <Minus className="size-3 text-muted-foreground" />}
+                  <div
+                    className={cn(
+                      'size-6 rounded-md flex items-center justify-center',
+                      trend === 'improving'
+                        ? 'bg-primary/10'
+                        : trend === 'degrading'
+                          ? 'bg-amber-500/10'
+                          : 'bg-muted-foreground/10'
+                    )}
+                  >
+                    {trend === 'improving' ? (
+                      <TrendingDown className="size-3 text-primary" />
+                    ) : trend === 'degrading' ? (
+                      <TrendingUp className="size-3 text-amber-500" />
+                    ) : (
+                      <Minus className="size-3 text-muted-foreground" />
+                    )}
                   </div>
                   <span className="text-[10px] font-medium text-muted-foreground">Trend</span>
                 </div>
-                <p className={cn(
-                  'text-lg font-bold tracking-tight capitalize',
-                  trend === 'improving' ? 'text-primary dark:text-primary' :
-                  trend === 'degrading' ? 'text-amber-600 dark:text-amber-400' :
-                  'text-muted-foreground'
-                )}>
+                <p
+                  className={cn(
+                    'text-lg font-bold tracking-tight capitalize',
+                    trend === 'improving'
+                      ? 'text-primary dark:text-primary'
+                      : trend === 'degrading'
+                        ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-muted-foreground'
+                  )}
+                >
                   {trend}
                 </p>
               </CardContent>
@@ -516,7 +574,8 @@ export function LatencyMonitor() {
               </div>
               <p className="text-sm font-medium mb-1">No measurements yet</p>
               <p className="text-xs text-muted-foreground max-w-[240px]">
-                Click the Ping button to measure your connection latency, or enable auto-ping for continuous monitoring.
+                Click the Ping button to measure your connection latency, or enable auto-ping for
+                continuous monitoring.
               </p>
             </div>
           ) : (
@@ -540,23 +599,33 @@ export function LatencyMonitor() {
                       <div className="relative shrink-0">
                         <div className={cn('size-2.5 rounded-full', getStatusBg(record.status))} />
                         {index === 0 && (
-                          <div className={cn(
-                            'absolute inset-0 size-2.5 rounded-full animate-ping opacity-40',
-                            getStatusBg(record.status)
-                          )} />
+                          <div
+                            className={cn(
+                              'absolute inset-0 size-2.5 rounded-full animate-ping opacity-40',
+                              getStatusBg(record.status)
+                            )}
+                          />
                         )}
                       </div>
 
                       {/* Duration */}
-                      <span className={cn(
-                        'text-sm font-semibold tabular-nums min-w-[60px]',
-                        getStatusColor(record.status)
-                      )}>
+                      <span
+                        className={cn(
+                          'text-sm font-semibold tabular-nums min-w-[60px]',
+                          getStatusColor(record.status)
+                        )}
+                      >
                         {record.duration >= 9999 ? 'Timeout' : `${record.duration}ms`}
                       </span>
 
                       {/* Status badge */}
-                      <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 shrink-0', getStatusBadgeVariant(record.status))}>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'text-[10px] px-1.5 py-0 shrink-0',
+                          getStatusBadgeVariant(record.status)
+                        )}
+                      >
                         {record.status}
                       </Badge>
 
@@ -570,9 +639,11 @@ export function LatencyMonitor() {
                         <div
                           className={cn(
                             'h-full rounded-full transition-all',
-                            record.status === 'good' ? 'bg-primary' :
-                            record.status === 'warning' ? 'bg-amber-500' :
-                            'bg-red-500'
+                            record.status === 'good'
+                              ? 'bg-primary'
+                              : record.status === 'warning'
+                                ? 'bg-amber-500'
+                                : 'bg-red-500'
                           )}
                           style={{ width: `${Math.min(100, (record.duration / 1000) * 100)}%` }}
                         />

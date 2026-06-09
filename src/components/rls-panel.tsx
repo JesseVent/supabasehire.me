@@ -1,31 +1,32 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
-import { apiFetch } from '@/lib/api-auth'
-import { toast } from 'sonner'
 import {
-  Shield,
-  ShieldCheck,
-  ShieldX,
-  ShieldAlert,
-  Loader2,
+  BarChart3,
+  Check,
   CheckCircle2,
-  XCircle,
   ChevronRight,
   Copy,
-  Check,
-  Wand2,
-  BarChart3,
+  Loader2,
+  Shield,
+  ShieldAlert,
+  ShieldCheck,
+  ShieldX,
+  Trash2,
   Unlock,
   User,
-  Trash2,
+  Wand2,
+  XCircle,
 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { useCallback, useEffect, useState } from 'react'
+import { toast } from 'sonner'
+import { AuthSimulator } from '@/components/auth-simulator'
+import { PolicyGenerator } from '@/components/policy-generator'
+import { SecurityScore } from '@/components/security-score'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { Textarea } from '@/components/ui/textarea'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
@@ -34,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
 import {
   Table,
   TableBody,
@@ -42,19 +44,24 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { useSupabaseStore } from '@/store/supabase-store'
-import type { TableRLSInfo, RLSPolicy, RLSTestResult } from '@/lib/supabase-types'
-import { SecurityScore } from '@/components/security-score'
-import { PolicyGenerator } from '@/components/policy-generator'
-import { AuthSimulator } from '@/components/auth-simulator'
+import { Textarea } from '@/components/ui/textarea'
+import { apiFetch } from '@/lib/api-auth'
 import { DEMO_CONNECTION_ID, DEMO_RLS_STATUSES } from '@/lib/demo-data'
+import type { RLSPolicy, RLSTestResult, TableRLSInfo } from '@/lib/supabase-types'
+import { useSupabaseStore } from '@/store/supabase-store'
 
 type RLSSubTab = 'policies' | 'score' | 'generator' | 'simulator'
 
 export function RLSPanel({ initialTable }: { initialTable?: string }) {
-  const { activeConnectionId, connections, rlsStatuses, setRlsStatuses, addRlsTestResult, tables, addActivityLog } =
-    useSupabaseStore()
+  const {
+    activeConnectionId,
+    connections,
+    rlsStatuses,
+    setRlsStatuses,
+    addRlsTestResult,
+    tables,
+    addActivityLog,
+  } = useSupabaseStore()
   const activeConnection = connections.find((c) => c.id === activeConnectionId) || null
 
   const [selectedTable, setSelectedTable] = useState<string>(initialTable ?? '')
@@ -106,30 +113,35 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
     if (activeConnectionId && rlsStatuses.length === 0) fetchRLSInfo()
   }, [activeConnectionId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const deletePolicy = useCallback(async (tableName: string, policyName: string) => {
-    if (!activeConnection) return
-    setDeletingPolicy(policyName)
-    try {
-      const sql = `DROP POLICY IF EXISTS "${policyName}" ON "${tableName}";`
-      const res = await apiFetch('/api/sql', activeConnection, { query: sql })
-      const data = await res.json()
-      if (data.error) {
-        toast.error('Failed to delete policy', { description: data.error })
-      } else {
-        toast.success(`Policy "${policyName}" deleted`)
-        // Remove from local state immediately, then refresh
-        setRlsStatuses(rlsStatuses.map((t) =>
-          t.tableName === tableName
-            ? { ...t, policies: t.policies.filter((p) => p.policyname !== policyName) }
-            : t
-        ))
+  const deletePolicy = useCallback(
+    async (tableName: string, policyName: string) => {
+      if (!activeConnection) return
+      setDeletingPolicy(policyName)
+      try {
+        const sql = `DROP POLICY IF EXISTS "${policyName}" ON "${tableName}";`
+        const res = await apiFetch('/api/sql', activeConnection, { query: sql })
+        const data = await res.json()
+        if (data.error) {
+          toast.error('Failed to delete policy', { description: data.error })
+        } else {
+          toast.success(`Policy "${policyName}" deleted`)
+          // Remove from local state immediately, then refresh
+          setRlsStatuses(
+            rlsStatuses.map((t) =>
+              t.tableName === tableName
+                ? { ...t, policies: t.policies.filter((p) => p.policyname !== policyName) }
+                : t
+            )
+          )
+        }
+      } catch {
+        toast.error('Failed to delete policy')
+      } finally {
+        setDeletingPolicy(null)
       }
-    } catch {
-      toast.error('Failed to delete policy')
-    } finally {
-      setDeletingPolicy(null)
-    }
-  }, [activeConnection, rlsStatuses, setRlsStatuses])
+    },
+    [activeConnection, rlsStatuses, setRlsStatuses]
+  )
 
   const runRLSTest = useCallback(async () => {
     if (!activeConnectionId || !selectedTable) return
@@ -144,20 +156,31 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
       const hasMatchingPolicy = currentRls?.policies.some(
         (p) => p.cmd === testOperation || p.cmd === 'ALL'
       )
-      const success = rlsDisabled || testRole === 'authenticated' || (testRole === 'anon' && !!hasMatchingPolicy)
+      const success =
+        rlsDisabled || testRole === 'authenticated' || (testRole === 'anon' && !!hasMatchingPolicy)
       const demoResult: RLSTestResult = {
         success,
         operation: testOperation as RLSTestResult['operation'],
         role: testRole as RLSTestResult['role'],
         tableName: selectedTable,
-        rowCount: !success ? 0 : rlsDisabled ? Math.floor(Math.random() * 200) + 50 : (testRole === 'authenticated' ? Math.floor(Math.random() * 50) + 1 : Math.floor(Math.random() * 10) + 1),
+        rowCount: !success
+          ? 0
+          : rlsDisabled
+            ? Math.floor(Math.random() * 200) + 50
+            : testRole === 'authenticated'
+              ? Math.floor(Math.random() * 50) + 1
+              : Math.floor(Math.random() * 10) + 1,
         data: success
           ? [{ id: 'demo-id', name: 'Demo Data', created_at: new Date().toISOString() }]
           : [],
       }
       setTestResult(demoResult)
       addRlsTestResult(demoResult)
-      addActivityLog({ type: 'rls', action: `RLS test (demo): ${testOperation} on ${selectedTable}`, details: `Role: ${testRole}, Result: ${demoResult.success ? 'Allowed' : 'Blocked'}` })
+      addActivityLog({
+        type: 'rls',
+        action: `RLS test (demo): ${testOperation} on ${selectedTable}`,
+        details: `Role: ${testRole}, Result: ${demoResult.success ? 'Allowed' : 'Blocked'}`,
+      })
       if (demoResult.success) {
         toast.success('RLS test passed (demo)', { description: 'Access granted' })
       } else {
@@ -203,7 +226,11 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
         : data
       setTestResult(result)
       addRlsTestResult(result)
-      addActivityLog({ type: 'rls', action: `RLS test: ${testOperation} on ${selectedTable}`, details: `Role: ${testRole}, Result: ${result.success ? 'Allowed' : 'Blocked'}` })
+      addActivityLog({
+        type: 'rls',
+        action: `RLS test: ${testOperation} on ${selectedTable}`,
+        details: `Role: ${testRole}, Result: ${result.success ? 'Allowed' : 'Blocked'}`,
+      })
       if (result.success) {
         toast.success('RLS test passed', { description: 'Access granted' })
       } else {
@@ -220,7 +247,15 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
     } finally {
       setIsTesting(false)
     }
-  }, [activeConnectionId, selectedTable, testOperation, testRole, testFilters, addRlsTestResult, addActivityLog])
+  }, [
+    activeConnectionId,
+    selectedTable,
+    testOperation,
+    testRole,
+    testFilters,
+    addRlsTestResult,
+    addActivityLog,
+  ])
 
   const copyToClipboard = useCallback((text: string) => {
     navigator.clipboard.writeText(text)
@@ -279,9 +314,7 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
               </Button>
             )}
           </div>
-          <CardDescription>
-            Inspect and test RLS policies for your Supabase tables
-          </CardDescription>
+          <CardDescription>Inspect and test RLS policies for your Supabase tables</CardDescription>
         </CardHeader>
         {rlsStatuses.length > 0 && (
           <CardContent className="pt-0">
@@ -345,9 +378,7 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
       )}
 
       {/* Auth Simulator Sub-Tab */}
-      {subTab === 'simulator' && (
-        <AuthSimulator />
-      )}
+      {subTab === 'simulator' && <AuthSimulator />}
 
       {/* Policies & Tester Sub-Tab */}
       {(subTab === 'policies' || rlsStatuses.length === 0) && (
@@ -457,12 +488,12 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
                             policy.cmd === 'SELECT'
                               ? 'border-l-4 border-l-primary'
                               : policy.cmd === 'INSERT'
-                              ? 'border-l-4 border-l-amber-500'
-                              : policy.cmd === 'UPDATE'
-                              ? 'border-l-4 border-l-blue-500'
-                              : policy.cmd === 'DELETE'
-                              ? 'border-l-4 border-l-red-500'
-                              : 'border-l-4 border-l-violet-500'
+                                ? 'border-l-4 border-l-amber-500'
+                                : policy.cmd === 'UPDATE'
+                                  ? 'border-l-4 border-l-blue-500'
+                                  : policy.cmd === 'DELETE'
+                                    ? 'border-l-4 border-l-red-500'
+                                    : 'border-l-4 border-l-violet-500'
                           }`}
                         >
                           <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -470,9 +501,7 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
                             <span className="font-mono text-sm font-medium">
                               {policy.policyname}
                             </span>
-                            <Badge variant={getCommandBadgeVariant(policy.cmd)}>
-                              {policy.cmd}
-                            </Badge>
+                            <Badge variant={getCommandBadgeVariant(policy.cmd)}>{policy.cmd}</Badge>
                             <div className="flex items-center gap-1">
                               {getPermissiveIcon(policy.permissive)}
                               <span className="text-xs text-muted-foreground">
@@ -488,10 +517,11 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
                                 onClick={() => deletePolicy(selectedTable, policy.policyname)}
                                 title={`Drop policy "${policy.policyname}"`}
                               >
-                                {deletingPolicy === policy.policyname
-                                  ? <Loader2 className="size-3.5 animate-spin" />
-                                  : <Trash2 className="size-3.5" />
-                                }
+                                {deletingPolicy === policy.policyname ? (
+                                  <Loader2 className="size-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="size-3.5" />
+                                )}
                               </Button>
                             </div>
                           </div>
@@ -582,11 +612,7 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
                       </Select>
                     </div>
 
-                    <Button
-                      onClick={runRLSTest}
-                      disabled={isTesting || !selectedTable}
-                      size="sm"
-                    >
+                    <Button onClick={runRLSTest} disabled={isTesting || !selectedTable} size="sm">
                       {isTesting ? (
                         <Loader2 className="mr-2 size-4 animate-spin" />
                       ) : (
@@ -599,7 +625,8 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
                   {/* Filters input */}
                   <div className="flex flex-col gap-1.5">
                     <Label className="text-xs text-muted-foreground">
-                      JSON Filters (optional — for UPDATE, use &#123;&quot;_update&quot;: &#123;...&#125;, key: &quot;eq.value&quot;&#125;)
+                      JSON Filters (optional — for UPDATE, use &#123;&quot;_update&quot;:
+                      &#123;...&#125;, key: &quot;eq.value&quot;&#125;)
                     </Label>
                     <Textarea
                       value={testFilters}
@@ -651,7 +678,9 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
                               variant="ghost"
                               size="sm"
                               onClick={() =>
-                                copyToClipboard(JSON.stringify(testResult.data?.slice(0, 5), null, 2))
+                                copyToClipboard(
+                                  JSON.stringify(testResult.data?.slice(0, 5), null, 2)
+                                )
                               }
                             >
                               {copied ? (
@@ -672,8 +701,8 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
 
                       {testResult.success && testResult.data?.length === 0 && (
                         <p className="text-sm text-muted-foreground">
-                          Query returned 0 rows. This could mean RLS is blocking access or the table is
-                          empty.
+                          Query returned 0 rows. This could mean RLS is blocking access or the table
+                          is empty.
                         </p>
                       )}
                     </div>
@@ -691,9 +720,7 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
           <CardContent className="py-12">
             <div className="flex flex-col items-center justify-center text-center">
               <Shield className="mb-3 size-12 text-muted-foreground/30" />
-              <p className="text-sm font-medium text-muted-foreground">
-                No connection selected
-              </p>
+              <p className="text-sm font-medium text-muted-foreground">No connection selected</p>
               <p className="text-xs text-muted-foreground">
                 Connect to a Supabase project to view RLS policies
               </p>

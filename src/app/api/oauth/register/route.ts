@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
 // Server-side proxy for Supabase DCR (RFC 7591).
 // The /platform/oauth/apps/register endpoint doesn't send CORS headers,

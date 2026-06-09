@@ -1,25 +1,13 @@
 'use client'
 
-import { useState, useCallback, useEffect, useMemo } from 'react'
-import { apiFetch } from '@/lib/api-auth'
-import {
-  RefreshCw,
-  Loader2,
-  ChevronLeft,
-  ChevronRight,
-  TableIcon,
-  AlertCircle,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { AlertCircle, ChevronLeft, ChevronRight, Loader2, RefreshCw, TableIcon } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
+import { Button } from '@/components/ui/button'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { apiFetch } from '@/lib/api-auth'
 
 interface TableDataViewerProps {
   connection: import('@/lib/supabase-types').SupabaseConnection | null
@@ -187,7 +175,9 @@ export function TableDataViewer({ connection, tableName, isDemoMode }: TableData
         <TableIcon className="size-10 text-muted-foreground/30 mb-3" />
         <p className="text-sm font-medium">No data found</p>
         <p className="text-xs text-muted-foreground mt-1">
-          {isDemoMode ? 'Demo table is empty' : `Table "${tableName}" has no rows or RLS is blocking access`}
+          {isDemoMode
+            ? 'Demo table is empty'
+            : `Table "${tableName}" has no rows or RLS is blocking access`}
         </p>
         <Button variant="outline" size="sm" onClick={handleRefresh} className="mt-3 gap-1.5">
           <RefreshCw className="size-3.5" />
@@ -209,9 +199,7 @@ export function TableDataViewer({ connection, tableName, isDemoMode }: TableData
           <Badge variant="secondary" className="text-xs">
             {columns.length} column{columns.length !== 1 ? 's' : ''}
           </Badge>
-          {isDemoMode && (
-            <Badge className="text-xs bg-amber-500 hover:bg-amber-600">Demo</Badge>
-          )}
+          {isDemoMode && <Badge className="text-xs bg-amber-500 hover:bg-amber-600">Demo</Badge>}
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">
@@ -235,12 +223,7 @@ export function TableDataViewer({ connection, tableName, isDemoMode }: TableData
           >
             <ChevronRight className="size-3.5" />
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            className="h-7 w-7 p-0"
-          >
+          <Button variant="outline" size="sm" onClick={handleRefresh} className="h-7 w-7 p-0">
             <RefreshCw className="size-3.5" />
           </Button>
         </div>
@@ -264,12 +247,12 @@ export function TableDataViewer({ connection, tableName, isDemoMode }: TableData
             </thead>
             <tbody>
               {rows.map((row, rowIdx) => (
-                <tr
-                  key={rowIdx}
-                  className="border-b hover:bg-muted/30 transition-colors"
-                >
+                <tr key={rowIdx} className="border-b hover:bg-muted/30 transition-colors">
                   {columns.map((col) => (
-                    <td key={col} className="px-3 py-2 whitespace-nowrap max-w-[200px] overflow-hidden text-ellipsis">
+                    <td
+                      key={col}
+                      className="px-3 py-2 whitespace-nowrap max-w-[200px] overflow-hidden text-ellipsis"
+                    >
                       <CellValue value={row[col]} />
                     </td>
                   ))}

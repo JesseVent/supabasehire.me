@@ -9,34 +9,34 @@ export async function executeSupabaseRPC(
 ): Promise<{ data?: unknown; error?: string }> {
   try {
     // Get a valid JWT (exchanges publishable key if needed)
-    const validKey = await getValidApiKey(supabaseUrl, secretKey);
+    const validKey = await getValidApiKey(supabaseUrl, secretKey)
 
     const headers: Record<string, string> = {
       apikey: secretKey,
       Authorization: `Bearer ${validKey}`,
-      "Content-Type": "application/json",
-    };
-
-    const url = `${supabaseUrl}/rest/v1/rpc/${functionName}`;
-    const response = await fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(params),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      return {
-        error: `Supabase RPC error (${response.status}): ${errorText}`,
-      };
+      'Content-Type': 'application/json',
     }
 
-    const result = await response.json();
-    return { data: result };
+    const url = `${supabaseUrl}/rest/v1/rpc/${functionName}`
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(params),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      return {
+        error: `Supabase RPC error (${response.status}): ${errorText}`,
+      }
+    }
+
+    const result = await response.json()
+    return { data: result }
   } catch (err) {
     return {
       error: `Failed to execute RPC: ${err instanceof Error ? err.message : String(err)}`,
-    };
+    }
   }
 }
 
@@ -55,19 +55,19 @@ export async function exchangePublishableKeyForJWT(
     // grant_type=apikey doesn't exist; grant_type=anonymous is the correct path
     // for obtaining a JWT from an sb_publishable_ or sb_secret_ opaque key.
     const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=anonymous`, {
-      method: "POST",
+      method: 'POST',
       headers: {
         apikey: publishableKey,
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
-    });
+    })
 
-    if (!response.ok) return null;
+    if (!response.ok) return null
 
-    const data = await response.json();
-    return data.access_token || data.jwt || null;
+    const data = await response.json()
+    return data.access_token || data.jwt || null
   } catch {
-    return null;
+    return null
   }
 }
 
@@ -77,37 +77,34 @@ export async function exchangePublishableKeyForJWT(
  * For new publishable keys (sb_publishable_...), exchanges for a JWT first.
  * Caches the result to avoid repeated exchanges.
  */
-const jwtCache = new Map<string, { jwt: string; expires: number }>();
+const jwtCache = new Map<string, { jwt: string; expires: number }>()
 
-export async function getValidApiKey(
-  supabaseUrl: string,
-  apiKey: string
-): Promise<string> {
+export async function getValidApiKey(supabaseUrl: string, apiKey: string): Promise<string> {
   // Old JWT format — use directly
   if (apiKey.startsWith('eyJ')) {
-    return apiKey;
+    return apiKey
   }
 
   // New key formats (sb_publishable_ and sb_secret_) are opaque — not JWTs.
   // Edge functions reject them with UNAUTHORIZED_INVALID_JWT_FORMAT.
   // Exchange via anonymous sign-in to get a real eyJ... JWT.
   if (apiKey.startsWith('sb_publishable_') || apiKey.startsWith('sb_secret_')) {
-    const cacheKey = `${supabaseUrl}:${apiKey}`;
-    const cached = jwtCache.get(cacheKey);
+    const cacheKey = `${supabaseUrl}:${apiKey}`
+    const cached = jwtCache.get(cacheKey)
 
     if (cached && cached.expires > Date.now()) {
-      return cached.jwt;
+      return cached.jwt
     }
 
-    const jwt = await exchangePublishableKeyForJWT(supabaseUrl, apiKey);
+    const jwt = await exchangePublishableKeyForJWT(supabaseUrl, apiKey)
     if (jwt) {
-      jwtCache.set(cacheKey, { jwt, expires: Date.now() + 55 * 60 * 1000 });
-      return jwt;
+      jwtCache.set(cacheKey, { jwt, expires: Date.now() + 55 * 60 * 1000 })
+      return jwt
     }
 
-    return apiKey;
+    return apiKey
   }
 
   // Unknown format — try as-is
-  return apiKey;
+  return apiKey
 }

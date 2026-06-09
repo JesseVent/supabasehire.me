@@ -1,36 +1,36 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
-import { toast } from 'sonner'
-import { apiFetch } from '@/lib/api-auth'
 import {
-  Terminal,
-  Loader2,
-  CheckCircle2,
-  XCircle,
-  Copy,
-  Check,
-  Play,
   AlertTriangle,
-  History,
-  ChevronDown,
-  Sparkles,
-  ChevronUp,
-  Trash2,
   BarChart3,
-  FileJson,
-  FileText,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Copy,
   Database,
   Eye,
+  FileJson,
+  FileText,
   Gauge,
+  History,
+  Loader2,
+  Play,
+  Sparkles,
+  Terminal,
+  Trash2,
+  XCircle,
 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import { MigrationRunner } from '@/components/migration-runner'
+import { QueryAnalyzer } from '@/components/query-analyzer'
+import { QueryChart } from '@/components/query-chart'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { Textarea } from '@/components/ui/textarea'
-
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import {
   Select,
   SelectContent,
@@ -46,13 +46,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { useSupabaseStore } from '@/store/supabase-store'
-import { QueryChart } from '@/components/query-chart'
-import { MigrationRunner } from '@/components/migration-runner'
-import { QueryAnalyzer } from '@/components/query-analyzer'
-import type { SQLQueryResult } from '@/lib/supabase-types'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
+import { apiFetch } from '@/lib/api-auth'
 import { DEMO_CONNECTION_ID } from '@/lib/demo-data'
+import type { SQLQueryResult } from '@/lib/supabase-types'
+import { useSupabaseStore } from '@/store/supabase-store'
 
 // ─── Demo SQL Results ───
 
@@ -67,14 +66,59 @@ const DEMO_SQL_RESULTS: Record<string, Array<Record<string, unknown>>> = {
     { table_name: 'audit_logs', table_type: 'BASE TABLE' },
     { table_name: 'notifications', table_type: 'BASE TABLE' },
   ],
-  'pg_policies': [
-    { schemaname: 'public', tablename: 'users', policyname: 'Users can view own profile', permissive: 'PERMISSIVE', roles: '{authenticated}', cmd: 'SELECT', qual: '(auth.uid() = id)', with_check: null },
-    { schemaname: 'public', tablename: 'users', policyname: 'Users can update own profile', permissive: 'PERMISSIVE', roles: '{authenticated}', cmd: 'UPDATE', qual: '(auth.uid() = id)', with_check: '(auth.uid() = id)' },
-    { schemaname: 'public', tablename: 'posts', policyname: 'Anyone can view posts', permissive: 'PERMISSIVE', roles: '{authenticated,anon}', cmd: 'SELECT', qual: 'true', with_check: null },
-    { schemaname: 'public', tablename: 'comments', policyname: 'Authenticated users can view comments', permissive: 'PERMISSIVE', roles: '{authenticated}', cmd: 'SELECT', qual: 'true', with_check: null },
-    { schemaname: 'public', tablename: 'likes', policyname: 'Authenticated users can view likes', permissive: 'PERMISSIVE', roles: '{authenticated}', cmd: 'SELECT', qual: 'true', with_check: null },
+  pg_policies: [
+    {
+      schemaname: 'public',
+      tablename: 'users',
+      policyname: 'Users can view own profile',
+      permissive: 'PERMISSIVE',
+      roles: '{authenticated}',
+      cmd: 'SELECT',
+      qual: '(auth.uid() = id)',
+      with_check: null,
+    },
+    {
+      schemaname: 'public',
+      tablename: 'users',
+      policyname: 'Users can update own profile',
+      permissive: 'PERMISSIVE',
+      roles: '{authenticated}',
+      cmd: 'UPDATE',
+      qual: '(auth.uid() = id)',
+      with_check: '(auth.uid() = id)',
+    },
+    {
+      schemaname: 'public',
+      tablename: 'posts',
+      policyname: 'Anyone can view posts',
+      permissive: 'PERMISSIVE',
+      roles: '{authenticated,anon}',
+      cmd: 'SELECT',
+      qual: 'true',
+      with_check: null,
+    },
+    {
+      schemaname: 'public',
+      tablename: 'comments',
+      policyname: 'Authenticated users can view comments',
+      permissive: 'PERMISSIVE',
+      roles: '{authenticated}',
+      cmd: 'SELECT',
+      qual: 'true',
+      with_check: null,
+    },
+    {
+      schemaname: 'public',
+      tablename: 'likes',
+      policyname: 'Authenticated users can view likes',
+      permissive: 'PERMISSIVE',
+      roles: '{authenticated}',
+      cmd: 'SELECT',
+      qual: 'true',
+      with_check: null,
+    },
   ],
-  'pg_stat_user_tables': [
+  pg_stat_user_tables: [
     { schemaname: 'public', relname: 'users', n_live_tup: 1247 },
     { schemaname: 'public', relname: 'posts', n_live_tup: 8432 },
     { schemaname: 'public', relname: 'comments', n_live_tup: 23456 },
@@ -84,40 +128,172 @@ const DEMO_SQL_RESULTS: Record<string, Array<Record<string, unknown>>> = {
     { schemaname: 'public', relname: 'audit_logs', n_live_tup: 89234 },
     { schemaname: 'public', relname: 'notifications', n_live_tup: 5678 },
   ],
-  'table_sizes': [
-    { table_name: 'audit_logs', total_size: '8192 kB', table_size: '7168 kB', index_size: '1024 kB' },
+  table_sizes: [
+    {
+      table_name: 'audit_logs',
+      total_size: '8192 kB',
+      table_size: '7168 kB',
+      index_size: '1024 kB',
+    },
     { table_name: 'likes', total_size: '4096 kB', table_size: '3584 kB', index_size: '512 kB' },
     { table_name: 'comments', total_size: '2048 kB', table_size: '1792 kB', index_size: '256 kB' },
     { table_name: 'posts', total_size: '1024 kB', table_size: '896 kB', index_size: '128 kB' },
-    { table_name: 'notifications', total_size: '512 kB', table_size: '448 kB', index_size: '64 kB' },
+    {
+      table_name: 'notifications',
+      total_size: '512 kB',
+      table_size: '448 kB',
+      index_size: '64 kB',
+    },
     { table_name: 'users', total_size: '256 kB', table_size: '224 kB', index_size: '32 kB' },
-    { table_name: 'post_categories', total_size: '128 kB', table_size: '112 kB', index_size: '16 kB' },
+    {
+      table_name: 'post_categories',
+      total_size: '128 kB',
+      table_size: '112 kB',
+      index_size: '16 kB',
+    },
     { table_name: 'categories', total_size: '32 kB', table_size: '24 kB', index_size: '8 kB' },
   ],
-  'index_usage': [
-    { schemaname: 'public', table_name: 'users', index_name: 'users_pkey', index_scans: 45231, tuples_read: 45231, tuples_fetched: 45231 },
-    { schemaname: 'public', table_name: 'posts', index_name: 'posts_pkey', index_scans: 23890, tuples_read: 23890, tuples_fetched: 23890 },
-    { schemaname: 'public', table_name: 'posts', index_name: 'posts_user_id_idx', index_scans: 18432, tuples_read: 82340, tuples_fetched: 18432 },
-    { schemaname: 'public', table_name: 'comments', index_name: 'comments_pkey', index_scans: 12045, tuples_read: 12045, tuples_fetched: 12045 },
-    { schemaname: 'public', table_name: 'comments', index_name: 'comments_post_id_idx', index_scans: 9823, tuples_read: 45123, tuples_fetched: 9823 },
-    { schemaname: 'public', table_name: 'likes', index_name: 'likes_pkey', index_scans: 8901, tuples_read: 8901, tuples_fetched: 8901 },
-    { schemaname: 'public', table_name: 'notifications', index_name: 'notifications_user_id_idx', index_scans: 3456, tuples_read: 15234, tuples_fetched: 3456 },
-    { schemaname: 'public', table_name: 'audit_logs', index_name: 'audit_logs_pkey', index_scans: 1234, tuples_read: 1234, tuples_fetched: 1234 },
+  index_usage: [
+    {
+      schemaname: 'public',
+      table_name: 'users',
+      index_name: 'users_pkey',
+      index_scans: 45231,
+      tuples_read: 45231,
+      tuples_fetched: 45231,
+    },
+    {
+      schemaname: 'public',
+      table_name: 'posts',
+      index_name: 'posts_pkey',
+      index_scans: 23890,
+      tuples_read: 23890,
+      tuples_fetched: 23890,
+    },
+    {
+      schemaname: 'public',
+      table_name: 'posts',
+      index_name: 'posts_user_id_idx',
+      index_scans: 18432,
+      tuples_read: 82340,
+      tuples_fetched: 18432,
+    },
+    {
+      schemaname: 'public',
+      table_name: 'comments',
+      index_name: 'comments_pkey',
+      index_scans: 12045,
+      tuples_read: 12045,
+      tuples_fetched: 12045,
+    },
+    {
+      schemaname: 'public',
+      table_name: 'comments',
+      index_name: 'comments_post_id_idx',
+      index_scans: 9823,
+      tuples_read: 45123,
+      tuples_fetched: 9823,
+    },
+    {
+      schemaname: 'public',
+      table_name: 'likes',
+      index_name: 'likes_pkey',
+      index_scans: 8901,
+      tuples_read: 8901,
+      tuples_fetched: 8901,
+    },
+    {
+      schemaname: 'public',
+      table_name: 'notifications',
+      index_name: 'notifications_user_id_idx',
+      index_scans: 3456,
+      tuples_read: 15234,
+      tuples_fetched: 3456,
+    },
+    {
+      schemaname: 'public',
+      table_name: 'audit_logs',
+      index_name: 'audit_logs_pkey',
+      index_scans: 1234,
+      tuples_read: 1234,
+      tuples_fetched: 1234,
+    },
   ],
-  'foreign_keys': [
-    { table_name: 'posts', column_name: 'user_id', foreign_table_name: 'users', foreign_column_name: 'id' },
-    { table_name: 'comments', column_name: 'post_id', foreign_table_name: 'posts', foreign_column_name: 'id' },
-    { table_name: 'comments', column_name: 'user_id', foreign_table_name: 'users', foreign_column_name: 'id' },
-    { table_name: 'likes', column_name: 'post_id', foreign_table_name: 'posts', foreign_column_name: 'id' },
-    { table_name: 'likes', column_name: 'user_id', foreign_table_name: 'users', foreign_column_name: 'id' },
-    { table_name: 'post_categories', column_name: 'post_id', foreign_table_name: 'posts', foreign_column_name: 'id' },
-    { table_name: 'post_categories', column_name: 'category_id', foreign_table_name: 'categories', foreign_column_name: 'id' },
-    { table_name: 'audit_logs', column_name: 'user_id', foreign_table_name: 'users', foreign_column_name: 'id' },
-    { table_name: 'notifications', column_name: 'user_id', foreign_table_name: 'users', foreign_column_name: 'id' },
+  foreign_keys: [
+    {
+      table_name: 'posts',
+      column_name: 'user_id',
+      foreign_table_name: 'users',
+      foreign_column_name: 'id',
+    },
+    {
+      table_name: 'comments',
+      column_name: 'post_id',
+      foreign_table_name: 'posts',
+      foreign_column_name: 'id',
+    },
+    {
+      table_name: 'comments',
+      column_name: 'user_id',
+      foreign_table_name: 'users',
+      foreign_column_name: 'id',
+    },
+    {
+      table_name: 'likes',
+      column_name: 'post_id',
+      foreign_table_name: 'posts',
+      foreign_column_name: 'id',
+    },
+    {
+      table_name: 'likes',
+      column_name: 'user_id',
+      foreign_table_name: 'users',
+      foreign_column_name: 'id',
+    },
+    {
+      table_name: 'post_categories',
+      column_name: 'post_id',
+      foreign_table_name: 'posts',
+      foreign_column_name: 'id',
+    },
+    {
+      table_name: 'post_categories',
+      column_name: 'category_id',
+      foreign_table_name: 'categories',
+      foreign_column_name: 'id',
+    },
+    {
+      table_name: 'audit_logs',
+      column_name: 'user_id',
+      foreign_table_name: 'users',
+      foreign_column_name: 'id',
+    },
+    {
+      table_name: 'notifications',
+      column_name: 'user_id',
+      foreign_table_name: 'users',
+      foreign_column_name: 'id',
+    },
   ],
-  'active_connections': [
-    { pid: 12345, usename: 'supabase_admin', application_name: 'psql', client_addr: '10.0.0.1', state: 'active', query: 'SELECT * FROM users WHERE id = $1', query_start: new Date(Date.now() - 120000).toISOString() },
-    { pid: 12346, usename: 'authenticated', application_name: 'PostgREST', client_addr: '10.0.0.2', state: 'active', query: 'SELECT posts.* FROM posts ORDER BY created_at DESC LIMIT 10', query_start: new Date(Date.now() - 45000).toISOString() },
+  active_connections: [
+    {
+      pid: 12345,
+      usename: 'supabase_admin',
+      application_name: 'psql',
+      client_addr: '10.0.0.1',
+      state: 'active',
+      query: 'SELECT * FROM users WHERE id = $1',
+      query_start: new Date(Date.now() - 120000).toISOString(),
+    },
+    {
+      pid: 12346,
+      usename: 'authenticated',
+      application_name: 'PostgREST',
+      client_addr: '10.0.0.2',
+      state: 'active',
+      query: 'SELECT posts.* FROM posts ORDER BY created_at DESC LIMIT 10',
+      query_start: new Date(Date.now() - 45000).toISOString(),
+    },
   ],
 }
 
@@ -126,7 +302,10 @@ function getDemoSQLResult(query: string): SQLQueryResult {
   if (q.includes('pg_policies') || (q.includes('rls') && q.includes('policy'))) {
     return { success: true, data: DEMO_SQL_RESULTS['pg_policies'] }
   }
-  if (q.includes('pg_statio_user_tables') || (q.includes('total_size') && q.includes('table_size'))) {
+  if (
+    q.includes('pg_statio_user_tables') ||
+    (q.includes('total_size') && q.includes('table_size'))
+  ) {
     return { success: true, data: DEMO_SQL_RESULTS['table_sizes'] }
   }
   if (q.includes('pg_stat_user_indexes') || q.includes('index_scans') || q.includes('idx_scan')) {
@@ -138,10 +317,17 @@ function getDemoSQLResult(query: string): SQLQueryResult {
   if (q.includes('pg_stat_user_tables') || q.includes('n_live_tup')) {
     return { success: true, data: DEMO_SQL_RESULTS['pg_stat_user_tables'] }
   }
-  if (q.includes('information_schema.table_constraints') || q.includes('foreign_table_name') || (q.includes('constraint_type') && q.includes('foreign key'))) {
+  if (
+    q.includes('information_schema.table_constraints') ||
+    q.includes('foreign_table_name') ||
+    (q.includes('constraint_type') && q.includes('foreign key'))
+  ) {
     return { success: true, data: DEMO_SQL_RESULTS['foreign_keys'] }
   }
-  if (q.includes('information_schema.tables') || (q.includes('table_name') && q.includes('table_type'))) {
+  if (
+    q.includes('information_schema.tables') ||
+    (q.includes('table_name') && q.includes('table_type'))
+  ) {
     return { success: true, data: DEMO_SQL_RESULTS['information_schema.tables'] }
   }
   return {
@@ -231,11 +417,31 @@ const AI_DEMO_MOCK: Record<string, Array<Record<string, unknown>>> = {
     },
   ],
   'AI: Summarize rows': [
-    { id: 1, why_hire_jesse: 'Jesse submitted a fully functional devtool with dark mode as his job application. Not a cover letter — an app. Supabase should at minimum be curious.' },
-    { id: 2, why_hire_jesse: 'He built a SQL runner, AI agent, OTel trace viewer, AND inline LLM calls from Postgres. He did not know when to stop. This is a feature, not a bug.' },
-    { id: 3, why_hire_jesse: 'Adelaide-based, which means zero timezone excuses and maximum remote-work discipline. He ships while the rest of the world is asleep.' },
-    { id: 4, why_hire_jesse: 'He hit undocumented Supabase API edge cases, debugged them without a single angry GitHub issue, and shipped anyway. This man has the patience of a saint and the output of three interns.' },
-    { id: 5, why_hire_jesse: 'He built the tool he wished existed, then used it to apply for the job. This is either deranged or genius. Supabase, of all companies, should recognise the difference is small.' },
+    {
+      id: 1,
+      why_hire_jesse:
+        'Jesse submitted a fully functional devtool with dark mode as his job application. Not a cover letter — an app. Supabase should at minimum be curious.',
+    },
+    {
+      id: 2,
+      why_hire_jesse:
+        'He built a SQL runner, AI agent, OTel trace viewer, AND inline LLM calls from Postgres. He did not know when to stop. This is a feature, not a bug.',
+    },
+    {
+      id: 3,
+      why_hire_jesse:
+        'Adelaide-based, which means zero timezone excuses and maximum remote-work discipline. He ships while the rest of the world is asleep.',
+    },
+    {
+      id: 4,
+      why_hire_jesse:
+        'He hit undocumented Supabase API edge cases, debugged them without a single angry GitHub issue, and shipped anyway. This man has the patience of a saint and the output of three interns.',
+    },
+    {
+      id: 5,
+      why_hire_jesse:
+        'He built the tool he wished existed, then used it to apply for the job. This is either deranged or genius. Supabase, of all companies, should recognise the difference is small.',
+    },
   ],
 }
 
@@ -279,7 +485,17 @@ function downloadFile(content: string, filename: string, mimeType: string) {
 }
 
 export function SQLPanel() {
-  const { activeConnectionId, connections, addSqlResult, sqlEditorContent, setSqlEditorContent, sqlHistory, addSqlToHistory, clearSqlHistory, addActivityLog } = useSupabaseStore()
+  const {
+    activeConnectionId,
+    connections,
+    addSqlResult,
+    sqlEditorContent,
+    setSqlEditorContent,
+    sqlHistory,
+    addSqlToHistory,
+    clearSqlHistory,
+    addActivityLog,
+  } = useSupabaseStore()
   const activeConnection = connections.find((c) => c.id === activeConnectionId) || null
 
   const [query, setQuery] = useState('')
@@ -317,9 +533,17 @@ export function SQLPanel() {
       setResult(demoResult)
       addSqlResult(demoResult)
       addSqlToHistory(query.trim())
-      addActivityLog({ type: 'sql', action: 'SQL query executed (demo)', details: query.trim().substring(0, 80) + (query.trim().length > 80 ? '...' : '') })
+      addActivityLog({
+        type: 'sql',
+        action: 'SQL query executed (demo)',
+        details: query.trim().substring(0, 80) + (query.trim().length > 80 ? '...' : ''),
+      })
       if (demoResult.success) {
-        const rowCount = demoResult.data ? (Array.isArray(demoResult.data) ? demoResult.data.length : 1) : 0
+        const rowCount = demoResult.data
+          ? Array.isArray(demoResult.data)
+            ? demoResult.data.length
+            : 1
+          : 0
         toast.success('Query executed (demo)', { description: `${rowCount} rows returned` })
       }
       setIsExecuting(false)
@@ -330,15 +554,21 @@ export function SQLPanel() {
       const res = await apiFetch('/api/sql', activeConnection, { query: query.trim() })
 
       const data = await res.json()
-      const sqlResult: SQLQueryResult = data.error
-        ? { success: false, error: data.error }
-        : data
+      const sqlResult: SQLQueryResult = data.error ? { success: false, error: data.error } : data
       setResult(sqlResult)
       addSqlResult(sqlResult)
       addSqlToHistory(query.trim())
-      addActivityLog({ type: 'sql', action: 'SQL query executed', details: query.trim().substring(0, 80) + (query.trim().length > 80 ? '...' : '') })
+      addActivityLog({
+        type: 'sql',
+        action: 'SQL query executed',
+        details: query.trim().substring(0, 80) + (query.trim().length > 80 ? '...' : ''),
+      })
       if (sqlResult.success) {
-        const rowCount = sqlResult.data ? (Array.isArray(sqlResult.data) ? sqlResult.data.length : 1) : 0
+        const rowCount = sqlResult.data
+          ? Array.isArray(sqlResult.data)
+            ? sqlResult.data.length
+            : 1
+          : 0
         toast.success('Query executed', { description: `${rowCount} rows returned` })
       } else {
         toast.error('Query failed', { description: sqlResult.error || 'Unknown error' })
@@ -356,12 +586,15 @@ export function SQLPanel() {
     }
   }, [activeConnectionId, query, addSqlResult, addSqlToHistory, addActivityLog])
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-      e.preventDefault()
-      executeQuery()
-    }
-  }, [executeQuery])
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault()
+        executeQuery()
+      }
+    },
+    [executeQuery]
+  )
 
   const applyTemplate = useCallback((templateName: string) => {
     const template = QUICK_TEMPLATES[templateName]
@@ -370,47 +603,62 @@ export function SQLPanel() {
     }
   }, [])
 
-  const runAiDemo = useCallback(async (demo: AiDemoButton) => {
-    // demo.sql is already rendered with the current provider by getAiDemoButtons()
-    if (!activeConnectionId) return
-    setQuery(demo.sql)
-    setIsExecuting(true)
-    setResult(null)
+  const runAiDemo = useCallback(
+    async (demo: AiDemoButton) => {
+      // demo.sql is already rendered with the current provider by getAiDemoButtons()
+      if (!activeConnectionId) return
+      setQuery(demo.sql)
+      setIsExecuting(true)
+      setResult(null)
 
-    if (activeConnectionId === DEMO_CONNECTION_ID) {
-      await new Promise((resolve) => setTimeout(resolve, 600 + Math.random() * 400))
-      const rows = AI_DEMO_MOCK[demo.label] ?? []
-      const demoResult: SQLQueryResult = { success: true, data: rows }
-      setResult(demoResult)
-      addSqlResult(demoResult)
-      addSqlToHistory(demo.sql.trim())
-      toast.success(`${demo.label} (demo)`, { description: `${rows.length} row${rows.length !== 1 ? 's' : ''} returned` })
-      setIsExecuting(false)
-      return
-    }
-
-    try {
-      const res = await apiFetch('/api/sql', activeConnection, { query: demo.sql.trim() })
-      const data = await res.json()
-      const sqlResult: SQLQueryResult = data.error ? { success: false, error: data.error } : data
-      setResult(sqlResult)
-      addSqlResult(sqlResult)
-      addSqlToHistory(demo.sql.trim())
-      addActivityLog({ type: 'sql', action: `AI demo: ${demo.label}`, details: demo.sql.trim().substring(0, 80) })
-      if (sqlResult.success) {
-        const rowCount = sqlResult.data ? (Array.isArray(sqlResult.data) ? sqlResult.data.length : 1) : 0
-        toast.success(demo.label, { description: `${rowCount} row${rowCount !== 1 ? 's' : ''} returned` })
-      } else {
-        toast.error(`${demo.label} failed`, { description: sqlResult.error || 'Unknown error' })
+      if (activeConnectionId === DEMO_CONNECTION_ID) {
+        await new Promise((resolve) => setTimeout(resolve, 600 + Math.random() * 400))
+        const rows = AI_DEMO_MOCK[demo.label] ?? []
+        const demoResult: SQLQueryResult = { success: true, data: rows }
+        setResult(demoResult)
+        addSqlResult(demoResult)
+        addSqlToHistory(demo.sql.trim())
+        toast.success(`${demo.label} (demo)`, {
+          description: `${rows.length} row${rows.length !== 1 ? 's' : ''} returned`,
+        })
+        setIsExecuting(false)
+        return
       }
-    } catch {
-      const errResult: SQLQueryResult = { success: false, error: 'Network error occurred' }
-      setResult(errResult)
-      addSqlResult(errResult)
-    } finally {
-      setIsExecuting(false)
-    }
-  }, [activeConnectionId, activeConnection, addSqlResult, addSqlToHistory, addActivityLog])
+
+      try {
+        const res = await apiFetch('/api/sql', activeConnection, { query: demo.sql.trim() })
+        const data = await res.json()
+        const sqlResult: SQLQueryResult = data.error ? { success: false, error: data.error } : data
+        setResult(sqlResult)
+        addSqlResult(sqlResult)
+        addSqlToHistory(demo.sql.trim())
+        addActivityLog({
+          type: 'sql',
+          action: `AI demo: ${demo.label}`,
+          details: demo.sql.trim().substring(0, 80),
+        })
+        if (sqlResult.success) {
+          const rowCount = sqlResult.data
+            ? Array.isArray(sqlResult.data)
+              ? sqlResult.data.length
+              : 1
+            : 0
+          toast.success(demo.label, {
+            description: `${rowCount} row${rowCount !== 1 ? 's' : ''} returned`,
+          })
+        } else {
+          toast.error(`${demo.label} failed`, { description: sqlResult.error || 'Unknown error' })
+        }
+      } catch {
+        const errResult: SQLQueryResult = { success: false, error: 'Network error occurred' }
+        setResult(errResult)
+        addSqlResult(errResult)
+      } finally {
+        setIsExecuting(false)
+      }
+    },
+    [activeConnectionId, activeConnection, addSqlResult, addSqlToHistory, addActivityLog]
+  )
 
   const copyToClipboard = useCallback((text: string, type: 'query' | 'results') => {
     navigator.clipboard.writeText(text)
@@ -467,7 +715,10 @@ export function SQLPanel() {
             <Terminal className="size-5 text-primary" />
             <CardTitle>SQL Query</CardTitle>
             {activeConnectionId === DEMO_CONNECTION_ID && (
-              <Badge variant="outline" className="gap-1 text-amber-600 border-amber-200 dark:text-amber-400 dark:border-amber-800 text-[10px]">
+              <Badge
+                variant="outline"
+                className="gap-1 text-amber-600 border-amber-200 dark:text-amber-400 dark:border-amber-800 text-[10px]"
+              >
                 <Eye className="size-3" />
                 Demo
               </Badge>
@@ -582,9 +833,15 @@ export function SQLPanel() {
 
                     <div className="relative flex rounded-lg overflow-hidden border border-zinc-800 dark:border-zinc-700 bg-zinc-950 dark:bg-zinc-900 focus-within:ring-1 focus-within:ring-zinc-600">
                       {/* Line numbers */}
-                      <div className="flex-shrink-0 py-3 px-2 text-right select-none border-r border-zinc-800 dark:border-zinc-700 bg-zinc-900/50 dark:bg-zinc-800/50 overflow-hidden" aria-hidden="true">
+                      <div
+                        className="flex-shrink-0 py-3 px-2 text-right select-none border-r border-zinc-800 dark:border-zinc-700 bg-zinc-900/50 dark:bg-zinc-800/50 overflow-hidden"
+                        aria-hidden="true"
+                      >
                         {Array.from({ length: lineCount }, (_, i) => (
-                          <div key={i} className="text-[11px] leading-[1.375rem] text-zinc-600 dark:text-zinc-500 font-mono">
+                          <div
+                            key={i}
+                            className="text-[11px] leading-[1.375rem] text-zinc-600 dark:text-zinc-500 font-mono"
+                          >
                             {i + 1}
                           </div>
                         ))}
@@ -637,7 +894,11 @@ export function SQLPanel() {
                             <History className="size-3.5" />
                             Query History ({sqlHistory.length})
                           </span>
-                          {showHistory ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+                          {showHistory ? (
+                            <ChevronUp className="size-3.5" />
+                          ) : (
+                            <ChevronDown className="size-3.5" />
+                          )}
                         </button>
                         {showHistory && (
                           <div className="border-t">
@@ -651,7 +912,9 @@ export function SQLPanel() {
                                   >
                                     <History className="size-3 text-muted-foreground shrink-0" />
                                     <code className="text-xs font-mono truncate text-foreground/80">
-                                      {histQuery.length > 80 ? `${histQuery.slice(0, 80)}...` : histQuery}
+                                      {histQuery.length > 80
+                                        ? `${histQuery.slice(0, 80)}...`
+                                        : histQuery}
                                     </code>
                                   </button>
                                 ))}
@@ -718,19 +981,11 @@ export function SQLPanel() {
                             )}
                             Copy
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleExportCSV}
-                          >
+                          <Button variant="ghost" size="sm" onClick={handleExportCSV}>
                             <FileText className="mr-1 size-3" />
                             CSV
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleExportJSON}
-                          >
+                          <Button variant="ghost" size="sm" onClick={handleExportJSON}>
                             <FileJson className="mr-1 size-3" />
                             JSON
                           </Button>
@@ -763,7 +1018,10 @@ export function SQLPanel() {
                             {resultRows.slice(0, 50).map((row, rowIdx) => (
                               <TableRow key={rowIdx}>
                                 {columnKeys.map((key) => (
-                                  <TableCell key={key} className="font-mono text-xs whitespace-normal break-words max-w-[480px]">
+                                  <TableCell
+                                    key={key}
+                                    className="font-mono text-xs whitespace-normal break-words max-w-[480px]"
+                                  >
                                     {row[key] === null ? (
                                       <span className="text-muted-foreground italic">NULL</span>
                                     ) : typeof row[key] === 'object' ? (
@@ -813,10 +1071,7 @@ export function SQLPanel() {
 
           {/* Analyzer Tab */}
           <TabsContent value="analyzer">
-            <QueryAnalyzer
-              activeConnectionId={activeConnectionId}
-              query={query}
-            />
+            <QueryAnalyzer activeConnectionId={activeConnectionId} query={query} />
           </TabsContent>
         </Tabs>
       ) : (
@@ -824,9 +1079,7 @@ export function SQLPanel() {
           <CardContent className="py-12">
             <div className="flex flex-col items-center justify-center text-center">
               <Terminal className="mb-3 size-12 text-muted-foreground/30" />
-              <p className="text-sm font-medium text-muted-foreground">
-                No connection selected
-              </p>
+              <p className="text-sm font-medium text-muted-foreground">No connection selected</p>
               <p className="text-xs text-muted-foreground">
                 Connect to a Supabase project to run SQL queries
               </p>

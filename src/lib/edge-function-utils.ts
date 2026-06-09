@@ -123,7 +123,12 @@ export function extractCommentFrontmatter(source: string): string {
     if (inBlockComment) {
       const endIdx = line.indexOf('*/')
       if (endIdx >= 0) {
-        collected.push(line.slice(0, endIdx).replace(/^\*\s?/, '').trim())
+        collected.push(
+          line
+            .slice(0, endIdx)
+            .replace(/^\*\s?/, '')
+            .trim()
+        )
         inBlockComment = false
         continue
       }
@@ -148,7 +153,12 @@ export function extractCommentFrontmatter(source: string): string {
       const stripped = line.slice(2)
       const endIdx = stripped.indexOf('*/')
       if (endIdx >= 0) {
-        collected.push(stripped.slice(0, endIdx).replace(/^\*\s?/, '').trim())
+        collected.push(
+          stripped
+            .slice(0, endIdx)
+            .replace(/^\*\s?/, '')
+            .trim()
+        )
       } else {
         collected.push(stripped.replace(/^\*\s?/, '').trim())
         inBlockComment = true
@@ -168,4 +178,3 @@ export function extractCommentFrontmatter(source: string): string {
   if (!/@description|@param/.test(text)) return ''
   return text
 }
-

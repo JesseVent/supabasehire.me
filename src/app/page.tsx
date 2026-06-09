@@ -1,110 +1,70 @@
 'use client'
 
-import { useCallback, useEffect, useState, useMemo } from 'react'
-import dynamic from 'next/dynamic'
-import { motion, AnimatePresence } from 'framer-motion'
-import { toast } from 'sonner'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
-  Shield,
-  Zap,
-  Terminal,
+  Activity,
+  AlertTriangle,
+  ArrowUpRight,
+  BookOpen,
+  Camera,
+  CheckCircle2,
+  ChevronDown,
   Database,
-  Settings,
-  Plus,
-  Trash2,
+  DatabaseBackup,
+  ExternalLink,
+  Eye,
+  FileText,
+  Filter,
+  GitFork,
+  HardDrive,
+  HeartPulse,
+  Info,
+  Key,
+  Keyboard,
+  Layers,
+  LayoutDashboard,
+  Lightbulb,
+  Link2,
   Loader2,
   Plug,
-  CheckCircle2,
-  Server,
-  GitFork,
+  Plus,
   RefreshCw,
-  ShieldCheck,
-  ShieldAlert,
-  Key,
-  Link2,
-  ArrowUpRight,
-  Info,
-  Eye,
-  HeartPulse,
-  XCircle,
-  AlertTriangle,
   Search,
-  Filter,
-  Unlock,
-  TableIcon,
-  Keyboard,
-  LayoutDashboard,
-  ChevronDown,
-  FileText,
-  Lightbulb,
-  X,
-  ExternalLink,
-  HardDrive,
-  Camera,
-  DatabaseBackup,
-  BookOpen,
-  Layers,
+  Server,
+  Settings,
+  Shield,
+  ShieldAlert,
+  ShieldCheck,
   Sparkles,
-  Activity,
+  TableIcon,
+  Terminal,
+  Trash2,
+  Unlock,
+  X,
+  XCircle,
+  Zap,
 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from '@/components/ui/tabs'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { useSupabaseStore } from '@/store/supabase-store'
-import type { SupabaseConnection, ActivePanel, TableRLSInfo, ColumnInfo, ForeignKeyInfo, RLSPolicy } from '@/lib/supabase-types'
-import { DEMO_CONNECTION_ID, DEMO_CONNECTION, DEMO_TABLES, DEMO_RLS_STATUSES, DEMO_EDGE_FUNCTIONS, DEMO_FUNCTION_NOTES } from '@/lib/demo-data'
-import { RLSPanel } from '@/components/rls-panel'
-import { EdgeFunctionsPanel } from '@/components/edge-functions-panel'
-import { SQLPanel } from '@/components/sql-panel'
-import { ThemeToggle } from '@/components/theme-toggle'
+import dynamic from 'next/dynamic'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import { AgentChatPanel } from '@/components/agent-chat-panel'
-import { useAgentStore } from '@/store/agent-store'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
-import { TableDataViewer } from '@/components/table-data-viewer'
+import { AnalyticsPanel } from '@/components/analytics-panel'
+import { CommandPalette } from '@/components/command-palette'
+import { DataCatalogPanel } from '@/components/data-catalog-panel'
+import { DbViewsFunctions } from '@/components/db-views-functions'
+import { EdgeFunctionsPanel } from '@/components/edge-functions-panel'
+import { ExportReport } from '@/components/export-report'
 import { KeyboardShortcuts } from '@/components/keyboard-shortcuts'
 import { ProjectDashboard } from '@/components/project-dashboard'
-import { ExportReport } from '@/components/export-report'
-import { CommandPalette } from '@/components/command-palette'
+import { RLSPanel } from '@/components/rls-panel'
+import { SchemaSnapshotPanel } from '@/components/schema-snapshot'
+import { SQLPanel } from '@/components/sql-panel'
+import { StorageBrowser } from '@/components/storage-browser'
+import { TableDataViewer } from '@/components/table-data-viewer'
+import { ThemeToggle } from '@/components/theme-toggle'
+import { TracePanel } from '@/components/trace-panel'
+import { TriggerViewer } from '@/components/trigger-viewer'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -116,26 +76,77 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { StorageBrowser } from '@/components/storage-browser'
-import { SchemaSnapshotPanel } from '@/components/schema-snapshot'
-import { TriggerViewer } from '@/components/trigger-viewer'
-import { DbViewsFunctions } from '@/components/db-views-functions'
-import { DataCatalogPanel } from '@/components/data-catalog-panel'
-import { AnalyticsPanel } from '@/components/analytics-panel'
-import { TracePanel } from '@/components/trace-panel'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { apiFetch } from '@/lib/api-auth'
 import {
-  generatePKCE,
+  DEMO_CONNECTION,
+  DEMO_CONNECTION_ID,
+  DEMO_EDGE_FUNCTIONS,
+  DEMO_FUNCTION_NOTES,
+  DEMO_RLS_STATUSES,
+  DEMO_TABLES,
+} from '@/lib/demo-data'
+import {
   buildAuthorizeUrl,
+  type DcrClient,
   exchangeCode,
+  generatePKCE,
   getCallbackUrl,
   getOrRegisterDcrClient,
+  type OAuthProject,
   openOAuthPopup,
   waitForOAuthCallback,
-  type OAuthProject,
-  type DcrClient,
 } from '@/lib/supabase-oauth'
+import type {
+  ActivePanel,
+  ColumnInfo,
+  ForeignKeyInfo,
+  RLSPolicy,
+  SupabaseConnection,
+  TableRLSInfo,
+} from '@/lib/supabase-types'
+import { useAgentStore } from '@/store/agent-store'
+import { useSupabaseStore } from '@/store/supabase-store'
+
 // import { SupabaseMcpClient } from '@/lib/supabase-mcp-client'
 
 // Dynamic import for SchemaDiagram to avoid SSR issues with ReactFlow
@@ -180,7 +191,9 @@ export default function Home() {
 
   const isDemoMode = activeConnectionId === DEMO_CONNECTION_ID
 
-  const [connectionHealthMap, setConnectionHealthMap] = useState<Record<string, 'healthy' | 'degraded' | 'unhealthy' | 'checking'>>({})
+  const [connectionHealthMap, setConnectionHealthMap] = useState<
+    Record<string, 'healthy' | 'degraded' | 'unhealthy' | 'checking'>
+  >({})
   const [showNewDialog, setShowNewDialog] = useState(false)
   const [isLoadingSchema, setIsLoadingSchema] = useState(false)
   const [schemaError, setSchemaError] = useState<string | null>(null)
@@ -216,7 +229,13 @@ export default function Home() {
       if (!popup) throw new Error('Popup blocked — allow popups for this site and try again.')
 
       const code = await waitForOAuthCallback(state, popup)
-      const { accessToken, refreshToken } = await exchangeCode(clientId, code, codeVerifier, redirectUri, clientSecret)
+      const { accessToken, refreshToken } = await exchangeCode(
+        clientId,
+        code,
+        codeVerifier,
+        redirectUri,
+        clientSecret
+      )
 
       // List projects via MCP (account-level, no project_ref) — proxied server-side to avoid CORS
       const projectsRes = await fetch('/api/mcp/account-call', {
@@ -254,81 +273,89 @@ export default function Home() {
     }
   }, [])
 
-  const applyOAuthProject = useCallback(async (project: OAuthProject, accessToken: string, refreshToken?: string) => {
-    setIsOAuthConnecting(true)
-    setCreateError(null)
-    try {
-      // Fetch the publishable (anon) key via project-scoped MCP.
-      // Service role key is not exposed by MCP — user can paste it manually in Settings.
-      let anonKey = ''
+  const applyOAuthProject = useCallback(
+    async (project: OAuthProject, accessToken: string, refreshToken?: string) => {
+      setIsOAuthConnecting(true)
+      setCreateError(null)
       try {
-        const keyRes = await fetch('/api/mcp/account-call', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accessToken, name: 'get_publishable_keys', args: {}, projectRef: project.ref }),
-        })
-        if (keyRes.ok) {
-          const keyData = await keyRes.json()
-          const keyRaw = keyData.result ?? ''
-          try {
-            const parsed = JSON.parse(keyRaw)
-            if (Array.isArray(parsed?.keys)) {
-              const anon = parsed.keys.find((k: any) => k.name === 'anon' || k.type === 'legacy')
-              anonKey = anon?.api_key ?? ''
-            } else if (typeof parsed === 'string') {
-              anonKey = parsed
-            } else {
-              anonKey = parsed?.key ?? parsed?.anon_key ?? ''
+        // Fetch the publishable (anon) key via project-scoped MCP.
+        // Service role key is not exposed by MCP — user can paste it manually in Settings.
+        let anonKey = ''
+        try {
+          const keyRes = await fetch('/api/mcp/account-call', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              accessToken,
+              name: 'get_publishable_keys',
+              args: {},
+              projectRef: project.ref,
+            }),
+          })
+          if (keyRes.ok) {
+            const keyData = await keyRes.json()
+            const keyRaw = keyData.result ?? ''
+            try {
+              const parsed = JSON.parse(keyRaw)
+              if (Array.isArray(parsed?.keys)) {
+                const anon = parsed.keys.find((k: any) => k.name === 'anon' || k.type === 'legacy')
+                anonKey = anon?.api_key ?? ''
+              } else if (typeof parsed === 'string') {
+                anonKey = parsed
+              } else {
+                anonKey = parsed?.key ?? parsed?.anon_key ?? ''
+              }
+            } catch {
+              anonKey = keyRaw.trim()
             }
-          } catch {
-            anonKey = keyRaw.trim()
           }
+        } catch {
+          toast.warning('Connected with limited access', {
+            description: 'Could not fetch API key automatically. Add it manually in Settings.',
+            duration: 8000,
+          })
         }
-      } catch {
-        toast.warning('Connected with limited access', {
-          description: 'Could not fetch API key automatically. Add it manually in Settings.',
-          duration: 8000,
-        })
-      }
 
-      const now = new Date().toISOString()
-      const newConnection = {
-        id: `conn-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-        name: project.name,
-        supabaseUrl: `https://${project.ref}.supabase.co`,
-        anonKey,
-        serviceRoleKey: null as null,
-        accessToken,
-        refreshToken: refreshToken ?? null,
-        s3KeyId: null as null,
-        s3Secret: null as null,
-        s3Warehouse: null as null,
-        createdAt: now,
-        updatedAt: now,
-      }
-      addConnection(newConnection)
-      setActiveConnectionId(newConnection.id)
-      addActivityLog({ type: 'connection', action: 'Connected via OAuth', details: project.name })
+        const now = new Date().toISOString()
+        const newConnection = {
+          id: `conn-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+          name: project.name,
+          supabaseUrl: `https://${project.ref}.supabase.co`,
+          anonKey,
+          serviceRoleKey: null as null,
+          accessToken,
+          refreshToken: refreshToken ?? null,
+          s3KeyId: null as null,
+          s3Secret: null as null,
+          s3Warehouse: null as null,
+          createdAt: now,
+          updatedAt: now,
+        }
+        addConnection(newConnection)
+        setActiveConnectionId(newConnection.id)
+        addActivityLog({ type: 'connection', action: 'Connected via OAuth', details: project.name })
 
-      if (anonKey) {
-        toast.success('Connected', { description: project.name })
-      } else {
-        toast.success('Project linked via OAuth', {
-          description: `${project.name} — add your Publishable / Secret key in Settings to enable full access`,
-          duration: 6000,
-        })
-      }
+        if (anonKey) {
+          toast.success('Connected', { description: project.name })
+        } else {
+          toast.success('Project linked via OAuth', {
+            description: `${project.name} — add your Publishable / Secret key in Settings to enable full access`,
+            duration: 6000,
+          })
+        }
 
-      setShowNewDialog(false)
-      setOauthProjects(null)
-      setOauthAccessToken(null)
-      setOauthRefreshToken(null)
-    } catch (err) {
-      setCreateError(err instanceof Error ? err.message : 'Failed to load project details')
-    } finally {
-      setIsOAuthConnecting(false)
-    }
-  }, [addConnection, setActiveConnectionId, addActivityLog])
+        setShowNewDialog(false)
+        setOauthProjects(null)
+        setOauthAccessToken(null)
+        setOauthRefreshToken(null)
+      } catch (err) {
+        setCreateError(err instanceof Error ? err.message : 'Failed to load project details')
+      } finally {
+        setIsOAuthConnecting(false)
+      }
+    },
+    [addConnection, setActiveConnectionId, addActivityLog]
+  )
 
   const prefillFromEnv = useCallback(async () => {
     setIsPrefilling(true)
@@ -372,22 +399,27 @@ export default function Home() {
 
   useEffect(() => {
     if (connections.length === 0) return
-    const realConnections = connections.filter(c => c.id !== DEMO_CONNECTION_ID)
+    const realConnections = connections.filter((c) => c.id !== DEMO_CONNECTION_ID)
     if (realConnections.length === 0) return
     const checking: Record<string, 'checking'> = {}
-    realConnections.forEach(c => { checking[c.id] = 'checking' })
-    setConnectionHealthMap(prev => ({ ...prev, ...checking }))
+    realConnections.forEach((c) => {
+      checking[c.id] = 'checking'
+    })
+    setConnectionHealthMap((prev) => ({ ...prev, ...checking }))
     realConnections.forEach(async (c) => {
       try {
         const res = await apiFetch(`/api/connections/${c.id}/health`, c)
         const data = await res.json()
         if (!data.error && data.status) {
-          setConnectionHealthMap(prev => ({ ...prev, [c.id]: data.status as 'healthy' | 'degraded' | 'unhealthy' }))
+          setConnectionHealthMap((prev) => ({
+            ...prev,
+            [c.id]: data.status as 'healthy' | 'degraded' | 'unhealthy',
+          }))
         } else {
-          setConnectionHealthMap(prev => ({ ...prev, [c.id]: 'unhealthy' }))
+          setConnectionHealthMap((prev) => ({ ...prev, [c.id]: 'unhealthy' }))
         }
       } catch {
-        setConnectionHealthMap(prev => ({ ...prev, [c.id]: 'unhealthy' }))
+        setConnectionHealthMap((prev) => ({ ...prev, [c.id]: 'unhealthy' }))
       }
     })
   }, [connections])
@@ -423,7 +455,11 @@ export default function Home() {
       }
       addConnection(newConnection)
       setActiveConnectionId(newConnection.id)
-      addActivityLog({ type: 'connection', action: 'Connection created', details: newConnection.name })
+      addActivityLog({
+        type: 'connection',
+        action: 'Connection created',
+        details: newConnection.name,
+      })
       toast.success('Connection created', { description: newConnection.name })
       setShowNewDialog(false)
       setNewName('')
@@ -451,7 +487,11 @@ export default function Home() {
     (id: string) => {
       const conn = connections.find((c) => c.id === id)
       removeConnection(id)
-      addActivityLog({ type: 'connection', action: 'Connection deleted', details: conn?.name || id })
+      addActivityLog({
+        type: 'connection',
+        action: 'Connection deleted',
+        details: conn?.name || id,
+      })
       toast.info('Connection deleted')
     },
     [removeConnection, connections, addActivityLog]
@@ -472,7 +512,11 @@ export default function Home() {
         setSchemaError(schemaData.error)
       } else {
         setTables(schemaData.tables || [])
-        addActivityLog({ type: 'schema', action: 'Schema fetched', details: `${schemaData.tables?.length || 0} tables loaded` })
+        addActivityLog({
+          type: 'schema',
+          action: 'Schema fetched',
+          details: `${schemaData.tables?.length || 0} tables loaded`,
+        })
       }
 
       // Fetch RLS info
@@ -512,7 +556,18 @@ export default function Home() {
       description: 'Hover a table on the canvas to trace its foreign key relationships.',
       duration: 6000,
     })
-  }, [connections, addConnection, setActiveConnectionId, setTables, setRlsStatuses, setEdgeFunctions, functionNotes, setFunctionNotes, setSelectedTable, setActivePanel])
+  }, [
+    connections,
+    addConnection,
+    setActiveConnectionId,
+    setTables,
+    setRlsStatuses,
+    setEdgeFunctions,
+    functionNotes,
+    setFunctionNotes,
+    setSelectedTable,
+    setActivePanel,
+  ])
 
   // Auto-fetch when connection changes
   useEffect(() => {
@@ -563,11 +618,16 @@ export default function Home() {
       result = result.filter((t) => {
         const rls = rlsMap.get(t.tableName)
         switch (filterType) {
-          case 'rls-enabled': return rls?.rlsEnabled === true
-          case 'no-rls': return rls?.rlsEnabled === false
-          case 'with-policies': return (rls?.policies.length ?? 0) > 0
-          case 'without-policies': return (rls?.policies.length ?? 0) === 0
-          default: return true
+          case 'rls-enabled':
+            return rls?.rlsEnabled === true
+          case 'no-rls':
+            return rls?.rlsEnabled === false
+          case 'with-policies':
+            return (rls?.policies.length ?? 0) > 0
+          case 'without-policies':
+            return (rls?.policies.length ?? 0) === 0
+          default:
+            return true
         }
       })
     }
@@ -629,15 +689,26 @@ export default function Home() {
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       {/* Top navigation bar */}
-      <header className="bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 header-gradient" style={{ background: 'var(--surface-1)', backdropFilter: 'var(--background-blur)', WebkitBackdropFilter: 'var(--background-blur)' }}>
+      <header
+        className="bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 header-gradient"
+        style={{
+          background: 'var(--surface-1)',
+          backdropFilter: 'var(--background-blur)',
+          WebkitBackdropFilter: 'var(--background-blur)',
+        }}
+      >
         <div className="container mx-auto flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <div className="size-8 rounded-lg bg-muted flex items-center justify-center">
               <Database className="size-4 text-foreground" />
             </div>
             <div>
-              <h1 className="text-sm font-semibold leading-none" style={{ fontWeight: 700 }}>supabasehire.me</h1>
-              <p className="text-[10px] text-muted-foreground leading-none mt-0.5">Supabase DevTool</p>
+              <h1 className="text-sm font-semibold leading-none" style={{ fontWeight: 700 }}>
+                supabasehire.me
+              </h1>
+              <p className="text-[10px] text-muted-foreground leading-none mt-0.5">
+                Supabase DevTool
+              </p>
             </div>
           </div>
 
@@ -645,7 +716,9 @@ export default function Home() {
           <div className="flex items-center gap-2">
             {/* Connection status indicator */}
             <div className="flex items-center gap-1.5">
-              <span className={`size-2 rounded-full ${activeConnectionId ? (isDemoMode ? 'bg-amber-500' : 'bg-emerald-500 glow-dot') : 'bg-muted-foreground/40'}`} />
+              <span
+                className={`size-2 rounded-full ${activeConnectionId ? (isDemoMode ? 'bg-amber-500' : 'bg-emerald-500 glow-dot') : 'bg-muted-foreground/40'}`}
+              />
               <span className="text-[10px] text-muted-foreground hidden sm:inline">
                 {activeConnectionId ? (isDemoMode ? 'Demo Mode' : 'Connected') : 'No Connection'}
               </span>
@@ -654,7 +727,11 @@ export default function Home() {
             {/* Quick Actions Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 gap-1 text-muted-foreground hover:text-foreground">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1 text-muted-foreground hover:text-foreground"
+                >
                   <Zap className="size-3.5" />
                   <ChevronDown className="size-3" />
                 </Button>
@@ -746,10 +823,7 @@ export default function Home() {
                 </Button>
               </div>
             ) : connections.length > 0 ? (
-              <Select
-                value={activeConnectionId || ''}
-                onValueChange={setActiveConnectionId}
-              >
+              <Select value={activeConnectionId || ''} onValueChange={setActiveConnectionId}>
                 <SelectTrigger className="w-[200px] h-8">
                   <SelectValue placeholder="Select connection" />
                 </SelectTrigger>
@@ -813,7 +887,9 @@ export default function Home() {
                           variant="outline"
                           className="justify-start gap-2 h-auto py-2.5"
                           disabled={isOAuthConnecting}
-                          onClick={() => applyOAuthProject(p, oauthAccessToken!, oauthRefreshToken ?? undefined)}
+                          onClick={() =>
+                            applyOAuthProject(p, oauthAccessToken!, oauthRefreshToken ?? undefined)
+                          }
                         >
                           {isOAuthConnecting ? (
                             <Loader2 className="size-3.5 shrink-0 animate-spin" />
@@ -822,11 +898,21 @@ export default function Home() {
                           )}
                           <div className="text-left">
                             <div className="text-sm font-medium">{p.name}</div>
-                            <div className="text-xs text-muted-foreground">{p.ref} · {p.region}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {p.ref} · {p.region}
+                            </div>
                           </div>
                         </Button>
                       ))}
-                      <Button variant="ghost" size="sm" className="mt-1" onClick={() => { setOauthProjects(null); setOauthAccessToken(null) }}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="mt-1"
+                        onClick={() => {
+                          setOauthProjects(null)
+                          setOauthAccessToken(null)
+                        }}
+                      >
                         ← Back
                       </Button>
                     </div>
@@ -841,7 +927,12 @@ export default function Home() {
                         {isOAuthConnecting ? (
                           <Loader2 className="size-4 animate-spin" />
                         ) : (
-                          <svg className="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                          <svg
+                            className="size-4"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            aria-hidden="true"
+                          >
                             <path d="M21.362 9.354H12V.396a.396.396 0 0 0-.716-.233L2.203 12.424l-.401.562a.396.396 0 0 0 .32.625H12v8.958a.396.396 0 0 0 .716.233l9.081-12.261.401-.562a.396.396 0 0 0-.32-.625z" />
                           </svg>
                         )}
@@ -917,7 +1008,10 @@ export default function Home() {
           <div className="container mx-auto px-4 py-2.5 flex items-center justify-between">
             <div className="flex items-center gap-2 text-muted-foreground">
               <Lightbulb className="size-4 shrink-0" />
-              <span className="text-sm">Tip: Click &apos;Try Demo&apos; to explore with sample data, or connect your Supabase project.</span>
+              <span className="text-sm">
+                Tip: Click &apos;Try Demo&apos; to explore with sample data, or connect your
+                Supabase project.
+              </span>
             </div>
             <Button
               variant="ghost"
@@ -938,7 +1032,9 @@ export default function Home() {
             <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
               <Eye className="size-4" />
               <span className="text-sm font-medium">Demo Mode</span>
-              <span className="text-xs text-amber-600 dark:text-amber-500">— Viewing sample data. Connect to a real project for live data.</span>
+              <span className="text-xs text-amber-600 dark:text-amber-500">
+                — Viewing sample data. Connect to a real project for live data.
+              </span>
             </div>
             <Button
               variant="ghost"
@@ -1014,7 +1110,9 @@ export default function Home() {
               transition={{ delay: 0.15, duration: 0.4 }}
               className="text-4xl font-bold mb-4 tracking-tight font-display"
             >
-              Your Supabase project,<br />fully visible.
+              Your Supabase project,
+              <br />
+              fully visible.
             </motion.h2>
             <motion.p
               initial={{ opacity: 0, y: 10 }}
@@ -1022,7 +1120,8 @@ export default function Home() {
               transition={{ delay: 0.28, duration: 0.4 }}
               className="text-base text-muted-foreground mb-8 max-w-md leading-relaxed"
             >
-              Inspect schemas, audit RLS policies, query data, monitor realtime events, browse storage, and generate AI-powered data catalogs — all in one tool.
+              Inspect schemas, audit RLS policies, query data, monitor realtime events, browse
+              storage, and generate AI-powered data catalogs — all in one tool.
             </motion.p>
 
             {connections.length > 0 ? (
@@ -1039,7 +1138,12 @@ export default function Home() {
                       <div
                         key={c.id}
                         className="entity-card"
-                        style={{ '--card-accent': `var(--accent-${(['cyan','blue','purple','green','orange','coral'])[i % 6]})`, position: 'relative' } as React.CSSProperties}
+                        style={
+                          {
+                            '--card-accent': `var(--accent-${['cyan', 'blue', 'purple', 'green', 'orange', 'coral'][i % 6]})`,
+                            position: 'relative',
+                          } as React.CSSProperties
+                        }
                         onClick={() => setActiveConnectionId(c.id)}
                         role="button"
                         tabIndex={0}
@@ -1065,7 +1169,11 @@ export default function Home() {
                   <div className="flex items-center justify-center gap-3">
                     <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
                       <DialogTrigger asChild>
-                        <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gap-1.5 text-muted-foreground hover:text-foreground"
+                        >
                           <Plus className="size-4" />
                           Add new connection
                         </Button>
@@ -1092,7 +1200,10 @@ export default function Home() {
               >
                 <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
                   <DialogTrigger asChild>
-                    <Button size="lg" className="gap-2 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow">
+                    <Button
+                      size="lg"
+                      className="gap-2 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow"
+                    >
                       <Plus className="size-5" />
                       Connect to Supabase
                     </Button>
@@ -1180,91 +1291,125 @@ export default function Home() {
             <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 -mx-4 px-4 py-2 border-b border-border/50">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="w-full overflow-x-auto scrollbar-none">
-                <TabsList className="flex w-max min-w-full sm:min-w-0 sm:w-auto">
-                <TabsTrigger value="dashboard" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                  <LayoutDashboard className="size-3.5" />
-                  <span className="inline">Dashboard</span>
-                </TabsTrigger>
-                <TabsTrigger value="schema" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                  <GitFork className="size-3.5" />
-                  <span className="inline">Schema</span>
-                </TabsTrigger>
-                <TabsTrigger value="rls" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                  <Shield className="size-3.5" />
-                  <span className="inline">RLS</span>
-                </TabsTrigger>
-                <TabsTrigger value="edge-functions" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                  <Zap className="size-3.5" />
-                  <span className="inline">Functions</span>
-                </TabsTrigger>
-                <TabsTrigger value="sql" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                  <Terminal className="size-3.5" />
-                  <span className="inline">SQL</span>
-                </TabsTrigger>
-                <TabsTrigger value="storage" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                  <HardDrive className="size-3.5" />
-                  <span className="inline">Storage</span>
-                </TabsTrigger>
-                <TabsTrigger value="catalog" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                  <BookOpen className="size-3.5" />
-                  <span className="inline">Catalog</span>
-                </TabsTrigger>
-                <TabsTrigger value="analytics" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                  <Layers className="size-3.5" />
-                  <span className="inline">Analytics</span>
-                </TabsTrigger>
-                <TabsTrigger value="traces" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                  <Activity className="size-3.5" />
-                  <span className="inline">Traces</span>
-                </TabsTrigger>
-                <TabsTrigger value="settings" className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                  <Settings className="size-3.5" />
-                  <span className="inline">Settings</span>
-                </TabsTrigger>
-              </TabsList>
+                  <TabsList className="flex w-max min-w-full sm:min-w-0 sm:w-auto">
+                    <TabsTrigger
+                      value="dashboard"
+                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                    >
+                      <LayoutDashboard className="size-3.5" />
+                      <span className="inline">Dashboard</span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="schema"
+                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                    >
+                      <GitFork className="size-3.5" />
+                      <span className="inline">Schema</span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="rls"
+                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                    >
+                      <Shield className="size-3.5" />
+                      <span className="inline">RLS</span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="edge-functions"
+                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                    >
+                      <Zap className="size-3.5" />
+                      <span className="inline">Functions</span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="sql"
+                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                    >
+                      <Terminal className="size-3.5" />
+                      <span className="inline">SQL</span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="storage"
+                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                    >
+                      <HardDrive className="size-3.5" />
+                      <span className="inline">Storage</span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="catalog"
+                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                    >
+                      <BookOpen className="size-3.5" />
+                      <span className="inline">Catalog</span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="analytics"
+                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                    >
+                      <Layers className="size-3.5" />
+                      <span className="inline">Analytics</span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="traces"
+                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                    >
+                      <Activity className="size-3.5" />
+                      <span className="inline">Traces</span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="settings"
+                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                    >
+                      <Settings className="size-3.5" />
+                      <span className="inline">Settings</span>
+                    </TabsTrigger>
+                  </TabsList>
                 </div>
 
-              {/* Schema tab actions */}
-              {(activePanel === 'schema') && (
-                <div className="flex items-center gap-2">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setActivePanel('settings')}
-                          disabled={!activeConnectionId || tables.length === 0}
-                          className="gap-1.5"
-                        >
-                          <Camera className="size-3.5" />
-                          <span className="inline">Snapshot</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Take a schema snapshot</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={fetchSchemaAndRLS}
-                    disabled={isLoadingSchema}
-                    className="gap-1.5"
-                  >
-                    {isLoadingSchema ? (
-                      <Loader2 className="size-3.5 animate-spin" />
-                    ) : (
-                      <RefreshCw className="size-3.5" />
-                    )}
-                    Refresh
-                  </Button>
-                </div>
-              )}
+                {/* Schema tab actions */}
+                {activePanel === 'schema' && (
+                  <div className="flex items-center gap-2">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setActivePanel('settings')}
+                            disabled={!activeConnectionId || tables.length === 0}
+                            className="gap-1.5"
+                          >
+                            <Camera className="size-3.5" />
+                            <span className="inline">Snapshot</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Take a schema snapshot</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={fetchSchemaAndRLS}
+                      disabled={isLoadingSchema}
+                      className="gap-1.5"
+                    >
+                      {isLoadingSchema ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="size-3.5" />
+                      )}
+                      Refresh
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Dashboard Tab */}
-            <TabsContent value="dashboard" className="mt-0" forceMount={activePanel === 'dashboard' ? true : undefined}>
+            <TabsContent
+              value="dashboard"
+              className="mt-0"
+              forceMount={activePanel === 'dashboard' ? true : undefined}
+            >
               <AnimatePresence mode="wait">
                 {activePanel === 'dashboard' && (
                   <motion.div
@@ -1281,7 +1426,11 @@ export default function Home() {
             </TabsContent>
 
             {/* Schema Tab */}
-            <TabsContent value="schema" className="mt-0" forceMount={activePanel === 'schema' ? true : undefined}>
+            <TabsContent
+              value="schema"
+              className="mt-0"
+              forceMount={activePanel === 'schema' ? true : undefined}
+            >
               <AnimatePresence mode="wait">
                 {activePanel === 'schema' && (
                   <motion.div
@@ -1302,238 +1451,261 @@ export default function Home() {
                       <Alert className="mb-4 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
                         <Info className="size-4 text-amber-600 dark:text-amber-400" />
                         <AlertDescription className="text-amber-700 dark:text-amber-300">
-                          <span className="font-medium">Limited schema info:</span> RLS status could not be determined without a management API token. Tables are shown with amber <span className="font-semibold">RLS ?</span> badges. Add a Supabase management API token in Settings for full RLS policy information.
+                          <span className="font-medium">Limited schema info:</span> RLS status could
+                          not be determined without a management API token. Tables are shown with
+                          amber <span className="font-semibold">RLS ?</span> badges. Add a Supabase
+                          management API token in Settings for full RLS policy information.
                         </AlertDescription>
                       </Alert>
                     )}
 
-              {isLoadingSchema ? (
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Skeleton className="h-6 w-24" />
-                    <Skeleton className="h-6 w-28" />
-                    <Skeleton className="h-6 w-20" />
-                  </div>
-                  <div className="flex gap-4 min-h-[600px]">
-                    <Skeleton className="flex-1 rounded-lg" />
-                  </div>
-                </div>
-              ) : tables.length === 0 ? (
-                /* Enhanced empty state when connected but no data */
-                <Card>
-                  <CardContent className="py-16">
-                    <div className="flex flex-col items-center justify-center text-center space-y-5">
-                      {/* Visual illustration */}
-                      <div className="relative">
-                        <div className="size-20 rounded-2xl bg-muted flex items-center justify-center ring-4 ring-border/40">
-                          <GitFork className="size-10 text-muted-foreground/50" />
+                    {isLoadingSchema ? (
+                      <div className="flex flex-col gap-4">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <Skeleton className="h-6 w-24" />
+                          <Skeleton className="h-6 w-28" />
+                          <Skeleton className="h-6 w-20" />
                         </div>
-                        <div className="absolute -bottom-1 -right-1 size-7 rounded-full bg-muted flex items-center justify-center border">
-                          <Database className="size-3.5 text-muted-foreground" />
+                        <div className="flex gap-4 min-h-[600px]">
+                          <Skeleton className="flex-1 rounded-lg" />
                         </div>
                       </div>
-                      <div className="space-y-2 max-w-md">
-                        <p className="text-lg font-medium">Your schema will appear here</p>
-                        <p className="text-sm text-muted-foreground">
-                          {activeConnection
-                            ? `Connected to "${activeConnection.name}" but no tables were found. This could mean the public schema is empty or there was a connection issue.`
-                            : 'Connect to a Supabase project and fetch the schema to visualize your database.'}
-                        </p>
-                      </div>
-                      {activeConnectionId && (
-                        <div className="flex items-center gap-2">
-                          <Button
-                            onClick={fetchSchemaAndRLS}
-                            disabled={isLoadingSchema}
-                            className="gap-2"
-                          >
-                            {isLoadingSchema ? (
-                              <Loader2 className="size-4 animate-spin" />
-                            ) : (
-                              <RefreshCw className="size-4" />
+                    ) : tables.length === 0 ? (
+                      /* Enhanced empty state when connected but no data */
+                      <Card>
+                        <CardContent className="py-16">
+                          <div className="flex flex-col items-center justify-center text-center space-y-5">
+                            {/* Visual illustration */}
+                            <div className="relative">
+                              <div className="size-20 rounded-2xl bg-muted flex items-center justify-center ring-4 ring-border/40">
+                                <GitFork className="size-10 text-muted-foreground/50" />
+                              </div>
+                              <div className="absolute -bottom-1 -right-1 size-7 rounded-full bg-muted flex items-center justify-center border">
+                                <Database className="size-3.5 text-muted-foreground" />
+                              </div>
+                            </div>
+                            <div className="space-y-2 max-w-md">
+                              <p className="text-lg font-medium">Your schema will appear here</p>
+                              <p className="text-sm text-muted-foreground">
+                                {activeConnection
+                                  ? `Connected to "${activeConnection.name}" but no tables were found. This could mean the public schema is empty or there was a connection issue.`
+                                  : 'Connect to a Supabase project and fetch the schema to visualize your database.'}
+                              </p>
+                            </div>
+                            {activeConnectionId && (
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  onClick={fetchSchemaAndRLS}
+                                  disabled={isLoadingSchema}
+                                  className="gap-2"
+                                >
+                                  {isLoadingSchema ? (
+                                    <Loader2 className="size-4 animate-spin" />
+                                  ) : (
+                                    <RefreshCw className="size-4" />
+                                  )}
+                                  Retry
+                                </Button>
+                                <Button variant="outline" onClick={loadDemoData} className="gap-2">
+                                  <Eye className="size-4" />
+                                  Try Demo
+                                </Button>
+                              </div>
                             )}
-                            Retry
-                          </Button>
-                          <Button
-                            variant="outline"
-                            onClick={loadDemoData}
-                            className="gap-2"
-                          >
-                            <Eye className="size-4" />
-                            Try Demo
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="flex flex-col gap-4">
-                  {/* Stats bar - badges are clickable */}
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Badge
-                      variant="outline"
-                      className="gap-1 cursor-pointer hover:bg-accent transition-colors"
-                      onClick={() => { setFilterType('all'); setSearchQuery(''); }}
-                    >
-                      <Database className="size-3" />
-                      {tableCount} table{tableCount !== 1 ? 's' : ''}
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className="gap-1 text-emerald-600 border-emerald-200 cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
-                      onClick={() => setFilterType(filterType === 'rls-enabled' ? 'all' : 'rls-enabled')}
-                    >
-                      <ShieldCheck className="size-3" />
-                      {rlsEnabledCount} RLS enabled
-                    </Badge>
-                    {rlsDisabledCount > 0 && (
-                      <Badge
-                        variant="destructive"
-                        className="gap-1 cursor-pointer hover:bg-destructive/90 transition-colors"
-                        onClick={() => setFilterType(filterType === 'no-rls' ? 'all' : 'no-rls')}
-                      >
-                        <ShieldAlert className="size-3" />
-                        {rlsDisabledCount} no RLS
-                      </Badge>
-                    )}
-                    <Badge
-                      variant="secondary"
-                      className="gap-1 cursor-pointer hover:bg-secondary/80 transition-colors"
-                      onClick={() => setFilterType(filterType === 'with-policies' ? 'all' : 'with-policies')}
-                    >
-                      {totalPolicies} polic{totalPolicies !== 1 ? 'ies' : 'y'}
-                    </Badge>
-                  </div>
-
-                  {/* Search & Filter bar */}
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                      <Input
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search tables..."
-                        className="pl-9 h-9"
-                      />
-                    </div>
-                    <Select value={filterType} onValueChange={setFilterType}>
-                      <SelectTrigger className="w-full sm:w-[180px] h-9">
-                        <Filter className="size-3.5 mr-1.5 text-muted-foreground" />
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Tables</SelectItem>
-                        <SelectItem value="rls-enabled">RLS Enabled</SelectItem>
-                        <SelectItem value="no-rls">No RLS</SelectItem>
-                        <SelectItem value="with-policies">With Policies</SelectItem>
-                        <SelectItem value="without-policies">Without Policies</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap self-center">
-                      {filteredCount} of {tableCount} table{tableCount !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-
-                  {/* Diagram + side panel */}
-                  <div className="flex flex-col lg:flex-row gap-4 h-[600px] min-h-[600px]">
-                    {/* Diagram area */}
-                    <div className="flex-1 border border-border rounded-xl overflow-hidden bg-card shadow-sm relative h-full">
-                      {filteredTables.length > 0 ? (
-                        <SchemaDiagram
-                          tables={filteredTables}
-                          rlsStatuses={filteredRlsStatuses}
-                          selectedTable={selectedTable}
-                          onSelectTable={setSelectedTable}
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center h-full min-h-[400px] text-muted-foreground">
-                          <div className="text-center space-y-3">
-                            <Search className="size-10 mx-auto text-muted-foreground/40" />
-                            <p className="text-sm font-medium">No tables match your filter</p>
-                            <p className="text-xs text-muted-foreground">Try adjusting the search or filter criteria</p>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => { setSearchQuery(''); setFilterType('all'); }}
-                            >
-                              Clear Filters
-                            </Button>
                           </div>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <div className="flex flex-col gap-4">
+                        {/* Stats bar - badges are clickable */}
+                        <div className="flex flex-wrap items-center gap-3">
+                          <Badge
+                            variant="outline"
+                            className="gap-1 cursor-pointer hover:bg-accent transition-colors"
+                            onClick={() => {
+                              setFilterType('all')
+                              setSearchQuery('')
+                            }}
+                          >
+                            <Database className="size-3" />
+                            {tableCount} table{tableCount !== 1 ? 's' : ''}
+                          </Badge>
+                          <Badge
+                            variant="outline"
+                            className="gap-1 text-emerald-600 border-emerald-200 cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
+                            onClick={() =>
+                              setFilterType(filterType === 'rls-enabled' ? 'all' : 'rls-enabled')
+                            }
+                          >
+                            <ShieldCheck className="size-3" />
+                            {rlsEnabledCount} RLS enabled
+                          </Badge>
+                          {rlsDisabledCount > 0 && (
+                            <Badge
+                              variant="destructive"
+                              className="gap-1 cursor-pointer hover:bg-destructive/90 transition-colors"
+                              onClick={() =>
+                                setFilterType(filterType === 'no-rls' ? 'all' : 'no-rls')
+                              }
+                            >
+                              <ShieldAlert className="size-3" />
+                              {rlsDisabledCount} no RLS
+                            </Badge>
+                          )}
+                          <Badge
+                            variant="secondary"
+                            className="gap-1 cursor-pointer hover:bg-secondary/80 transition-colors"
+                            onClick={() =>
+                              setFilterType(
+                                filterType === 'with-policies' ? 'all' : 'with-policies'
+                              )
+                            }
+                          >
+                            {totalPolicies} polic{totalPolicies !== 1 ? 'ies' : 'y'}
+                          </Badge>
                         </div>
-                      )}
 
-                      {/* Legend overlay */}
-                      <div className="absolute bottom-3 left-3 bg-background/90 dark:bg-background/80 backdrop-blur-sm border rounded-lg p-3 shadow-lg z-10 text-xs space-y-2">
-                        <div className="flex items-center gap-1.5 font-medium text-muted-foreground uppercase tracking-wide text-[10px] mb-1.5">
-                          <Info className="size-3" />
-                          Legend
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="size-4 rounded border border-brand/30 shadow-sm shadow-emerald-200/60 dark:shadow-emerald-900/40 bg-background shrink-0" />
-                          <span>RLS on + policies</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="size-4 rounded border border-amber-400/30 shadow-sm shadow-amber-200/60 dark:shadow-amber-900/40 bg-amber-50/40 dark:bg-amber-950/10 shrink-0" />
-                          <span>RLS on, <span className="text-amber-500">no policies</span></span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="size-4 rounded border border-red-400/30 shadow-sm shadow-red-200/60 dark:shadow-red-900/40 bg-red-50/40 dark:bg-red-950/10 shrink-0" />
-                          <span>No RLS <span className="text-red-500">(Security Risk)</span></span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="w-4 h-0.5 bg-emerald-500 shrink-0" />
-                          <span>FK from RLS table</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="w-4 h-0.5 bg-red-500 shrink-0 relative">
-                            <span className="absolute inset-0 animate-pulse bg-red-400" />
+                        {/* Search & Filter bar */}
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                          <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                            <Input
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              placeholder="Search tables..."
+                              className="pl-9 h-9"
+                            />
+                          </div>
+                          <Select value={filterType} onValueChange={setFilterType}>
+                            <SelectTrigger className="w-full sm:w-[180px] h-9">
+                              <Filter className="size-3.5 mr-1.5 text-muted-foreground" />
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Tables</SelectItem>
+                              <SelectItem value="rls-enabled">RLS Enabled</SelectItem>
+                              <SelectItem value="no-rls">No RLS</SelectItem>
+                              <SelectItem value="with-policies">With Policies</SelectItem>
+                              <SelectItem value="without-policies">Without Policies</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <span className="text-xs text-muted-foreground whitespace-nowrap self-center">
+                            {filteredCount} of {tableCount} table{tableCount !== 1 ? 's' : ''}
                           </span>
-                          <span>FK from no-RLS table</span>
+                        </div>
+
+                        {/* Diagram + side panel */}
+                        <div className="flex flex-col lg:flex-row gap-4 h-[600px] min-h-[600px]">
+                          {/* Diagram area */}
+                          <div className="flex-1 border border-border rounded-xl overflow-hidden bg-card shadow-sm relative h-full">
+                            {filteredTables.length > 0 ? (
+                              <SchemaDiagram
+                                tables={filteredTables}
+                                rlsStatuses={filteredRlsStatuses}
+                                selectedTable={selectedTable}
+                                onSelectTable={setSelectedTable}
+                              />
+                            ) : (
+                              <div className="flex items-center justify-center h-full min-h-[400px] text-muted-foreground">
+                                <div className="text-center space-y-3">
+                                  <Search className="size-10 mx-auto text-muted-foreground/40" />
+                                  <p className="text-sm font-medium">No tables match your filter</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Try adjusting the search or filter criteria
+                                  </p>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSearchQuery('')
+                                      setFilterType('all')
+                                    }}
+                                  >
+                                    Clear Filters
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Legend overlay */}
+                            <div className="absolute bottom-3 left-3 bg-background/90 dark:bg-background/80 backdrop-blur-sm border rounded-lg p-3 shadow-lg z-10 text-xs space-y-2">
+                              <div className="flex items-center gap-1.5 font-medium text-muted-foreground uppercase tracking-wide text-[10px] mb-1.5">
+                                <Info className="size-3" />
+                                Legend
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="size-4 rounded border border-brand/30 shadow-sm shadow-emerald-200/60 dark:shadow-emerald-900/40 bg-background shrink-0" />
+                                <span>RLS on + policies</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="size-4 rounded border border-amber-400/30 shadow-sm shadow-amber-200/60 dark:shadow-amber-900/40 bg-amber-50/40 dark:bg-amber-950/10 shrink-0" />
+                                <span>
+                                  RLS on, <span className="text-amber-500">no policies</span>
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="size-4 rounded border border-red-400/30 shadow-sm shadow-red-200/60 dark:shadow-red-900/40 bg-red-50/40 dark:bg-red-950/10 shrink-0" />
+                                <span>
+                                  No RLS <span className="text-red-500">(Security Risk)</span>
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="w-4 h-0.5 bg-emerald-500 shrink-0" />
+                                <span>FK from RLS table</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="w-4 h-0.5 bg-red-500 shrink-0 relative">
+                                  <span className="absolute inset-0 animate-pulse bg-red-400" />
+                                </span>
+                                <span>FK from no-RLS table</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Side panel - table details */}
+                          {selectedTable && selectedTableInfo && (
+                            <motion.div
+                              initial={{ opacity: 0, x: 20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="w-full lg:w-[420px] shrink-0 border rounded-lg overflow-hidden h-full"
+                            >
+                              <ScrollArea className="h-full">
+                                <TableDetailPanel
+                                  tableName={selectedTable}
+                                  schema={selectedTableInfo.schema}
+                                  rlsInfo={selectedTableInfo.rls}
+                                  onClose={() => setSelectedTable(null)}
+                                  onViewData={() => {
+                                    setDataViewerTable(selectedTable)
+                                    setDataViewerOpen(true)
+                                  }}
+                                  onTestRLS={() => {
+                                    setActivePanel('rls')
+                                  }}
+                                  onGeneratePolicy={() => {
+                                    setActivePanel('rls')
+                                  }}
+                                  onNavigateToTable={(targetTable: string) => {
+                                    setSelectedTable(targetTable)
+                                  }}
+                                />
+                              </ScrollArea>
+                            </motion.div>
+                          )}
                         </div>
                       </div>
-                    </div>
-
-                    {/* Side panel - table details */}
-                    {selectedTable && selectedTableInfo && (
-                      <motion.div
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="w-full lg:w-[420px] shrink-0 border rounded-lg overflow-hidden h-full"
-                      >
-                        <ScrollArea className="h-full">
-                          <TableDetailPanel
-                            tableName={selectedTable}
-                            schema={selectedTableInfo.schema}
-                            rlsInfo={selectedTableInfo.rls}
-                            onClose={() => setSelectedTable(null)}
-                            onViewData={() => {
-                              setDataViewerTable(selectedTable)
-                              setDataViewerOpen(true)
-                            }}
-                            onTestRLS={() => {
-                              setActivePanel('rls')
-                            }}
-                            onGeneratePolicy={() => {
-                              setActivePanel('rls')
-                            }}
-                            onNavigateToTable={(targetTable: string) => {
-                              setSelectedTable(targetTable)
-                            }}
-                          />
-                        </ScrollArea>
-                      </motion.div>
                     )}
-                  </div>
-                </div>
-              )}
                   </motion.div>
                 )}
               </AnimatePresence>
             </TabsContent>
 
-            <TabsContent value="rls" className="mt-0" forceMount={activePanel === 'rls' ? true : undefined}>
+            <TabsContent
+              value="rls"
+              className="mt-0"
+              forceMount={activePanel === 'rls' ? true : undefined}
+            >
               <AnimatePresence mode="wait">
                 {activePanel === 'rls' && (
                   <motion.div
@@ -1549,7 +1721,11 @@ export default function Home() {
               </AnimatePresence>
             </TabsContent>
 
-            <TabsContent value="edge-functions" className="mt-0" forceMount={activePanel === 'edge-functions' ? true : undefined}>
+            <TabsContent
+              value="edge-functions"
+              className="mt-0"
+              forceMount={activePanel === 'edge-functions' ? true : undefined}
+            >
               <AnimatePresence mode="wait">
                 {activePanel === 'edge-functions' && (
                   <motion.div
@@ -1565,8 +1741,11 @@ export default function Home() {
               </AnimatePresence>
             </TabsContent>
 
-
-            <TabsContent value="sql" className="mt-0" forceMount={activePanel === 'sql' ? true : undefined}>
+            <TabsContent
+              value="sql"
+              className="mt-0"
+              forceMount={activePanel === 'sql' ? true : undefined}
+            >
               <AnimatePresence mode="wait">
                 {activePanel === 'sql' && (
                   <motion.div
@@ -1582,7 +1761,11 @@ export default function Home() {
               </AnimatePresence>
             </TabsContent>
 
-            <TabsContent value="storage" className="mt-0" forceMount={activePanel === 'storage' ? true : undefined}>
+            <TabsContent
+              value="storage"
+              className="mt-0"
+              forceMount={activePanel === 'storage' ? true : undefined}
+            >
               <AnimatePresence mode="wait">
                 {activePanel === 'storage' && (
                   <motion.div
@@ -1592,17 +1775,18 @@ export default function Home() {
                     exit={{ opacity: 0, x: -10 }}
                     transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
                   >
-                    <StorageBrowser
-                      connection={activeConnection || null}
-                      isDemoMode={isDemoMode}
-                    />
+                    <StorageBrowser connection={activeConnection || null} isDemoMode={isDemoMode} />
                   </motion.div>
                 )}
               </AnimatePresence>
             </TabsContent>
 
             {/* Data Catalog Tab */}
-            <TabsContent value="catalog" className="mt-0" forceMount={activePanel === 'catalog' ? true : undefined}>
+            <TabsContent
+              value="catalog"
+              className="mt-0"
+              forceMount={activePanel === 'catalog' ? true : undefined}
+            >
               <AnimatePresence mode="wait">
                 {activePanel === 'catalog' && (
                   <motion.div
@@ -1612,13 +1796,20 @@ export default function Home() {
                     exit={{ opacity: 0, x: -10 }}
                     transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
                   >
-                    <DataCatalogPanel connection={activeConnection || null} isDemoMode={isDemoMode} />
+                    <DataCatalogPanel
+                      connection={activeConnection || null}
+                      isDemoMode={isDemoMode}
+                    />
                   </motion.div>
                 )}
               </AnimatePresence>
             </TabsContent>
 
-            <TabsContent value="analytics" className="mt-0 h-[calc(100vh-120px)]" forceMount={activePanel === 'analytics' ? true : undefined}>
+            <TabsContent
+              value="analytics"
+              className="mt-0 h-[calc(100vh-120px)]"
+              forceMount={activePanel === 'analytics' ? true : undefined}
+            >
               <AnimatePresence mode="wait">
                 {activePanel === 'analytics' && (
                   <motion.div
@@ -1635,7 +1826,11 @@ export default function Home() {
               </AnimatePresence>
             </TabsContent>
 
-            <TabsContent value="traces" className="mt-0" forceMount={activePanel === 'traces' ? true : undefined}>
+            <TabsContent
+              value="traces"
+              className="mt-0"
+              forceMount={activePanel === 'traces' ? true : undefined}
+            >
               <AnimatePresence mode="wait">
                 {activePanel === 'traces' && (
                   <motion.div
@@ -1651,7 +1846,11 @@ export default function Home() {
               </AnimatePresence>
             </TabsContent>
 
-            <TabsContent value="settings" className="mt-0" forceMount={activePanel === 'settings' ? true : undefined}>
+            <TabsContent
+              value="settings"
+              className="mt-0"
+              forceMount={activePanel === 'settings' ? true : undefined}
+            >
               <AnimatePresence mode="wait">
                 {activePanel === 'settings' && (
                   <motion.div
@@ -1662,21 +1861,23 @@ export default function Home() {
                     transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
                   >
                     {activeConnection ? (
-                    <SettingsPanel
-                      connection={activeConnection}
-                      isDemoMode={isDemoMode}
-                      onDelete={() => {
-                        deleteConnection(activeConnection.id)
-                      }}
-                      onReset={reset}
-                    />
+                      <SettingsPanel
+                        connection={activeConnection}
+                        isDemoMode={isDemoMode}
+                        onDelete={() => {
+                          deleteConnection(activeConnection.id)
+                        }}
+                        onReset={reset}
+                      />
                     ) : (
                       <Card>
                         <CardContent className="py-16">
                           <div className="flex flex-col items-center justify-center text-center space-y-3">
                             <Settings className="size-10 text-muted-foreground/40" />
                             <p className="text-lg font-medium">No connection selected</p>
-                            <p className="text-sm text-muted-foreground">Select or create a connection to view settings.</p>
+                            <p className="text-sm text-muted-foreground">
+                              Select or create a connection to view settings.
+                            </p>
                           </div>
                         </CardContent>
                       </Card>
@@ -1727,7 +1928,9 @@ export default function Home() {
             <span>supabasehire.me</span>
           </div>
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground/60">Built with</span>
+            <span className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground/60">
+              Built with
+            </span>
             <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1 font-normal">
                 <span className="size-2 rounded-full bg-black dark:bg-white" />
@@ -1786,12 +1989,28 @@ export default function Home() {
 
 /* ─── Feature Card ─── */
 
-function FeatureCard({ icon, title, description, delay, index }: { icon: React.ReactNode; title: string; description: string; delay: number; index?: number }) {
+function FeatureCard({
+  icon,
+  title,
+  description,
+  delay,
+  index,
+}: {
+  icon: React.ReactNode
+  title: string
+  description: string
+  delay: number
+  index?: number
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 24, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ delay: delay + (index ?? 0) * 0.06, duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+      transition={{
+        delay: delay + (index ?? 0) * 0.06,
+        duration: 0.4,
+        ease: [0.25, 0.46, 0.45, 0.94],
+      }}
       className="group rounded-xl border bg-card p-5 text-left transition-all duration-200 hover:shadow-md hover:-translate-y-1 hover:border-primary/30 cursor-default"
     >
       <div className="mb-3 size-9 rounded-lg bg-muted flex items-center justify-center text-muted-foreground group-hover:text-foreground group-hover:bg-muted/80 transition-colors">
@@ -1807,13 +2026,33 @@ function FeatureCard({ icon, title, description, delay, index }: { icon: React.R
 
 function getColumnTypeColor(type: string): string {
   switch (type) {
-    case 'uuid': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
-    case 'text': case 'character varying': case 'varchar': return 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
-    case 'timestamptz': case 'timestamp': case 'date': case 'time': case 'timetz': return 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
-    case 'boolean': case 'bool': return 'bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-400'
-    case 'integer': case 'bigint': case 'numeric': case 'smallint': case 'real': case 'double precision': return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-400'
-    case 'jsonb': case 'json': return 'bg-pink-100 text-pink-700 dark:bg-pink-950/40 dark:text-pink-400'
-    default: return 'bg-muted text-muted-foreground'
+    case 'uuid':
+      return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+    case 'text':
+    case 'character varying':
+    case 'varchar':
+      return 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
+    case 'timestamptz':
+    case 'timestamp':
+    case 'date':
+    case 'time':
+    case 'timetz':
+      return 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
+    case 'boolean':
+    case 'bool':
+      return 'bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-400'
+    case 'integer':
+    case 'bigint':
+    case 'numeric':
+    case 'smallint':
+    case 'real':
+    case 'double precision':
+      return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-400'
+    case 'jsonb':
+    case 'json':
+      return 'bg-pink-100 text-pink-700 dark:bg-pink-950/40 dark:text-pink-400'
+    default:
+      return 'bg-muted text-muted-foreground'
   }
 }
 
@@ -1844,7 +2083,9 @@ function TableDetailPanel({
   return (
     <div className="flex flex-col">
       {/* Header */}
-      <div className={`flex items-center justify-between px-4 py-3 border-b ${rlsEnabled ? 'bg-emerald-50 dark:bg-emerald-950/20' : 'bg-red-50 dark:bg-red-950/20'}`}>
+      <div
+        className={`flex items-center justify-between px-4 py-3 border-b ${rlsEnabled ? 'bg-emerald-50 dark:bg-emerald-950/20' : 'bg-red-50 dark:bg-red-950/20'}`}
+      >
         <div className="flex items-center gap-2">
           {rlsEnabled ? (
             <ShieldCheck className="size-4 text-emerald-500" />
@@ -1852,27 +2093,52 @@ function TableDetailPanel({
             <ShieldAlert className="size-4 text-red-500" />
           )}
           <span className="font-mono text-sm font-bold">{tableName}</span>
-          <Badge variant={rlsEnabled ? 'default' : 'destructive'} className="text-[9px] px-1.5 py-0">
+          <Badge
+            variant={rlsEnabled ? 'default' : 'destructive'}
+            className="text-[9px] px-1.5 py-0"
+          >
             {rlsEnabled ? 'RLS ON' : 'RLS OFF'}
           </Badge>
         </div>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-lg leading-none">&times;</button>
+        <button
+          onClick={onClose}
+          className="text-muted-foreground hover:text-foreground text-lg leading-none"
+        >
+          &times;
+        </button>
       </div>
 
       {/* Quick Actions */}
       <div className="px-4 py-3 border-b">
-        <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Quick Actions</h4>
+        <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+          Quick Actions
+        </h4>
         <div className="flex flex-col gap-1.5">
-          <Button variant="outline" size="sm" onClick={onViewData} className="w-full gap-2 justify-start">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onViewData}
+            className="w-full gap-2 justify-start"
+          >
             <TableIcon className="size-3.5" />
             View Data
           </Button>
           <div className="flex gap-1.5">
-            <Button variant="outline" size="sm" onClick={onTestRLS} className="flex-1 gap-2 justify-start">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onTestRLS}
+              className="flex-1 gap-2 justify-start"
+            >
               <Shield className="size-3.5" />
               Test RLS
             </Button>
-            <Button variant="outline" size="sm" onClick={onGeneratePolicy} className="flex-1 gap-2 justify-start">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onGeneratePolicy}
+              className="flex-1 gap-2 justify-start"
+            >
               <ShieldCheck className="size-3.5" />
               Gen Policy
             </Button>
@@ -1883,7 +2149,9 @@ function TableDetailPanel({
       {/* Columns */}
       {schema && (
         <div className="px-4 py-3 border-b">
-          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Columns ({schema.columns.length})</h4>
+          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+            Columns ({schema.columns.length})
+          </h4>
           <div className="flex flex-col gap-1.5">
             {schema.columns.map((col) => {
               const fkForCol = schema.foreignKeys.find((fk) => fk.column_name === col.column_name)
@@ -1900,19 +2168,27 @@ function TableDetailPanel({
                     </span>
                     <span className="font-mono font-medium truncate">{col.column_name}</span>
                     {/* Data type badge */}
-                    <span className={`ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded-full shrink-0 max-w-[120px] truncate ${getColumnTypeColor(col.data_type)}`} title={col.data_type}>
+                    <span
+                      className={`ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded-full shrink-0 max-w-[120px] truncate ${getColumnTypeColor(col.data_type)}`}
+                      title={col.data_type}
+                    >
                       {col.data_type}
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 pl-[22px]">
                     {/* Nullable indicator */}
                     {isNullable && (
-                      <span className="text-[9px] font-medium px-1 py-0 rounded bg-muted text-muted-foreground">NULL</span>
+                      <span className="text-[9px] font-medium px-1 py-0 rounded bg-muted text-muted-foreground">
+                        NULL
+                      </span>
                     )}
                     {/* Default value */}
                     {col.column_default && !col.column_default.includes('nextval') && (
                       <span className="text-[10px] text-muted-foreground truncate">
-                        = <code className="bg-muted px-1 rounded font-mono">{col.column_default}</code>
+                        ={' '}
+                        <code className="bg-muted px-1 rounded font-mono">
+                          {col.column_default}
+                        </code>
                       </span>
                     )}
                     {/* FK target link */}
@@ -1936,7 +2212,9 @@ function TableDetailPanel({
       {/* RLS Policies */}
       <div className="px-4 py-3 border-b">
         <div className="flex items-center justify-between mb-2">
-          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">RLS Policies ({policies.length})</h4>
+          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            RLS Policies ({policies.length})
+          </h4>
           {!rlsEnabled && (
             <Badge variant="destructive" className="text-[9px] px-1.5 py-0 gap-1">
               <ShieldAlert className="size-2.5" />
@@ -1966,7 +2244,10 @@ function TableDetailPanel({
               <div key={policy.policyname} className="rounded border p-2">
                 <div className="flex items-center gap-1.5 mb-1">
                   <span className="font-mono text-xs font-medium">{policy.policyname}</span>
-                  <Badge variant={policy.cmd === 'ALL' ? 'default' : 'outline'} className="text-[9px] px-1 py-0">
+                  <Badge
+                    variant={policy.cmd === 'ALL' ? 'default' : 'outline'}
+                    className="text-[9px] px-1 py-0"
+                  >
                     {policy.cmd}
                   </Badge>
                 </div>
@@ -1996,7 +2277,9 @@ function TableDetailPanel({
       {/* Foreign Keys */}
       {schema && schema.foreignKeys.length > 0 && (
         <div className="px-4 py-3">
-          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Foreign Keys ({schema.foreignKeys.length})</h4>
+          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+            Foreign Keys ({schema.foreignKeys.length})
+          </h4>
           <div className="flex flex-col gap-1.5">
             {schema.foreignKeys.map((fk) => (
               <button
@@ -2007,7 +2290,9 @@ function TableDetailPanel({
                 <Link2 className="size-3 text-blue-500 shrink-0" />
                 <span className="font-mono">{fk.column_name}</span>
                 <ArrowUpRight className="size-3 text-muted-foreground shrink-0" />
-                <span className="font-mono text-blue-600 dark:text-blue-400">{fk.foreign_table_name}.{fk.foreign_column_name}</span>
+                <span className="font-mono text-blue-600 dark:text-blue-400">
+                  {fk.foreign_table_name}.{fk.foreign_column_name}
+                </span>
               </button>
             ))}
           </div>
@@ -2091,7 +2376,16 @@ function SettingsPanel({
     } finally {
       setIsSaving(false)
     }
-  }, [connection?.id, name, supabaseUrl, publishableKey, secretKey, accessToken, isDemoMode, updateConnection])
+  }, [
+    connection?.id,
+    name,
+    supabaseUrl,
+    publishableKey,
+    secretKey,
+    accessToken,
+    isDemoMode,
+    updateConnection,
+  ])
 
   const runHealthCheck = useCallback(async () => {
     if (isDemoMode) {
@@ -2132,11 +2426,26 @@ function SettingsPanel({
   const getStatusBadge = (status: 'healthy' | 'degraded' | 'unhealthy') => {
     switch (status) {
       case 'healthy':
-        return <Badge className="gap-1 bg-emerald-500 hover:bg-emerald-600"><CheckCircle2 className="size-3" />Healthy</Badge>
+        return (
+          <Badge className="gap-1 bg-emerald-500 hover:bg-emerald-600">
+            <CheckCircle2 className="size-3" />
+            Healthy
+          </Badge>
+        )
       case 'degraded':
-        return <Badge className="gap-1 bg-amber-500 hover:bg-amber-600"><AlertTriangle className="size-3" />Degraded</Badge>
+        return (
+          <Badge className="gap-1 bg-amber-500 hover:bg-amber-600">
+            <AlertTriangle className="size-3" />
+            Degraded
+          </Badge>
+        )
       case 'unhealthy':
-        return <Badge variant="destructive" className="gap-1"><XCircle className="size-3" />Unhealthy</Badge>
+        return (
+          <Badge variant="destructive" className="gap-1">
+            <XCircle className="size-3" />
+            Unhealthy
+          </Badge>
+        )
     }
   }
 
@@ -2147,7 +2456,8 @@ function SettingsPanel({
         <Alert className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
           <Eye className="size-4 text-amber-600 dark:text-amber-400" />
           <AlertDescription className="text-amber-700 dark:text-amber-300">
-            You are in Demo Mode. Settings are read-only. Connect to a real Supabase project to edit credentials.
+            You are in Demo Mode. Settings are read-only. Connect to a real Supabase project to edit
+            credentials.
           </AlertDescription>
         </Alert>
       )}
@@ -2158,9 +2468,7 @@ function SettingsPanel({
             <Settings className="size-5 text-muted-foreground" />
             <CardTitle>Connection Settings</CardTitle>
           </div>
-          <CardDescription>
-            Update your Supabase connection credentials
-          </CardDescription>
+          <CardDescription>Update your Supabase connection credentials</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4">
@@ -2182,11 +2490,21 @@ function SettingsPanel({
             </div>
             <div className="flex flex-col gap-1.5">
               <Label>Supabase URL</Label>
-              <Input value={supabaseUrl} onChange={(e) => setSupabaseUrl(e.target.value)} disabled={isDemoMode} />
+              <Input
+                value={supabaseUrl}
+                onChange={(e) => setSupabaseUrl(e.target.value)}
+                disabled={isDemoMode}
+              />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label>Publishable Key</Label>
-              <Input value={publishableKey} onChange={(e) => setPublishableKey(e.target.value)} type="password" placeholder="sb_publishable_..." disabled={isDemoMode} />
+              <Input
+                value={publishableKey}
+                onChange={(e) => setPublishableKey(e.target.value)}
+                type="password"
+                placeholder="sb_publishable_..."
+                disabled={isDemoMode}
+              />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label>Secret Key</Label>
@@ -2201,9 +2519,7 @@ function SettingsPanel({
             {!isDemoMode && (
               <div className="flex items-center gap-3 pt-2">
                 <Button onClick={saveSettings} disabled={isSaving}>
-                  {isSaving ? (
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                  ) : null}
+                  {isSaving ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
                   Save Changes
                 </Button>
               </div>
@@ -2225,7 +2541,12 @@ function SettingsPanel({
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4">
-            <Button onClick={runHealthCheck} disabled={isRunningHealthCheck} size="sm" className="w-fit">
+            <Button
+              onClick={runHealthCheck}
+              disabled={isRunningHealthCheck}
+              size="sm"
+              className="w-fit"
+            >
               {isRunningHealthCheck ? (
                 <Loader2 className="mr-2 size-4 animate-spin" />
               ) : (
@@ -2315,7 +2636,9 @@ function SettingsPanel({
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete Connection</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Are you sure you want to delete &quot;{connection?.name || 'this connection'}&quot;? This will remove the connection and all its stored credentials. This action cannot be undone.
+                      Are you sure you want to delete &quot;{connection?.name || 'this connection'}
+                      &quot;? This will remove the connection and all its stored credentials. This
+                      action cannot be undone.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -2333,12 +2656,17 @@ function SettingsPanel({
               <div>
                 <p className="text-sm font-medium">Reset All Data</p>
                 <p className="text-xs text-muted-foreground">
-                  Clear all connections, schema data, query history, and settings. This cannot be undone.
+                  Clear all connections, schema data, query history, and settings. This cannot be
+                  undone.
                 </p>
               </div>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1.5 border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/30 shrink-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/30 shrink-0"
+                  >
                     <RefreshCw className="size-3.5" />
                     Reset All Data
                   </Button>
@@ -2347,7 +2675,9 @@ function SettingsPanel({
                   <AlertDialogHeader>
                     <AlertDialogTitle>Reset All Data</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will clear all connections, schema data, RLS statuses, query history, and settings. You will be returned to the welcome screen. This action cannot be undone.
+                      This will clear all connections, schema data, RLS statuses, query history, and
+                      settings. You will be returned to the welcome screen. This action cannot be
+                      undone.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -2391,16 +2721,16 @@ function SettingsPanel({
             <Info className="size-5 text-muted-foreground" />
             <CardTitle>About</CardTitle>
           </div>
-          <CardDescription>
-            Application information and tech stack
-          </CardDescription>
+          <CardDescription>Application information and tech stack</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4">
             {/* Version */}
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Version</span>
-              <Badge variant="outline" className="font-mono">1.0.0</Badge>
+              <Badge variant="outline" className="font-mono">
+                1.0.0
+              </Badge>
             </div>
 
             <Separator />
@@ -2438,7 +2768,11 @@ function SettingsPanel({
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Source Code</span>
               <Button variant="outline" size="sm" className="gap-1.5" asChild>
-                <a href="https://github.com/JesseVent/supabase-devtool" target="_blank" rel="noopener noreferrer">
+                <a
+                  href="https://github.com/JesseVent/supabase-devtool"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   <ExternalLink className="size-3.5" />
                   GitHub
                 </a>

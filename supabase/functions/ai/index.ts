@@ -22,14 +22,16 @@
 // Deploy: supabase functions deploy ai
 // Secret: supabase secrets set OPENAI_API_KEY=sk-... (only needed for openai provider)
 
-import { withSupabase } from 'npm:@supabase/server'
 import OpenAI from 'https://deno.land/x/openai@v4.24.0/mod.ts'
+import { withSupabase } from 'npm:@supabase/server'
 
 // Supabase.ai is a global injected by the Supabase Edge Runtime.
 // Declared here for TypeScript — not imported from a module.
 declare const Supabase: {
   ai: {
-    Session: new (model: string) => {
+    Session: new (
+      model: string
+    ) => {
       run(prompt: string, opts: { stream: false }): Promise<string | { text?: string }>
     }
   }
@@ -54,7 +56,7 @@ async function runOpenAI(
   system: string | undefined,
   model: string | undefined,
   max_tokens: number | undefined,
-  temperature: number | undefined,
+  temperature: number | undefined
 ): Promise<string> {
   const openai = new OpenAI({ apiKey: Deno.env.get('OPENAI_API_KEY')! })
 
@@ -93,15 +95,13 @@ async function runSupabaseAI(
   action: string,
   input: string,
   system: string | undefined,
-  model: string | undefined,
+  model: string | undefined
 ): Promise<string> {
   const effectiveModel = model ?? 'mistral'
   const session = new Supabase.ai.Session(effectiveModel)
 
   const defaultSystem =
-    action === 'summary'
-      ? 'Summarize the input clearly and briefly in 1–3 sentences.'
-      : undefined
+    action === 'summary' ? 'Summarize the input clearly and briefly in 1–3 sentences.' : undefined
 
   const systemPrompt = system ?? defaultSystem
   const prompt = systemPrompt ? `${systemPrompt}\n\n${input}` : input

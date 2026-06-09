@@ -1,36 +1,35 @@
 'use client'
 
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
-import { toast } from 'sonner'
-import { apiFetch } from '@/lib/api-auth'
-import { ParquetViewer } from '@/components/parquet-viewer'
 import {
-  FolderOpen,
-  Upload,
-  FileIcon,
-  Image as ImageIcon,
-  FileText,
-  Eye,
-  Video,
-  Music,
   Archive,
-  Code,
-  Database,
-  Globe,
-  Lock,
-  Copy,
-  Check,
-  Trash2,
-  Loader2,
-  HardDrive,
-  Clock,
   ArrowLeft,
+  Check,
+  Clock,
+  Code,
+  Copy,
+  Database,
+  Eye,
+  FileIcon,
+  FileText,
+  FolderOpen,
+  Globe,
+  HardDrive,
+  Image as ImageIcon,
+  Loader2,
+  Lock,
+  Music,
+  Trash2,
+  Upload,
+  Video,
 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import { ParquetViewer } from '@/components/parquet-viewer'
 import { Badge } from '@/components/ui/badge'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import {
   Table,
@@ -40,6 +39,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { apiFetch } from '@/lib/api-auth'
 
 // ─── Types ───
 
@@ -94,27 +94,180 @@ const DEMO_BUCKETS: StorageBucket[] = [
 
 const DEMO_FILES: Record<string, StorageFile[]> = {
   avatars: [
-    { id: 'av1', name: 'john-profile.jpg', bucketId: 'avatars', size: 245760, lastModified: '2024-06-15T10:30:00Z', mimeType: 'image/jpeg', isFolder: false, fullPath: 'john-profile.jpg' },
-    { id: 'av2', name: 'jane-avatar.png', bucketId: 'avatars', size: 512000, lastModified: '2024-06-14T08:22:00Z', mimeType: 'image/png', isFolder: false, fullPath: 'jane-avatar.png' },
-    { id: 'av3', name: 'bob-photo.webp', bucketId: 'avatars', size: 189440, lastModified: '2024-06-12T16:45:00Z', mimeType: 'image/webp', isFolder: false, fullPath: 'bob-photo.webp' },
-    { id: 'av4', name: 'default-avatar.svg', bucketId: 'avatars', size: 4096, lastModified: '2024-01-15T10:30:00Z', mimeType: 'image/svg+xml', isFolder: false, fullPath: 'default-avatar.svg' },
-    { id: 'av5', name: 'team-photo.jpg', bucketId: 'avatars', size: 1048576, lastModified: '2024-05-20T14:10:00Z', mimeType: 'image/jpeg', isFolder: false, fullPath: 'team-photo.jpg' },
+    {
+      id: 'av1',
+      name: 'john-profile.jpg',
+      bucketId: 'avatars',
+      size: 245760,
+      lastModified: '2024-06-15T10:30:00Z',
+      mimeType: 'image/jpeg',
+      isFolder: false,
+      fullPath: 'john-profile.jpg',
+    },
+    {
+      id: 'av2',
+      name: 'jane-avatar.png',
+      bucketId: 'avatars',
+      size: 512000,
+      lastModified: '2024-06-14T08:22:00Z',
+      mimeType: 'image/png',
+      isFolder: false,
+      fullPath: 'jane-avatar.png',
+    },
+    {
+      id: 'av3',
+      name: 'bob-photo.webp',
+      bucketId: 'avatars',
+      size: 189440,
+      lastModified: '2024-06-12T16:45:00Z',
+      mimeType: 'image/webp',
+      isFolder: false,
+      fullPath: 'bob-photo.webp',
+    },
+    {
+      id: 'av4',
+      name: 'default-avatar.svg',
+      bucketId: 'avatars',
+      size: 4096,
+      lastModified: '2024-01-15T10:30:00Z',
+      mimeType: 'image/svg+xml',
+      isFolder: false,
+      fullPath: 'default-avatar.svg',
+    },
+    {
+      id: 'av5',
+      name: 'team-photo.jpg',
+      bucketId: 'avatars',
+      size: 1048576,
+      lastModified: '2024-05-20T14:10:00Z',
+      mimeType: 'image/jpeg',
+      isFolder: false,
+      fullPath: 'team-photo.jpg',
+    },
   ],
   documents: [
-    { id: 'doc-parquet', name: 'user-analytics.parquet', bucketId: 'documents', size: 3891, lastModified: '2024-06-18T09:00:00Z', mimeType: 'application/octet-stream', isFolder: false, fullPath: 'user-analytics.parquet' },
-    { id: 'doc1', name: 'project-proposal.pdf', bucketId: 'documents', size: 2097152, lastModified: '2024-06-10T09:15:00Z', mimeType: 'application/pdf', isFolder: false, fullPath: 'project-proposal.pdf' },
-    { id: 'doc2', name: 'budget-report.xlsx', bucketId: 'documents', size: 524288, lastModified: '2024-06-08T11:30:00Z', mimeType: 'application/vnd.ms-excel', isFolder: false, fullPath: 'budget-report.xlsx' },
-    { id: 'doc3', name: 'meeting-notes.docx', bucketId: 'documents', size: 102400, lastModified: '2024-06-05T16:00:00Z', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', isFolder: false, fullPath: 'meeting-notes.docx' },
-    { id: 'doc4', name: 'api-reference.md', bucketId: 'documents', size: 32768, lastModified: '2024-05-28T13:45:00Z', mimeType: 'text/markdown', isFolder: false, fullPath: 'api-reference.md' },
-    { id: 'doc5', name: 'contracts.zip', bucketId: 'documents', size: 8388608, lastModified: '2024-05-15T10:00:00Z', mimeType: 'application/zip', isFolder: false, fullPath: 'contracts.zip' },
+    {
+      id: 'doc-parquet',
+      name: 'user-analytics.parquet',
+      bucketId: 'documents',
+      size: 3891,
+      lastModified: '2024-06-18T09:00:00Z',
+      mimeType: 'application/octet-stream',
+      isFolder: false,
+      fullPath: 'user-analytics.parquet',
+    },
+    {
+      id: 'doc1',
+      name: 'project-proposal.pdf',
+      bucketId: 'documents',
+      size: 2097152,
+      lastModified: '2024-06-10T09:15:00Z',
+      mimeType: 'application/pdf',
+      isFolder: false,
+      fullPath: 'project-proposal.pdf',
+    },
+    {
+      id: 'doc2',
+      name: 'budget-report.xlsx',
+      bucketId: 'documents',
+      size: 524288,
+      lastModified: '2024-06-08T11:30:00Z',
+      mimeType: 'application/vnd.ms-excel',
+      isFolder: false,
+      fullPath: 'budget-report.xlsx',
+    },
+    {
+      id: 'doc3',
+      name: 'meeting-notes.docx',
+      bucketId: 'documents',
+      size: 102400,
+      lastModified: '2024-06-05T16:00:00Z',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      isFolder: false,
+      fullPath: 'meeting-notes.docx',
+    },
+    {
+      id: 'doc4',
+      name: 'api-reference.md',
+      bucketId: 'documents',
+      size: 32768,
+      lastModified: '2024-05-28T13:45:00Z',
+      mimeType: 'text/markdown',
+      isFolder: false,
+      fullPath: 'api-reference.md',
+    },
+    {
+      id: 'doc5',
+      name: 'contracts.zip',
+      bucketId: 'documents',
+      size: 8388608,
+      lastModified: '2024-05-15T10:00:00Z',
+      mimeType: 'application/zip',
+      isFolder: false,
+      fullPath: 'contracts.zip',
+    },
   ],
   media: [
-    { id: 'med1', name: 'hero-banner.mp4', bucketId: 'media', size: 52428800, lastModified: '2024-06-01T08:00:00Z', mimeType: 'video/mp4', isFolder: false, fullPath: 'hero-banner.mp4' },
-    { id: 'med2', name: 'product-demo.webm', bucketId: 'media', size: 31457280, lastModified: '2024-05-25T14:30:00Z', mimeType: 'video/webm', isFolder: false, fullPath: 'product-demo.webm' },
-    { id: 'med3', name: 'podcast-ep1.mp3', bucketId: 'media', size: 15728640, lastModified: '2024-05-20T10:00:00Z', mimeType: 'audio/mpeg', isFolder: false, fullPath: 'podcast-ep1.mp3' },
-    { id: 'med4', name: 'background-music.wav', bucketId: 'media', size: 41943040, lastModified: '2024-05-18T09:30:00Z', mimeType: 'audio/wav', isFolder: false, fullPath: 'background-music.wav' },
-    { id: 'med5', name: 'screenshot-landing.png', bucketId: 'media', size: 2097152, lastModified: '2024-06-12T11:15:00Z', mimeType: 'image/png', isFolder: false, fullPath: 'screenshot-landing.png' },
-    { id: 'med6', name: 'logo-dark.svg', bucketId: 'media', size: 8192, lastModified: '2024-04-01T12:00:00Z', mimeType: 'image/svg+xml', isFolder: false, fullPath: 'logo-dark.svg' },
+    {
+      id: 'med1',
+      name: 'hero-banner.mp4',
+      bucketId: 'media',
+      size: 52428800,
+      lastModified: '2024-06-01T08:00:00Z',
+      mimeType: 'video/mp4',
+      isFolder: false,
+      fullPath: 'hero-banner.mp4',
+    },
+    {
+      id: 'med2',
+      name: 'product-demo.webm',
+      bucketId: 'media',
+      size: 31457280,
+      lastModified: '2024-05-25T14:30:00Z',
+      mimeType: 'video/webm',
+      isFolder: false,
+      fullPath: 'product-demo.webm',
+    },
+    {
+      id: 'med3',
+      name: 'podcast-ep1.mp3',
+      bucketId: 'media',
+      size: 15728640,
+      lastModified: '2024-05-20T10:00:00Z',
+      mimeType: 'audio/mpeg',
+      isFolder: false,
+      fullPath: 'podcast-ep1.mp3',
+    },
+    {
+      id: 'med4',
+      name: 'background-music.wav',
+      bucketId: 'media',
+      size: 41943040,
+      lastModified: '2024-05-18T09:30:00Z',
+      mimeType: 'audio/wav',
+      isFolder: false,
+      fullPath: 'background-music.wav',
+    },
+    {
+      id: 'med5',
+      name: 'screenshot-landing.png',
+      bucketId: 'media',
+      size: 2097152,
+      lastModified: '2024-06-12T11:15:00Z',
+      mimeType: 'image/png',
+      isFolder: false,
+      fullPath: 'screenshot-landing.png',
+    },
+    {
+      id: 'med6',
+      name: 'logo-dark.svg',
+      bucketId: 'media',
+      size: 8192,
+      lastModified: '2024-04-01T12:00:00Z',
+      mimeType: 'image/svg+xml',
+      isFolder: false,
+      fullPath: 'logo-dark.svg',
+    },
   ],
 }
 
@@ -125,7 +278,7 @@ function formatFileSize(bytes: number): string {
   const k = 1024
   const sizes = ['B', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`
+  return `${parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`
 }
 
 function formatDate(dateStr: string): string {
@@ -143,7 +296,12 @@ function getFileIcon(mimeType: string) {
     return <FileText className="size-4 text-blue-500" />
   if (mimeType.includes('zip') || mimeType.includes('archive') || mimeType.includes('compressed'))
     return <Archive className="size-4 text-orange-500" />
-  if (mimeType.includes('javascript') || mimeType.includes('json') || mimeType.includes('html') || mimeType.includes('css'))
+  if (
+    mimeType.includes('javascript') ||
+    mimeType.includes('json') ||
+    mimeType.includes('html') ||
+    mimeType.includes('css')
+  )
     return <Code className="size-4 text-primary" />
   return <FileIcon className="size-4 text-muted-foreground" />
 }
@@ -188,76 +346,107 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to fetch buckets')
       // Normalize API shape → our StorageBucket shape
-      const normalized: StorageBucket[] = (data.buckets || []).map((b: Record<string, unknown>) => ({
-        id: b.id as string,
-        name: b.name as string,
-        isPublic: b.public as boolean,
-        fileCount: 0,
-        createdAt: b.created_at as string,
-        fileSizeLimit: (b.file_size_limit as number | null) ?? null,
-      }))
+      const normalized: StorageBucket[] = (data.buckets || []).map(
+        (b: Record<string, unknown>) => ({
+          id: b.id as string,
+          name: b.name as string,
+          isPublic: b.public as boolean,
+          fileCount: 0,
+          createdAt: b.created_at as string,
+          fileSizeLimit: (b.file_size_limit as number | null) ?? null,
+        })
+      )
       setBuckets(normalized)
     } catch (err) {
-      toast.error('Failed to load buckets', { description: err instanceof Error ? err.message : String(err) })
+      toast.error('Failed to load buckets', {
+        description: err instanceof Error ? err.message : String(err),
+      })
     } finally {
       setIsLoadingBuckets(false)
     }
   }, [connection, isDemoMode])
 
-  const fetchFiles = useCallback(async (bucket: StorageBucket, path = '') => {
-    if (isDemoMode) {
-      const demoFiles = (DEMO_FILES[bucket.id] || []).map(f => ({ ...f, isFolder: false, fullPath: f.name }))
-      setFiles(demoFiles)
-      return
-    }
-    if (!connection) return
-    setIsLoadingFiles(true)
-    try {
-      const res = await apiFetch('/api/storage', connection, { action: 'list-files', bucket: bucket.name, prefix: path })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch files')
-      const normalized: StorageFile[] = (data.files || []).map((f: Record<string, unknown>) => {
-        const meta = f.metadata as Record<string, unknown> | null
-        // Supabase returns null metadata for folder entries
-        const isFolder = !meta
-        const rawDate = isFolder ? '' : ((meta!.lastModified as string) || (f.updated_at as string) || (f.last_accessed_at as string) || '')
-        const parsedDate = rawDate ? new Date(rawDate) : null
-        const name = f.name as string
-        return {
-          id: (f.id as string) || name,
-          name,
-          bucketId: bucket.id,
-          size: isFolder ? 0 : ((meta!.size as number) ?? (meta!.contentLength as number) ?? 0),
-          lastModified: parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate.toISOString() : '',
-          mimeType: isFolder ? 'folder' : ((meta!.mimetype as string) || 'application/octet-stream'),
-          isFolder,
-          fullPath: path ? `${path}${name}` : name,
-        }
-      })
-      setFiles(normalized)
-    } catch (err) {
-      toast.error('Failed to load files', { description: err instanceof Error ? err.message : String(err) })
-    } finally {
-      setIsLoadingFiles(false)
-    }
-  }, [connection, isDemoMode])
+  const fetchFiles = useCallback(
+    async (bucket: StorageBucket, path = '') => {
+      if (isDemoMode) {
+        const demoFiles = (DEMO_FILES[bucket.id] || []).map((f) => ({
+          ...f,
+          isFolder: false,
+          fullPath: f.name,
+        }))
+        setFiles(demoFiles)
+        return
+      }
+      if (!connection) return
+      setIsLoadingFiles(true)
+      try {
+        const res = await apiFetch('/api/storage', connection, {
+          action: 'list-files',
+          bucket: bucket.name,
+          prefix: path,
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Failed to fetch files')
+        const normalized: StorageFile[] = (data.files || []).map((f: Record<string, unknown>) => {
+          const meta = f.metadata as Record<string, unknown> | null
+          // Supabase returns null metadata for folder entries
+          const isFolder = !meta
+          const rawDate = isFolder
+            ? ''
+            : (meta!.lastModified as string) ||
+              (f.updated_at as string) ||
+              (f.last_accessed_at as string) ||
+              ''
+          const parsedDate = rawDate ? new Date(rawDate) : null
+          const name = f.name as string
+          return {
+            id: (f.id as string) || name,
+            name,
+            bucketId: bucket.id,
+            size: isFolder ? 0 : ((meta!.size as number) ?? (meta!.contentLength as number) ?? 0),
+            lastModified:
+              parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate.toISOString() : '',
+            mimeType: isFolder
+              ? 'folder'
+              : (meta!.mimetype as string) || 'application/octet-stream',
+            isFolder,
+            fullPath: path ? `${path}${name}` : name,
+          }
+        })
+        setFiles(normalized)
+      } catch (err) {
+        toast.error('Failed to load files', {
+          description: err instanceof Error ? err.message : String(err),
+        })
+      } finally {
+        setIsLoadingFiles(false)
+      }
+    },
+    [connection, isDemoMode]
+  )
 
   useEffect(() => {
     fetchBuckets()
   }, [fetchBuckets])
 
-  const handleSelectBucket = useCallback((bucket: StorageBucket) => {
-    setSelectedBucket(bucket)
-    setCurrentPath('')
-    fetchFiles(bucket, '')
-  }, [fetchFiles])
+  const handleSelectBucket = useCallback(
+    (bucket: StorageBucket) => {
+      setSelectedBucket(bucket)
+      setCurrentPath('')
+      fetchFiles(bucket, '')
+    },
+    [fetchFiles]
+  )
 
-  const handleEnterFolder = useCallback((folder: StorageFile) => {
-    if (!selectedBucket) return
-    const newPath = `${folder.fullPath}/`
-    setCurrentPath(newPath)
-    fetchFiles(selectedBucket, newPath)
-  }, [selectedBucket, fetchFiles])
+  const handleEnterFolder = useCallback(
+    (folder: StorageFile) => {
+      if (!selectedBucket) return
+      const newPath = `${folder.fullPath}/`
+      setCurrentPath(newPath)
+      fetchFiles(selectedBucket, newPath)
+    },
+    [selectedBucket, fetchFiles]
+  )
 
   const handleNavigateUp = useCallback(() => {
     if (!selectedBucket) return
@@ -275,89 +464,113 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
     setFiles([])
   }, [])
 
-  const handleDeleteFile = useCallback(async (file: StorageFile) => {
-    if (isDemoMode) {
-      toast.info(`Deleted ${file.name}`, { description: 'This is a simulated action' })
-      return
-    }
-    if (!connection || !selectedBucket) return
-    setIsDeletingId(file.id)
-    try {
-      const res = await apiFetch('/api/storage', connection, { action: 'delete-file', bucket: selectedBucket.name, prefix: file.fullPath })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to delete file')
-      toast.success(`Deleted ${file.name}`)
-      setFiles((prev) => prev.filter((f) => f.id !== file.id))
-    } catch (err) {
-      toast.error('Failed to delete file', { description: err instanceof Error ? err.message : String(err) })
-    } finally {
-      setIsDeletingId(null)
-    }
-  }, [connection, isDemoMode, selectedBucket])
-
-  const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !selectedBucket) return
-    if (isDemoMode) {
-      setIsUploading(true)
-      setUploadProgress(0)
-      const interval = setInterval(() => {
-        setUploadProgress((prev) => {
-          if (prev >= 100) {
-            clearInterval(interval)
-            setIsUploading(false)
-            toast.success('File uploaded successfully (demo)', { description: `${file.name} uploaded to ${selectedBucket.name}` })
-            return 100
-          }
-          return prev + Math.random() * 15 + 5
+  const handleDeleteFile = useCallback(
+    async (file: StorageFile) => {
+      if (isDemoMode) {
+        toast.info(`Deleted ${file.name}`, { description: 'This is a simulated action' })
+        return
+      }
+      if (!connection || !selectedBucket) return
+      setIsDeletingId(file.id)
+      try {
+        const res = await apiFetch('/api/storage', connection, {
+          action: 'delete-file',
+          bucket: selectedBucket.name,
+          prefix: file.fullPath,
         })
-      }, 150)
-      return
-    }
-    // Real upload via Supabase Storage API
-    if (!connection || !connection.supabaseUrl) return
-    setIsUploading(true)
-    setUploadProgress(10)
-    try {
-      const formData = new FormData()
-      formData.append('', file, file.name)
-      // We call the API route for validation then do the upload directly from client
-      // using a pre-signed approach — simplest: POST to the API route with base64
-      const reader = new FileReader()
-      reader.onload = async () => {
-        const res = await apiFetch('/api/storage/upload', connection, {
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Failed to delete file')
+        toast.success(`Deleted ${file.name}`)
+        setFiles((prev) => prev.filter((f) => f.id !== file.id))
+      } catch (err) {
+        toast.error('Failed to delete file', {
+          description: err instanceof Error ? err.message : String(err),
+        })
+      } finally {
+        setIsDeletingId(null)
+      }
+    },
+    [connection, isDemoMode, selectedBucket]
+  )
+
+  const handleUpload = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (!file || !selectedBucket) return
+      if (isDemoMode) {
+        setIsUploading(true)
+        setUploadProgress(0)
+        const interval = setInterval(() => {
+          setUploadProgress((prev) => {
+            if (prev >= 100) {
+              clearInterval(interval)
+              setIsUploading(false)
+              toast.success('File uploaded successfully (demo)', {
+                description: `${file.name} uploaded to ${selectedBucket.name}`,
+              })
+              return 100
+            }
+            return prev + Math.random() * 15 + 5
+          })
+        }, 150)
+        return
+      }
+      // Real upload via Supabase Storage API
+      if (!connection || !connection.supabaseUrl) return
+      setIsUploading(true)
+      setUploadProgress(10)
+      try {
+        const formData = new FormData()
+        formData.append('', file, file.name)
+        // We call the API route for validation then do the upload directly from client
+        // using a pre-signed approach — simplest: POST to the API route with base64
+        const reader = new FileReader()
+        reader.onload = async () => {
+          const res = await apiFetch('/api/storage/upload', connection, {
             bucket: selectedBucket.name,
             fileName: file.name,
             mimeType: file.type,
             data: (reader.result as string).split(',')[1],
           })
-        const result = await res.json()
-        if (!res.ok) throw new Error(result.error || 'Upload failed')
-        setUploadProgress(100)
-        toast.success(`Uploaded ${file.name}`)
-        await fetchFiles(selectedBucket)
+          const result = await res.json()
+          if (!res.ok) throw new Error(result.error || 'Upload failed')
+          setUploadProgress(100)
+          toast.success(`Uploaded ${file.name}`)
+          await fetchFiles(selectedBucket)
+        }
+        reader.onerror = () => {
+          throw new Error('Failed to read file')
+        }
+        reader.readAsDataURL(file)
+      } catch (err) {
+        toast.error('Upload failed', {
+          description: err instanceof Error ? err.message : String(err),
+        })
+      } finally {
+        setTimeout(() => {
+          setIsUploading(false)
+          setUploadProgress(0)
+        }, 800)
+        if (fileInputRef.current) fileInputRef.current.value = ''
       }
-      reader.onerror = () => { throw new Error('Failed to read file') }
-      reader.readAsDataURL(file)
-    } catch (err) {
-      toast.error('Upload failed', { description: err instanceof Error ? err.message : String(err) })
-    } finally {
-      setTimeout(() => { setIsUploading(false); setUploadProgress(0) }, 800)
-      if (fileInputRef.current) fileInputRef.current.value = ''
-    }
-  }, [connection, isDemoMode, selectedBucket, fetchFiles])
+    },
+    [connection, isDemoMode, selectedBucket, fetchFiles]
+  )
 
-  const copyUrl = useCallback((file: StorageFile) => {
-    const base = connection?.supabaseUrl || 'https://demo-project.supabase.co'
-    const url = `${base.replace(/\/$/, '')}/storage/v1/object/public/${file.bucketId}/${file.name}`
-    navigator.clipboard.writeText(url)
-    setCopiedId(file.id)
-    toast.success('URL copied to clipboard')
-    setTimeout(() => setCopiedId(null), 2000)
-  }, [connection])
+  const copyUrl = useCallback(
+    (file: StorageFile) => {
+      const base = connection?.supabaseUrl || 'https://demo-project.supabase.co'
+      const url = `${base.replace(/\/$/, '')}/storage/v1/object/public/${file.bucketId}/${file.name}`
+      navigator.clipboard.writeText(url)
+      setCopiedId(file.id)
+      toast.success('URL copied to clipboard')
+      setTimeout(() => setCopiedId(null), 2000)
+    },
+    [connection]
+  )
 
   const totalSize = useMemo(() => {
-    return files.filter(f => !f.isFolder).reduce((acc, f) => acc + f.size, 0)
+    return files.filter((f) => !f.isFolder).reduce((acc, f) => acc + f.size, 0)
   }, [files])
 
   return (
@@ -374,10 +587,24 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
                 <div className="flex items-center gap-2">
                   <HardDrive className="size-5 text-primary" />
                   <CardTitle className="text-base">Storage Buckets</CardTitle>
-                  {isDemoMode && <Badge variant="secondary" className="text-[10px]">Demo</Badge>}
+                  {isDemoMode && (
+                    <Badge variant="secondary" className="text-[10px]">
+                      Demo
+                    </Badge>
+                  )}
                 </div>
-                <Button variant="outline" size="sm" className="gap-1.5" onClick={fetchBuckets} disabled={isLoadingBuckets || isDemoMode}>
-                  {isLoadingBuckets ? <Loader2 className="size-3.5 animate-spin" /> : <Database className="size-3.5" />}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={fetchBuckets}
+                  disabled={isLoadingBuckets || isDemoMode}
+                >
+                  {isLoadingBuckets ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Database className="size-3.5" />
+                  )}
                   Refresh
                 </Button>
               </div>
@@ -427,13 +654,14 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
                           </div>
                           <div>
                             <p className="text-sm font-medium font-mono">{bucket.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Click to browse
-                            </p>
+                            <p className="text-xs text-muted-foreground">Click to browse</p>
                           </div>
                         </div>
                         {bucket.isPublic ? (
-                          <Badge variant="outline" className="gap-1 text-primary border-primary/30 dark:text-primary dark:border-primary/30">
+                          <Badge
+                            variant="outline"
+                            className="gap-1 text-primary border-primary/30 dark:text-primary dark:border-primary/30"
+                          >
                             <Globe className="size-3" />
                             Public
                           </Badge>
@@ -451,7 +679,9 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
                           {formatDate(bucket.createdAt)}
                         </div>
                         <span>
-                          {bucket.fileSizeLimit ? formatFileSize(bucket.fileSizeLimit) + ' limit' : 'No limit'}
+                          {bucket.fileSizeLimit
+                            ? formatFileSize(bucket.fileSizeLimit) + ' limit'
+                            : 'No limit'}
                         </span>
                       </div>
                     </div>
@@ -482,29 +712,44 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
                   <div className="flex items-center gap-1 flex-wrap min-w-0">
                     <button
                       className="font-mono text-sm font-semibold text-primary hover:underline"
-                      onClick={() => { setCurrentPath(''); fetchFiles(selectedBucket, '') }}
+                      onClick={() => {
+                        setCurrentPath('')
+                        fetchFiles(selectedBucket, '')
+                      }}
                     >
                       {selectedBucket.name}
                     </button>
-                    {currentPath && currentPath.replace(/\/$/, '').split('/').map((seg, i, arr) => {
-                      const pathUpTo = arr.slice(0, i + 1).join('/') + '/'
-                      return (
-                        <span key={pathUpTo} className="flex items-center gap-1">
-                          <span className="text-muted-foreground">/</span>
-                          <button
-                            className="font-mono text-sm text-foreground hover:underline"
-                            onClick={() => { setCurrentPath(pathUpTo); fetchFiles(selectedBucket, pathUpTo) }}
-                          >
-                            {seg}
-                          </button>
-                        </span>
-                      )
-                    })}
+                    {currentPath &&
+                      currentPath
+                        .replace(/\/$/, '')
+                        .split('/')
+                        .map((seg, i, arr) => {
+                          const pathUpTo = arr.slice(0, i + 1).join('/') + '/'
+                          return (
+                            <span key={pathUpTo} className="flex items-center gap-1">
+                              <span className="text-muted-foreground">/</span>
+                              <button
+                                className="font-mono text-sm text-foreground hover:underline"
+                                onClick={() => {
+                                  setCurrentPath(pathUpTo)
+                                  fetchFiles(selectedBucket, pathUpTo)
+                                }}
+                              >
+                                {seg}
+                              </button>
+                            </span>
+                          )
+                        })}
                   </div>
                   {currentPath && (
                     <>
                       <Separator orientation="vertical" className="h-6" />
-                      <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={handleNavigateUp}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1.5 text-muted-foreground"
+                        onClick={handleNavigateUp}
+                      >
                         <ArrowLeft className="size-3.5" />
                         Up
                       </Button>
@@ -512,7 +757,10 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
                   )}
                   <Separator orientation="vertical" className="h-6" />
                   {selectedBucket.isPublic ? (
-                    <Badge variant="outline" className="gap-1 text-primary border-primary/30 dark:text-primary dark:border-primary/30">
+                    <Badge
+                      variant="outline"
+                      className="gap-1 text-primary border-primary/30 dark:text-primary dark:border-primary/30"
+                    >
                       <Globe className="size-3" />
                       Public
                     </Badge>
@@ -538,9 +786,15 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
                 </Button>
               </div>
               <CardDescription>
-                {files.filter(f => !f.isFolder).length} file{files.filter(f => !f.isFolder).length !== 1 ? 's' : ''}
-                {files.some(f => f.isFolder) ? `, ${files.filter(f => f.isFolder).length} folder${files.filter(f => f.isFolder).length !== 1 ? 's' : ''}` : ''}
-                {' '}&middot; {formatFileSize(totalSize)} total &middot; {selectedBucket.fileSizeLimit ? formatFileSize(selectedBucket.fileSizeLimit) + ' size limit' : 'No size limit'}
+                {files.filter((f) => !f.isFolder).length} file
+                {files.filter((f) => !f.isFolder).length !== 1 ? 's' : ''}
+                {files.some((f) => f.isFolder)
+                  ? `, ${files.filter((f) => f.isFolder).length} folder${files.filter((f) => f.isFolder).length !== 1 ? 's' : ''}`
+                  : ''}{' '}
+                &middot; {formatFileSize(totalSize)} total &middot;{' '}
+                {selectedBucket.fileSizeLimit
+                  ? formatFileSize(selectedBucket.fileSizeLimit) + ' size limit'
+                  : 'No size limit'}
               </CardDescription>
             </CardHeader>
           </Card>
@@ -552,7 +806,9 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Uploading example-file.pdf...</span>
-                    <span className="font-mono text-xs">{Math.min(Math.round(uploadProgress), 100)}%</span>
+                    <span className="font-mono text-xs">
+                      {Math.min(Math.round(uploadProgress), 100)}%
+                    </span>
                   </div>
                   <Progress value={Math.min(uploadProgress, 100)} className="h-2" />
                 </div>
@@ -575,9 +831,7 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
               <CardContent className="py-12">
                 <div className="flex flex-col items-center justify-center text-center space-y-3">
                   <FolderOpen className="size-12 text-muted-foreground/30" />
-                  <p className="text-sm font-medium text-muted-foreground">
-                    This bucket is empty
-                  </p>
+                  <p className="text-sm font-medium text-muted-foreground">This bucket is empty</p>
                   <p className="text-xs text-muted-foreground">
                     Upload files to this bucket to see them listed here.
                   </p>
@@ -617,18 +871,24 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
                         >
                           <TableCell className="py-2">
                             <div className="flex items-center gap-2">
-                              {file.isFolder
-                                ? <FolderOpen className="size-4 text-amber-500" />
-                                : getFileIcon(file.mimeType)
-                              }
-                              <span className={`font-mono text-xs truncate max-w-[200px] ${file.isFolder ? 'font-medium text-foreground' : ''}`}>
+                              {file.isFolder ? (
+                                <FolderOpen className="size-4 text-amber-500" />
+                              ) : (
+                                getFileIcon(file.mimeType)
+                              )}
+                              <span
+                                className={`font-mono text-xs truncate max-w-[200px] ${file.isFolder ? 'font-medium text-foreground' : ''}`}
+                              >
                                 {file.name}
                                 {file.isFolder && <span className="text-muted-foreground">/</span>}
                               </span>
                             </div>
                           </TableCell>
                           <TableCell className="py-2">
-                            <Badge variant={file.isFolder ? 'secondary' : 'outline'} className="text-[10px]">
+                            <Badge
+                              variant={file.isFolder ? 'secondary' : 'outline'}
+                              className="text-[10px]"
+                            >
                               {file.isFolder ? 'Folder' : getFileTypeLabel(file.mimeType)}
                             </Badge>
                           </TableCell>
@@ -641,36 +901,45 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
                           <TableCell className="py-2 text-right">
                             <div className="flex items-center justify-end gap-1">
                               {!file.isFolder && file.name.endsWith('.parquet') && connection && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 w-7 p-0 text-primary"
-                                onClick={(e) => { e.stopPropagation(); setPreviewFile(file) }}
-                                title="Preview in DuckDB"
-                              >
-                                <Eye className="size-3.5" />
-                              </Button>
-                            )}
-                            {!file.isFolder && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 w-7 p-0"
-                                onClick={(e) => { e.stopPropagation(); copyUrl(file) }}
-                                title="Copy URL"
-                              >
-                                {copiedId === file.id ? (
-                                  <Check className="size-3.5 text-primary" />
-                                ) : (
-                                  <Copy className="size-3.5" />
-                                )}
-                              </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-primary"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setPreviewFile(file)
+                                  }}
+                                  title="Preview in DuckDB"
+                                >
+                                  <Eye className="size-3.5" />
+                                </Button>
+                              )}
+                              {!file.isFolder && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    copyUrl(file)
+                                  }}
+                                  title="Copy URL"
+                                >
+                                  {copiedId === file.id ? (
+                                    <Check className="size-3.5 text-primary" />
+                                  ) : (
+                                    <Copy className="size-3.5" />
+                                  )}
+                                </Button>
                               )}
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                                onClick={(e) => { e.stopPropagation(); handleDeleteFile(file) }}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDeleteFile(file)
+                                }}
                                 disabled={isDeletingId === file.id || file.isFolder}
                                 title={file.isFolder ? 'Cannot delete folders directly' : 'Delete'}
                               >

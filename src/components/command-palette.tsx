@@ -1,34 +1,40 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import {
+  Database,
+  Eye,
+  FileText,
+  GitFork,
+  HeartPulse,
+  Keyboard,
+  LayoutDashboard,
+  RefreshCw,
+  Settings,
+  Shield,
+  Terminal,
+  Zap,
+} from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { Badge } from '@/components/ui/badge'
 import {
   CommandDialog,
-  CommandInput,
-  CommandList,
   CommandEmpty,
   CommandGroup,
+  CommandInput,
   CommandItem,
+  CommandList,
   CommandSeparator,
   CommandShortcut,
 } from '@/components/ui/command'
 import {
-  LayoutDashboard,
-  GitFork,
-  Shield,
-  Zap,
-  Terminal,
-  Settings,
-  Eye,
-  FileText,
-  HeartPulse,
-  RefreshCw,
-  Keyboard,
-  Database,
-} from 'lucide-react'
-import { useSupabaseStore } from '@/store/supabase-store'
+  DEMO_CONNECTION,
+  DEMO_CONNECTION_ID,
+  DEMO_EDGE_FUNCTIONS,
+  DEMO_RLS_STATUSES,
+  DEMO_TABLES,
+} from '@/lib/demo-data'
 import type { ActivePanel } from '@/lib/supabase-types'
-import { DEMO_CONNECTION_ID, DEMO_CONNECTION, DEMO_TABLES, DEMO_RLS_STATUSES, DEMO_EDGE_FUNCTIONS } from '@/lib/demo-data'
-import { Badge } from '@/components/ui/badge'
+import { useSupabaseStore } from '@/store/supabase-store'
 
 function isMac() {
   if (typeof navigator === 'undefined') return false
@@ -70,13 +76,10 @@ export function CommandPalette() {
     return () => window.removeEventListener('keydown', handleKeyDown, true)
   }, [])
 
-  const runAction = useCallback(
-    (action: () => void) => {
-      setOpen(false)
-      action()
-    },
-    []
-  )
+  const runAction = useCallback((action: () => void) => {
+    setOpen(false)
+    action()
+  }, [])
 
   const loadDemoData = useCallback(() => {
     const existingDemo = connections.find((c) => c.id === DEMO_CONNECTION_ID)
@@ -89,7 +92,15 @@ export function CommandPalette() {
     setEdgeFunctions(DEMO_EDGE_FUNCTIONS)
     setSelectedTable(null)
     setActivePanel('dashboard')
-  }, [connections, setActiveConnectionId, setTables, setRlsStatuses, setEdgeFunctions, setSelectedTable, setActivePanel])
+  }, [
+    connections,
+    setActiveConnectionId,
+    setTables,
+    setRlsStatuses,
+    setEdgeFunctions,
+    setSelectedTable,
+    setActivePanel,
+  ])
 
   const navigateToTable = useCallback(
     (tableName: string) => {
@@ -100,24 +111,59 @@ export function CommandPalette() {
   )
 
   const navItems = [
-    { label: 'Dashboard', icon: LayoutDashboard, panel: 'dashboard' as ActivePanel, shortcut: `${modKey()}+0` },
+    {
+      label: 'Dashboard',
+      icon: LayoutDashboard,
+      panel: 'dashboard' as ActivePanel,
+      shortcut: `${modKey()}+0`,
+    },
     { label: 'Schema', icon: GitFork, panel: 'schema' as ActivePanel, shortcut: `${modKey()}+1` },
     { label: 'RLS', icon: Shield, panel: 'rls' as ActivePanel, shortcut: `${modKey()}+2` },
-    { label: 'Functions', icon: Zap, panel: 'edge-functions' as ActivePanel, shortcut: `${modKey()}+3` },
+    {
+      label: 'Functions',
+      icon: Zap,
+      panel: 'edge-functions' as ActivePanel,
+      shortcut: `${modKey()}+3`,
+    },
     { label: 'SQL', icon: Terminal, panel: 'sql' as ActivePanel, shortcut: `${modKey()}+4` },
-    { label: 'Settings', icon: Settings, panel: 'settings' as ActivePanel, shortcut: `${modKey()}+5` },
+    {
+      label: 'Settings',
+      icon: Settings,
+      panel: 'settings' as ActivePanel,
+      shortcut: `${modKey()}+5`,
+    },
   ]
 
   const actionItems = [
     { label: 'Try Demo', icon: Eye, action: loadDemoData, shortcut: `${modKey()}+D` },
     { label: 'Export Report', icon: FileText, action: () => {}, shortcut: '' },
-    { label: 'Run Health Check', icon: HeartPulse, action: () => setActivePanel('settings' as ActivePanel), shortcut: '' },
-    { label: 'Refresh Schema', icon: RefreshCw, action: () => setActivePanel('schema' as ActivePanel), shortcut: '' },
-    { label: 'Keyboard Shortcuts', icon: Keyboard, action: () => setShowShortcutsDialog(true), shortcut: `${modKey()}/` },
+    {
+      label: 'Run Health Check',
+      icon: HeartPulse,
+      action: () => setActivePanel('settings' as ActivePanel),
+      shortcut: '',
+    },
+    {
+      label: 'Refresh Schema',
+      icon: RefreshCw,
+      action: () => setActivePanel('schema' as ActivePanel),
+      shortcut: '',
+    },
+    {
+      label: 'Keyboard Shortcuts',
+      icon: Keyboard,
+      action: () => setShowShortcutsDialog(true),
+      shortcut: `${modKey()}/`,
+    },
   ]
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen} title="Command Palette" description="Search for a command or navigate quickly...">
+    <CommandDialog
+      open={open}
+      onOpenChange={setOpen}
+      title="Command Palette"
+      description="Search for a command or navigate quickly..."
+    >
       <CommandInput placeholder="Type a command or search..." />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
@@ -160,7 +206,9 @@ export function CommandPalette() {
             <CommandSeparator />
             <CommandGroup heading="Tables">
               {tables.map((table) => {
-                const rlsInfo = useSupabaseStore.getState().rlsStatuses.find((r) => r.tableName === table.tableName)
+                const rlsInfo = useSupabaseStore
+                  .getState()
+                  .rlsStatuses.find((r) => r.tableName === table.tableName)
                 const suffix = rlsInfo?.rlsEnabled ? '' : ' (no RLS)'
                 return (
                   <CommandItem

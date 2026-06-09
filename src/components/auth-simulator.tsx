@@ -1,30 +1,29 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
-import { toast } from 'sonner'
 import {
-  User,
+  Check,
+  CheckCircle2,
+  Copy,
+  Crown,
+  EyeOff,
+  Loader2,
+  Play,
   Shield,
+  ShieldAlert,
   ShieldCheck,
   ShieldX,
-  ShieldAlert,
-  Loader2,
-  CheckCircle2,
-  XCircle,
-  Copy,
-  Check,
-  Play,
-  Crown,
   Star,
-  EyeOff,
+  User,
+  XCircle,
 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
+import { useCallback, useMemo, useState } from 'react'
+import { toast } from 'sonner'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
@@ -33,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
 import {
   Table,
   TableBody,
@@ -41,9 +41,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Textarea } from '@/components/ui/textarea'
+import type { RLSPolicy, RLSTestResult, TableRLSInfo } from '@/lib/supabase-types'
 import { useSupabaseStore } from '@/store/supabase-store'
-import type { TableRLSInfo, RLSPolicy, RLSTestResult } from '@/lib/supabase-types'
 
 // ─── Preset User Type ───
 
@@ -261,7 +261,16 @@ export function AuthSimulator() {
     } finally {
       setIsTesting(false)
     }
-  }, [activeConnectionId, testTable, userRole, userEmail, parsedClaims, claimsText, addRlsTestResult, addActivityLog])
+  }, [
+    activeConnectionId,
+    testTable,
+    userRole,
+    userEmail,
+    parsedClaims,
+    claimsText,
+    addRlsTestResult,
+    addActivityLog,
+  ])
 
   const copyToClipboard = useCallback((text: string) => {
     navigator.clipboard.writeText(text)
@@ -306,9 +315,7 @@ export function AuthSimulator() {
             <User className="size-5 text-primary" />
             <CardTitle className="text-base">Quick Presets</CardTitle>
           </div>
-          <CardDescription>
-            Select a preset user to quickly configure the simulator
-          </CardDescription>
+          <CardDescription>Select a preset user to quickly configure the simulator</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
@@ -335,9 +342,7 @@ export function AuthSimulator() {
             <Shield className="size-5 text-primary" />
             <CardTitle className="text-base">User Configuration</CardTitle>
           </div>
-          <CardDescription>
-            Configure the simulated authenticated user context
-          </CardDescription>
+          <CardDescription>Configure the simulated authenticated user context</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4">
@@ -365,7 +370,10 @@ export function AuthSimulator() {
 
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs">Role</Label>
-              <Select value={userRole} onValueChange={(v) => setUserRole(v as 'anon' | 'authenticated' | 'custom')}>
+              <Select
+                value={userRole}
+                onValueChange={(v) => setUserRole(v as 'anon' | 'authenticated' | 'custom')}
+              >
                 <SelectTrigger className="w-full sm:w-[200px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -385,9 +393,7 @@ export function AuthSimulator() {
                 placeholder='{"role": "admin", "app_metadata": {"plan": "pro"}}'
                 className="font-mono text-xs min-h-[80px]"
               />
-              {claimsError && (
-                <p className="text-xs text-destructive">{claimsError}</p>
-              )}
+              {claimsError && <p className="text-xs text-destructive">{claimsError}</p>}
             </div>
           </div>
         </CardContent>
@@ -407,17 +413,11 @@ export function AuthSimulator() {
               onClick={() => copyToClipboard(JSON.stringify(tokenPreview, null, 2))}
               className="gap-1"
             >
-              {copied ? (
-                <Check className="size-3" />
-              ) : (
-                <Copy className="size-3" />
-              )}
+              {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
               Copy
             </Button>
           </div>
-          <CardDescription>
-            Decoded JWT-like preview of the simulated user context
-          </CardDescription>
+          <CardDescription>Decoded JWT-like preview of the simulated user context</CardDescription>
         </CardHeader>
         <CardContent>
           <ScrollArea className="max-h-48">
@@ -551,9 +551,7 @@ export function AuthSimulator() {
                 <TableBody>
                   {rlsImpact.map((entry) => (
                     <TableRow key={entry.tableName}>
-                      <TableCell className="font-mono text-xs py-2">
-                        {entry.tableName}
-                      </TableCell>
+                      <TableCell className="font-mono text-xs py-2">{entry.tableName}</TableCell>
                       <TableCell className="py-2">
                         {entry.rlsEnabled ? (
                           <Badge variant="default" className="gap-1 text-[10px]">
@@ -567,13 +565,13 @@ export function AuthSimulator() {
                           </Badge>
                         )}
                       </TableCell>
-                      <TableCell className="py-2">
-                        {getAccessBadge(entry.access)}
-                      </TableCell>
+                      <TableCell className="py-2">{getAccessBadge(entry.access)}</TableCell>
                       <TableCell className="py-2 max-w-[300px]">
                         {entry.matchingPolicies.length === 0 ? (
                           <span className="text-xs text-muted-foreground">
-                            {entry.rlsEnabled ? 'No matching policies' : 'No RLS — all operations allowed'}
+                            {entry.rlsEnabled
+                              ? 'No matching policies'
+                              : 'No RLS — all operations allowed'}
                           </span>
                         ) : (
                           <div className="flex flex-col gap-0.5">
@@ -601,17 +599,23 @@ export function AuthSimulator() {
               <div className="flex items-center gap-1.5 text-xs">
                 <ShieldX className="size-3.5 text-red-500" />
                 <span className="text-muted-foreground">Full Access:</span>
-                <span className="font-medium">{rlsImpact.filter((e) => e.access === 'full').length} tables</span>
+                <span className="font-medium">
+                  {rlsImpact.filter((e) => e.access === 'full').length} tables
+                </span>
               </div>
               <div className="flex items-center gap-1.5 text-xs">
                 <ShieldAlert className="size-3.5 text-muted-foreground" />
                 <span className="text-muted-foreground">Denied:</span>
-                <span className="font-medium">{rlsImpact.filter((e) => e.access === 'denied').length} tables</span>
+                <span className="font-medium">
+                  {rlsImpact.filter((e) => e.access === 'denied').length} tables
+                </span>
               </div>
               <div className="flex items-center gap-1.5 text-xs">
                 <ShieldCheck className="size-3.5 text-primary" />
                 <span className="text-muted-foreground">Conditional:</span>
-                <span className="font-medium">{rlsImpact.filter((e) => e.access === 'conditional').length} tables</span>
+                <span className="font-medium">
+                  {rlsImpact.filter((e) => e.access === 'conditional').length} tables
+                </span>
               </div>
             </div>
           </CardContent>
@@ -624,9 +628,7 @@ export function AuthSimulator() {
           <CardContent className="py-12">
             <div className="flex flex-col items-center justify-center text-center space-y-3">
               <Shield className="size-12 text-muted-foreground/30" />
-              <p className="text-sm font-medium text-muted-foreground">
-                No RLS data loaded
-              </p>
+              <p className="text-sm font-medium text-muted-foreground">No RLS data loaded</p>
               <p className="text-xs text-muted-foreground">
                 Load RLS policies first to see the impact summary and run tests.
               </p>
@@ -641,9 +643,7 @@ export function AuthSimulator() {
           <CardContent className="py-12">
             <div className="flex flex-col items-center justify-center text-center space-y-3">
               <User className="size-12 text-muted-foreground/30" />
-              <p className="text-sm font-medium text-muted-foreground">
-                No connection selected
-              </p>
+              <p className="text-sm font-medium text-muted-foreground">No connection selected</p>
               <p className="text-xs text-muted-foreground">
                 Connect to a Supabase project to use the Auth Simulator.
               </p>

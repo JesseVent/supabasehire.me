@@ -1,31 +1,26 @@
 'use client'
 
-import { useMemo, useState, useCallback } from 'react'
 import {
+  AlertTriangle,
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  Copy,
+  Info,
+  ShieldAlert,
   ShieldCheck,
   ShieldX,
-  ShieldAlert,
-  AlertTriangle,
-  CheckCircle2,
-  XCircle,
-  Info,
-  Copy,
-  Check,
   Terminal,
-  ArrowRight,
+  XCircle,
 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
+import { useCallback, useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Switch } from '@/components/ui/switch'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import type { TableRLSInfo, TableSchema } from '@/lib/supabase-types'
 import { useSupabaseStore } from '@/store/supabase-store'
 
@@ -50,12 +45,8 @@ function calculateScore(rlsStatuses: TableRLSInfo[], tables: TableSchema[]): Sco
   let restrictivePolicies = 0
 
   const tablesWithoutRLS = rlsStatuses.filter((t) => !t.rlsEnabled)
-  const tablesWithRLSNoPolicies = rlsStatuses.filter(
-    (t) => t.rlsEnabled && t.policies.length === 0
-  )
-  const tablesFullyProtected = rlsStatuses.filter(
-    (t) => t.rlsEnabled && t.policies.length > 0
-  )
+  const tablesWithRLSNoPolicies = rlsStatuses.filter((t) => t.rlsEnabled && t.policies.length === 0)
+  const tablesFullyProtected = rlsStatuses.filter((t) => t.rlsEnabled && t.policies.length > 0)
 
   // -20 for each table without RLS enabled
   score -= tablesWithoutRLS.length * 20
@@ -77,7 +68,13 @@ function calculateScore(rlsStatuses: TableRLSInfo[], tables: TableSchema[]): Sco
   const tablesOnlySelect = rlsStatuses.filter((t) => {
     if (!t.rlsEnabled || t.policies.length === 0) return false
     const commands = new Set(t.policies.map((p) => p.cmd))
-    return commands.has('SELECT') && !commands.has('INSERT') && !commands.has('UPDATE') && !commands.has('DELETE') && !commands.has('ALL')
+    return (
+      commands.has('SELECT') &&
+      !commands.has('INSERT') &&
+      !commands.has('UPDATE') &&
+      !commands.has('DELETE') &&
+      !commands.has('ALL')
+    )
   })
   score -= tablesOnlySelect.length * 2
 
@@ -95,7 +92,8 @@ function calculateScore(rlsStatuses: TableRLSInfo[], tables: TableSchema[]): Sco
     if (commands.has('UPDATE') || commands.has('ALL')) coveredOperations++
     if (commands.has('DELETE') || commands.has('ALL')) coveredOperations++
   })
-  const policyCoverage = totalOperations > 0 ? Math.round((coveredOperations / totalOperations) * 100) : 0
+  const policyCoverage =
+    totalOperations > 0 ? Math.round((coveredOperations / totalOperations) * 100) : 0
 
   // Critical: Tables without RLS that have foreign keys to protected tables
   const protectedTableNames = new Set(tablesFullyProtected.map((t) => t.tableName))
@@ -141,10 +139,7 @@ function getScoreLabel(score: number): string {
 export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
   const { setActivePanel, setSqlEditorContent } = useSupabaseStore()
 
-  const breakdown = useMemo(
-    () => calculateScore(rlsStatuses, tables),
-    [rlsStatuses, tables]
-  )
+  const breakdown = useMemo(() => calculateScore(rlsStatuses, tables), [rlsStatuses, tables])
 
   const { score } = breakdown
 
@@ -251,9 +246,7 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
               </Tooltip>
             </TooltipProvider>
           </div>
-          <CardDescription>
-            Overall RLS security posture for your database
-          </CardDescription>
+          <CardDescription>Overall RLS security posture for your database</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row items-center gap-6">
@@ -295,7 +288,8 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
                     strokeLinecap="round"
                     strokeDasharray={2 * Math.PI * (radius - 6)}
                     strokeDashoffset={
-                      2 * Math.PI * (radius - 6) - (potentialScore / 100) * 2 * Math.PI * (radius - 6)
+                      2 * Math.PI * (radius - 6) -
+                      (potentialScore / 100) * 2 * Math.PI * (radius - 6)
                     }
                     className="transition-all duration-1000 ease-out opacity-50"
                   />
@@ -304,10 +298,14 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 {hasSimulatedChanges && potentialScore !== score ? (
                   <>
-                    <span className={`text-2xl font-bold tabular-nums line-through ${getScoreColor(score)}`}>
+                    <span
+                      className={`text-2xl font-bold tabular-nums line-through ${getScoreColor(score)}`}
+                    >
                       {score}
                     </span>
-                    <span className={`text-3xl font-bold tabular-nums ${getScoreColor(potentialScore)}`}>
+                    <span
+                      className={`text-3xl font-bold tabular-nums ${getScoreColor(potentialScore)}`}
+                    >
                       {potentialScore}
                     </span>
                     <span className="text-[10px] text-muted-foreground mt-0.5">
@@ -337,7 +335,8 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
                       Score Improvement
                     </span>
                     <span className="text-xs text-primary dark:text-primary/80">
-                      Current Score: {score} → Potential Score: {potentialScore} (+{potentialScore - score} points)
+                      Current Score: {score} → Potential Score: {potentialScore} (+
+                      {potentialScore - score} points)
                     </span>
                   </div>
                 </div>
@@ -351,11 +350,17 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
                       Critical Risk
                     </span>
                     <span className="text-xs text-red-600 dark:text-red-400/80">
-                      {breakdown.criticalTables.length} table{breakdown.criticalTables.length !== 1 ? 's' : ''} without RLS have foreign keys to protected tables
+                      {breakdown.criticalTables.length} table
+                      {breakdown.criticalTables.length !== 1 ? 's' : ''} without RLS have foreign
+                      keys to protected tables
                     </span>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {breakdown.criticalTables.map((t) => (
-                        <Badge key={t.tableName} variant="destructive" className="text-[10px] px-1.5 py-0">
+                        <Badge
+                          key={t.tableName}
+                          variant="destructive"
+                          className="text-[10px] px-1.5 py-0"
+                        >
                           {t.tableName}
                         </Badge>
                       ))}
@@ -372,11 +377,16 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
                       Warning
                     </span>
                     <span className="text-xs text-amber-600 dark:text-amber-400/80">
-                      {breakdown.tablesWithRLSNoPolicies.length} table{breakdown.tablesWithRLSNoPolicies.length !== 1 ? 's' : ''} with RLS enabled but no policies (all access denied)
+                      {breakdown.tablesWithRLSNoPolicies.length} table
+                      {breakdown.tablesWithRLSNoPolicies.length !== 1 ? 's' : ''} with RLS enabled
+                      but no policies (all access denied)
                     </span>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {breakdown.tablesWithRLSNoPolicies.map((t) => (
-                        <Badge key={t.tableName} className="text-[10px] px-1.5 py-0 bg-amber-500 hover:bg-amber-600">
+                        <Badge
+                          key={t.tableName}
+                          className="text-[10px] px-1.5 py-0 bg-amber-500 hover:bg-amber-600"
+                        >
                           {t.tableName}
                         </Badge>
                       ))}
@@ -389,29 +399,30 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
                 <div className="flex items-start gap-2 rounded-lg border border-primary/30 dark:border-primary/50/50 bg-primary/10 dark:bg-primary/20 p-3">
                   <CheckCircle2 className="size-4 text-primary mt-0.5 shrink-0" />
                   <div className="flex flex-col gap-1">
-                    <span className="text-sm font-medium text-primary dark:text-primary">
-                      Good
-                    </span>
+                    <span className="text-sm font-medium text-primary dark:text-primary">Good</span>
                     <span className="text-xs text-primary dark:text-primary/80">
-                      {breakdown.tablesFullyProtected.length} table{breakdown.tablesFullyProtected.length !== 1 ? 's' : ''} properly protected with RLS policies
+                      {breakdown.tablesFullyProtected.length} table
+                      {breakdown.tablesFullyProtected.length !== 1 ? 's' : ''} properly protected
+                      with RLS policies
                     </span>
                   </div>
                 </div>
               )}
 
-              {breakdown.tablesWithoutRLS.length === 0 && breakdown.tablesWithRLSNoPolicies.length === 0 && (
-                <div className="flex items-start gap-2 rounded-lg border border-primary/30 dark:border-primary/50/50 bg-primary/10 dark:bg-primary/20 p-3">
-                  <CheckCircle2 className="size-4 text-primary mt-0.5 shrink-0" />
-                  <div className="flex flex-col gap-1">
-                    <span className="text-sm font-medium text-primary dark:text-primary">
-                      All tables secured
-                    </span>
-                    <span className="text-xs text-primary dark:text-primary/80">
-                      All tables have RLS enabled with policies defined
-                    </span>
+              {breakdown.tablesWithoutRLS.length === 0 &&
+                breakdown.tablesWithRLSNoPolicies.length === 0 && (
+                  <div className="flex items-start gap-2 rounded-lg border border-primary/30 dark:border-primary/50/50 bg-primary/10 dark:bg-primary/20 p-3">
+                    <CheckCircle2 className="size-4 text-primary mt-0.5 shrink-0" />
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm font-medium text-primary dark:text-primary">
+                        All tables secured
+                      </span>
+                      <span className="text-xs text-primary dark:text-primary/80">
+                        All tables have RLS enabled with policies defined
+                      </span>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
             </div>
           </div>
         </CardContent>
@@ -436,7 +447,10 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
                     {breakdown.tablesWithoutRLS.map((t) => (
                       <Tooltip key={t.tableName}>
                         <TooltipTrigger asChild>
-                          <Badge variant="destructive" className="text-[10px] px-1.5 py-0 cursor-default">
+                          <Badge
+                            variant="destructive"
+                            className="text-[10px] px-1.5 py-0 cursor-default"
+                          >
                             {t.tableName}
                           </Badge>
                         </TooltipTrigger>
@@ -482,7 +496,9 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
                     ))}
                   </div>
                 ) : (
-                  <span className="text-xs text-muted-foreground">None — all RLS tables have policies</span>
+                  <span className="text-xs text-muted-foreground">
+                    None — all RLS tables have policies
+                  </span>
                 )}
               </ScrollArea>
             </TooltipProvider>
@@ -511,7 +527,10 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
                           </Badge>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>RLS enabled with {t.policies.length} polic{t.policies.length !== 1 ? 'ies' : 'y'}</p>
+                          <p>
+                            RLS enabled with {t.policies.length} polic
+                            {t.policies.length !== 1 ? 'ies' : 'y'}
+                          </p>
                         </TooltipContent>
                       </Tooltip>
                     ))}
@@ -532,13 +551,15 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
               <span className="text-sm font-medium">Policy coverage</span>
             </div>
             <div className="flex items-baseline gap-1 mb-2">
-              <span className={`text-2xl font-bold ${
-                breakdown.policyCoverage >= 80
-                  ? 'text-primary'
-                  : breakdown.policyCoverage >= 50
-                    ? 'text-amber-500'
-                    : 'text-red-500'
-              }`}>
+              <span
+                className={`text-2xl font-bold ${
+                  breakdown.policyCoverage >= 80
+                    ? 'text-primary'
+                    : breakdown.policyCoverage >= 50
+                      ? 'text-amber-500'
+                      : 'text-red-500'
+                }`}
+              >
                 {breakdown.policyCoverage}%
               </span>
             </div>
@@ -554,14 +575,13 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
                 style={{ width: `${breakdown.policyCoverage}%` }}
               />
             </div>
-            <span className="text-[10px] text-muted-foreground">
-              of CRUD operations covered
-            </span>
+            <span className="text-[10px] text-muted-foreground">of CRUD operations covered</span>
             {breakdown.restrictivePolicies > 0 && (
               <div className="mt-2 flex items-center gap-1">
                 <AlertTriangle className="size-3 text-amber-500" />
                 <span className="text-[10px] text-amber-600 dark:text-amber-400">
-                  {breakdown.restrictivePolicies} restrictive polic{breakdown.restrictivePolicies !== 1 ? 'ies' : 'y'}
+                  {breakdown.restrictivePolicies} restrictive polic
+                  {breakdown.restrictivePolicies !== 1 ? 'ies' : 'y'}
                 </span>
               </div>
             )}
@@ -569,7 +589,8 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
               <div className="mt-1 flex items-center gap-1">
                 <Info className="size-3 text-muted-foreground" />
                 <span className="text-[10px] text-muted-foreground">
-                  {breakdown.tablesOnlySelect.length} table{breakdown.tablesOnlySelect.length !== 1 ? 's' : ''} only SELECT
+                  {breakdown.tablesOnlySelect.length} table
+                  {breakdown.tablesOnlySelect.length !== 1 ? 's' : ''} only SELECT
                 </span>
               </div>
             )}
@@ -586,7 +607,8 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
               <CardTitle>Simulate RLS Changes</CardTitle>
             </div>
             <CardDescription>
-              Toggle RLS on unprotected tables to see how your security score would improve. This is purely simulated — no database changes are made.
+              Toggle RLS on unprotected tables to see how your security score would improve. This is
+              purely simulated — no database changes are made.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -632,7 +654,9 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
                     Current Score:{' '}
                     <span className={`font-bold ${getScoreColor(score)}`}>{score}</span>
                     {' → '}Potential Score:{' '}
-                    <span className={`font-bold ${getScoreColor(potentialScore)}`}>{potentialScore}</span>
+                    <span className={`font-bold ${getScoreColor(potentialScore)}`}>
+                      {potentialScore}
+                    </span>
                     <span className="text-primary dark:text-primary ml-1">
                       (+{potentialScore - score} points)
                     </span>
@@ -671,11 +695,7 @@ export function SecurityScore({ rlsStatuses, tables }: SecurityScoreProps) {
                     )}
                     {copied ? 'Copied!' : 'Copy SQL'}
                   </Button>
-                  <Button
-                    size="sm"
-                    onClick={openInSQLRunner}
-                    className="gap-1.5"
-                  >
+                  <Button size="sm" onClick={openInSQLRunner} className="gap-1.5">
                     <ArrowRight className="size-3.5" />
                     <Terminal className="size-3.5" />
                     Open in SQL Runner

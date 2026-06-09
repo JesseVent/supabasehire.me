@@ -12,27 +12,25 @@
  * devtools. See the README Security section for details.
  */
 
-import { NextRequest } from 'next/server'
+import type { NextRequest } from 'next/server'
 import type { SupabaseConnection } from '@/lib/supabase-types'
 
 // Header names — single source of truth for client and server
 export const H = {
-  Url:            'x-supabase-url',
-  Id:             'x-supabase-connection-id',
-  Name:           'x-supabase-connection-name',
-  AnonKey:        'x-supabase-anon-key',
+  Url: 'x-supabase-url',
+  Id: 'x-supabase-connection-id',
+  Name: 'x-supabase-connection-name',
+  AnonKey: 'x-supabase-anon-key',
   ServiceRoleKey: 'x-supabase-service-role-key',
-  AccessToken:    'x-supabase-access-token',
-  RefreshToken:   'x-supabase-refresh-token',
+  AccessToken: 'x-supabase-access-token',
+  RefreshToken: 'x-supabase-refresh-token',
 } as const
 
 /**
  * Extract a SupabaseConnection from request headers.
  * Returns null if the required URL header is missing.
  */
-export function getConnectionFromHeaders(
-  request: NextRequest
-): SupabaseConnection | null {
+export function getConnectionFromHeaders(request: NextRequest): SupabaseConnection | null {
   const url = request.headers.get(H.Url)
   if (!url) return null
 
@@ -56,9 +54,7 @@ export function getConnectionFromHeaders(
  * Build the connection headers object for a fetch call.
  * Filters out null/undefined values.
  */
-export function connectionHeaders(
-  conn: SupabaseConnection
-): Record<string, string> {
+export function connectionHeaders(conn: SupabaseConnection): Record<string, string> {
   const headers: Record<string, string> = {
     [H.Url]: conn.supabaseUrl,
     [H.Id]: conn.id,
@@ -82,10 +78,7 @@ export function connectionHeaders(
  */
 const STORAGE_KEY = 'supabase-debug-storage'
 
-function updateStoredConnection(
-  connectionId: string,
-  updates: Partial<SupabaseConnection>
-): void {
+function updateStoredConnection(connectionId: string, updates: Partial<SupabaseConnection>): void {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return

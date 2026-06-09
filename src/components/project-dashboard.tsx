@@ -1,47 +1,42 @@
 'use client'
 
-import { useCallback, useEffect, useState, useMemo, useRef } from 'react'
-import { apiFetch } from '@/lib/api-auth'
 import { motion } from 'framer-motion'
 import {
-  Globe,
-  Calendar,
-  Database,
-  Shield,
-  Zap,
-  HardDrive,
-  ExternalLink,
-  Server,
   Activity,
-  Clock,
-  HeartPulse,
-  Loader2,
   AlertTriangle,
+  Calendar,
   CheckCircle2,
-  XCircle,
-  Info,
-  TrendingUp,
-  TableIcon,
   ChevronDown,
   ChevronRight,
+  Clock,
+  Database,
+  ExternalLink,
+  Globe,
+  HardDrive,
+  HeartPulse,
+  Info,
+  Loader2,
+  Server,
+  Shield,
+  TableIcon,
+  TrendingUp,
+  XCircle,
+  Zap,
 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { useSupabaseStore, type ActivityLogEntry, type ActivityType } from '@/store/supabase-store'
-// Types used indirectly via SecurityScore component
-import { DEMO_CONNECTION_ID } from '@/lib/demo-data'
-import { SecurityScore } from '@/components/security-score'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { IndexViewer } from '@/components/index-viewer'
 import { LatencyMonitor } from '@/components/latency-monitor'
-import { cn } from '@/lib/utils'
+import { SecurityScore } from '@/components/security-score'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { apiFetch } from '@/lib/api-auth'
+// Types used indirectly via SecurityScore component
+import { DEMO_CONNECTION_ID } from '@/lib/demo-data'
+import { cn } from '@/lib/utils'
+import { type ActivityLogEntry, type ActivityType, useSupabaseStore } from '@/store/supabase-store'
 
 interface ProjectInfo {
   id: string
@@ -70,7 +65,11 @@ interface HealthCheck {
 function getPlanBadge(plan: string) {
   switch (plan.toLowerCase()) {
     case 'free':
-      return <Badge variant="outline" className="text-xs bg-muted/50">Free</Badge>
+      return (
+        <Badge variant="outline" className="text-xs bg-muted/50">
+          Free
+        </Badge>
+      )
     case 'pro':
       return <Badge className="text-xs bg-primary hover:bg-primary">Pro</Badge>
     case 'enterprise':
@@ -120,23 +119,35 @@ const itemVariants = {
 
 function getActivityDotColor(type: ActivityType): string {
   switch (type) {
-    case 'schema': return 'bg-primary'
-    case 'rls': return 'bg-red-500'
-    case 'function': return 'bg-amber-500'
-    case 'sql': return 'bg-cyan-500'
-    case 'connection': return 'bg-primary'
-    default: return 'bg-muted-foreground'
+    case 'schema':
+      return 'bg-primary'
+    case 'rls':
+      return 'bg-red-500'
+    case 'function':
+      return 'bg-amber-500'
+    case 'sql':
+      return 'bg-cyan-500'
+    case 'connection':
+      return 'bg-primary'
+    default:
+      return 'bg-muted-foreground'
   }
 }
 
 function getActivityBadgeColor(type: ActivityType): string {
   switch (type) {
-    case 'schema': return 'text-primary border-primary/30 dark:text-primary dark:border-primary/30'
-    case 'rls': return 'text-red-600 border-red-200 dark:text-red-400 dark:border-red-800'
-    case 'function': return 'text-amber-600 border-amber-200 dark:text-amber-400 dark:border-amber-800'
-    case 'sql': return 'text-cyan-600 border-cyan-200 dark:text-cyan-400 dark:border-cyan-800'
-    case 'connection': return 'text-primary border-primary/30'
-    default: return ''
+    case 'schema':
+      return 'text-primary border-primary/30 dark:text-primary dark:border-primary/30'
+    case 'rls':
+      return 'text-red-600 border-red-200 dark:text-red-400 dark:border-red-800'
+    case 'function':
+      return 'text-amber-600 border-amber-200 dark:text-amber-400 dark:border-amber-800'
+    case 'sql':
+      return 'text-cyan-600 border-cyan-200 dark:text-cyan-400 dark:border-cyan-800'
+    case 'connection':
+      return 'text-primary border-primary/30'
+    default:
+      return ''
   }
 }
 
@@ -176,7 +187,7 @@ function AnimatedNumber({ value, className }: { value: number; className?: strin
       const elapsed = currentTime - startTime
       const progress = Math.min(elapsed / duration, 1)
       // Ease out cubic
-      const eased = 1 - Math.pow(1 - progress, 3)
+      const eased = 1 - (1 - progress) ** 3
       const current = Math.round(startValueRef.current + (endValue - startValueRef.current) * eased)
       setDisplayValue(current)
 
@@ -199,14 +210,8 @@ function AnimatedNumber({ value, className }: { value: number; className?: strin
 }
 
 export function ProjectDashboard() {
-  const {
-    activeConnectionId,
-    connections,
-    tables,
-    rlsStatuses,
-    edgeFunctions,
-    activityLog,
-  } = useSupabaseStore()
+  const { activeConnectionId, connections, tables, rlsStatuses, edgeFunctions, activityLog } =
+    useSupabaseStore()
 
   const activeConnection = connections.find((c) => c.id === activeConnectionId)
   const isDemoMode = activeConnectionId === DEMO_CONNECTION_ID
@@ -290,7 +295,8 @@ export function ProjectDashboard() {
   const displayStats = {
     tables_count: computedStats.tables_count || projectStats?.tables_count || 0,
     rls_policies_count: computedStats.rls_policies_count || projectStats?.rls_policies_count || 0,
-    edge_functions_count: computedStats.edge_functions_count || projectStats?.edge_functions_count || 0,
+    edge_functions_count:
+      computedStats.edge_functions_count || projectStats?.edge_functions_count || 0,
   }
 
   // Security score from rlsStatuses
@@ -314,12 +320,12 @@ export function ProjectDashboard() {
   const displayRef = projectInfo?.ref || ''
   const displayRegion = projectInfo?.region || '—'
   const displayCreatedAt = projectInfo?.created_at || activeConnection?.createdAt || ''
-  const displayDbVersion = (projectInfo?.database_version && projectInfo.database_version !== 'unknown')
-    ? projectInfo.database_version
-    : '—'
-  const displayPlan = (projectInfo?.plan_type && projectInfo.plan_type !== 'unknown')
-    ? projectInfo.plan_type
-    : '—'
+  const displayDbVersion =
+    projectInfo?.database_version && projectInfo.database_version !== 'unknown'
+      ? projectInfo.database_version
+      : '—'
+  const displayPlan =
+    projectInfo?.plan_type && projectInfo.plan_type !== 'unknown' ? projectInfo.plan_type : '—'
 
   return (
     <motion.div
@@ -366,7 +372,9 @@ export function ProjectDashboard() {
                   <Database className="size-4 text-primary" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Project</p>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                    Project
+                  </p>
                   <p className="text-sm font-semibold truncate">{displayName}</p>
                   {displayRef && (
                     <p className="text-xs text-muted-foreground font-mono">{displayRef}</p>
@@ -380,7 +388,9 @@ export function ProjectDashboard() {
                   <Globe className="size-4 text-primary" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Region</p>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                    Region
+                  </p>
                   <p className="text-sm font-semibold">{displayRegion}</p>
                 </div>
               </div>
@@ -391,8 +401,12 @@ export function ProjectDashboard() {
                   <Calendar className="size-4 text-amber-500" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Created</p>
-                  <p className="text-sm font-semibold">{displayCreatedAt ? formatDate(displayCreatedAt) : '—'}</p>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                    Created
+                  </p>
+                  <p className="text-sm font-semibold">
+                    {displayCreatedAt ? formatDate(displayCreatedAt) : '—'}
+                  </p>
                 </div>
               </div>
 
@@ -402,7 +416,9 @@ export function ProjectDashboard() {
                   <HardDrive className="size-4 text-red-500" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Database</p>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                    Database
+                  </p>
                   <p className="text-sm font-semibold">
                     {displayDbVersion !== '—' ? `PostgreSQL ${displayDbVersion}` : '—'}
                   </p>
@@ -415,9 +431,15 @@ export function ProjectDashboard() {
                   <Zap className="size-4 text-violet-500" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Plan</p>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                    Plan
+                  </p>
                   <div className="mt-0.5">
-                    {displayPlan !== '—' ? getPlanBadge(displayPlan) : <span className="text-sm font-semibold">—</span>}
+                    {displayPlan !== '—' ? (
+                      getPlanBadge(displayPlan)
+                    ) : (
+                      <span className="text-sm font-semibold">—</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -428,7 +450,9 @@ export function ProjectDashboard() {
                   <ExternalLink className="size-4 text-cyan-500" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">URL</p>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                    URL
+                  </p>
                   {displayUrl ? (
                     <a
                       href={displayUrl}
@@ -457,7 +481,10 @@ export function ProjectDashboard() {
                 <Database className="size-3.5 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">Tables</span>
               </div>
-              <AnimatedNumber value={displayStats.tables_count} className="text-2xl font-bold tracking-tight" />
+              <AnimatedNumber
+                value={displayStats.tables_count}
+                className="text-2xl font-bold tracking-tight"
+              />
             </CardContent>
           </Card>
 
@@ -467,7 +494,10 @@ export function ProjectDashboard() {
                 <Shield className="size-3.5 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">RLS Policies</span>
               </div>
-              <AnimatedNumber value={displayStats.rls_policies_count} className="text-2xl font-bold tracking-tight" />
+              <AnimatedNumber
+                value={displayStats.rls_policies_count}
+                className="text-2xl font-bold tracking-tight"
+              />
             </CardContent>
           </Card>
 
@@ -477,7 +507,10 @@ export function ProjectDashboard() {
                 <Shield className="size-3.5 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">Security Score</span>
               </div>
-              <AnimatedNumber value={securityScore} className={`text-2xl font-bold tracking-tight ${getScoreColor(securityScore)}`} />
+              <AnimatedNumber
+                value={securityScore}
+                className={`text-2xl font-bold tracking-tight ${getScoreColor(securityScore)}`}
+              />
             </CardContent>
           </Card>
 
@@ -487,7 +520,10 @@ export function ProjectDashboard() {
                 <Zap className="size-3.5 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">Functions</span>
               </div>
-              <AnimatedNumber value={displayStats.edge_functions_count} className="text-2xl font-bold tracking-tight" />
+              <AnimatedNumber
+                value={displayStats.edge_functions_count}
+                className="text-2xl font-bold tracking-tight"
+              />
             </CardContent>
           </Card>
         </div>
@@ -499,10 +535,16 @@ export function ProjectDashboard() {
           <div className="flex items-center gap-2 mb-3">
             <CollapsibleTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-1.5 p-1 h-auto hover:bg-accent/50">
-                {latencyOpen ? <ChevronDown className="size-4 text-muted-foreground" /> : <ChevronRight className="size-4 text-muted-foreground" />}
+                {latencyOpen ? (
+                  <ChevronDown className="size-4 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="size-4 text-muted-foreground" />
+                )}
                 <Activity className="size-4 text-primary" />
                 <span className="text-sm font-semibold">Connection Latency</span>
-                <Badge variant="outline" className="text-[10px] ml-1">Monitor</Badge>
+                <Badge variant="outline" className="text-[10px] ml-1">
+                  Monitor
+                </Badge>
               </Button>
             </CollapsibleTrigger>
           </div>
@@ -518,117 +560,124 @@ export function ProjectDashboard() {
           <div className="flex items-center gap-2 mb-3">
             <CollapsibleTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-1.5 p-1 h-auto hover:bg-accent/50">
-                {securityOpen ? <ChevronDown className="size-4 text-muted-foreground" /> : <ChevronRight className="size-4 text-muted-foreground" />}
+                {securityOpen ? (
+                  <ChevronDown className="size-4 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="size-4 text-muted-foreground" />
+                )}
                 <Shield className="size-4 text-primary" />
                 <span className="text-sm font-semibold">Security &amp; Health</span>
-                <Badge variant="secondary" className="text-[10px] ml-1">{securityScore}/100</Badge>
+                <Badge variant="secondary" className="text-[10px] ml-1">
+                  {securityScore}/100
+                </Badge>
               </Button>
             </CollapsibleTrigger>
           </div>
           <CollapsibleContent>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Security Score */}
-          <div className="flex flex-col gap-0">
-            <SecurityScore rlsStatuses={rlsStatuses} tables={tables} />
-          </div>
-
-          {/* Connection Health */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <HeartPulse className="size-5 text-primary" />
-                  <CardTitle>Connection Health</CardTitle>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="size-3.5 text-muted-foreground cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent side="right" className="max-w-[220px]">
-                        Verifies your Supabase credentials and connectivity
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                {!isDemoMode && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={fetchHealthCheck}
-                    disabled={isLoadingHealth}
-                    className="gap-1.5"
-                  >
-                    {isLoadingHealth ? (
-                      <Loader2 className="size-3.5 animate-spin" />
-                    ) : (
-                      <Activity className="size-3.5" />
-                    )}
-                    Check
-                  </Button>
-                )}
+              {/* Security Score */}
+              <div className="flex flex-col gap-0">
+                <SecurityScore rlsStatuses={rlsStatuses} tables={tables} />
               </div>
-              <CardDescription>
-                Real-time connection health status
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isDemoMode ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <div className="size-12 rounded-full bg-amber-500/10 flex items-center justify-center mb-3">
-                    <AlertTriangle className="size-6 text-amber-500" />
-                  </div>
-                  <p className="text-sm font-medium mb-1">Demo Mode</p>
-                  <p className="text-xs text-muted-foreground max-w-[240px]">
-                    Health checks are not available in demo mode. Connect to a real project to see health status.
-                  </p>
-                </div>
-              ) : healthStatus ? (
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    {getHealthIcon(healthStatus.status)}
-                    <span className="text-sm font-semibold capitalize">{healthStatus.status}</span>
-                  </div>
-                  {healthStatus.checks.map((check) => (
-                    <div
-                      key={check.name}
-                      className="flex items-start gap-3 p-2 rounded-md hover:bg-muted/50 transition-colors"
-                    >
-                      {check.status === 'pass' ? (
-                        <CheckCircle2 className="size-4 text-primary mt-0.5 shrink-0" />
-                      ) : check.status === 'warn' ? (
-                        <AlertTriangle className="size-4 text-amber-500 mt-0.5 shrink-0" />
-                      ) : (
-                        <XCircle className="size-4 text-red-500 mt-0.5 shrink-0" />
-                      )}
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium">{check.name}</p>
-                        <p className="text-xs text-muted-foreground">{check.message}</p>
-                      </div>
+
+              {/* Connection Health */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <HeartPulse className="size-5 text-primary" />
+                      <CardTitle>Connection Health</CardTitle>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="size-3.5 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="max-w-[220px]">
+                            Verifies your Supabase credentials and connectivity
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
-                  ))}
-                </div>
-              ) : !isLoadingHealth ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <HeartPulse className="size-8 text-muted-foreground/40 mb-2" />
-                  <p className="text-sm text-muted-foreground">No health check data yet</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={fetchHealthCheck}
-                    className="mt-3"
-                  >
-                    Run Health Check
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="size-6 animate-spin text-muted-foreground" />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-            </CollapsibleContent>
+                    {!isDemoMode && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={fetchHealthCheck}
+                        disabled={isLoadingHealth}
+                        className="gap-1.5"
+                      >
+                        {isLoadingHealth ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <Activity className="size-3.5" />
+                        )}
+                        Check
+                      </Button>
+                    )}
+                  </div>
+                  <CardDescription>Real-time connection health status</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isDemoMode ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-center">
+                      <div className="size-12 rounded-full bg-amber-500/10 flex items-center justify-center mb-3">
+                        <AlertTriangle className="size-6 text-amber-500" />
+                      </div>
+                      <p className="text-sm font-medium mb-1">Demo Mode</p>
+                      <p className="text-xs text-muted-foreground max-w-[240px]">
+                        Health checks are not available in demo mode. Connect to a real project to
+                        see health status.
+                      </p>
+                    </div>
+                  ) : healthStatus ? (
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        {getHealthIcon(healthStatus.status)}
+                        <span className="text-sm font-semibold capitalize">
+                          {healthStatus.status}
+                        </span>
+                      </div>
+                      {healthStatus.checks.map((check) => (
+                        <div
+                          key={check.name}
+                          className="flex items-start gap-3 p-2 rounded-md hover:bg-muted/50 transition-colors"
+                        >
+                          {check.status === 'pass' ? (
+                            <CheckCircle2 className="size-4 text-primary mt-0.5 shrink-0" />
+                          ) : check.status === 'warn' ? (
+                            <AlertTriangle className="size-4 text-amber-500 mt-0.5 shrink-0" />
+                          ) : (
+                            <XCircle className="size-4 text-red-500 mt-0.5 shrink-0" />
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium">{check.name}</p>
+                            <p className="text-xs text-muted-foreground">{check.message}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : !isLoadingHealth ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-center">
+                      <HeartPulse className="size-8 text-muted-foreground/40 mb-2" />
+                      <p className="text-sm text-muted-foreground">No health check data yet</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={fetchHealthCheck}
+                        className="mt-3"
+                      >
+                        Run Health Check
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </CollapsibleContent>
         </Collapsible>
       </motion.div>
 
@@ -638,10 +687,16 @@ export function ProjectDashboard() {
           <div className="flex items-center gap-2 mb-3">
             <CollapsibleTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-1.5 p-1 h-auto hover:bg-accent/50">
-                {indexOpen ? <ChevronDown className="size-4 text-muted-foreground" /> : <ChevronRight className="size-4 text-muted-foreground" />}
+                {indexOpen ? (
+                  <ChevronDown className="size-4 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="size-4 text-muted-foreground" />
+                )}
                 <HardDrive className="size-4 text-primary" />
                 <span className="text-sm font-semibold">Database Indexes</span>
-                <Badge variant="outline" className="text-[10px] ml-1">Performance</Badge>
+                <Badge variant="outline" className="text-[10px] ml-1">
+                  Performance
+                </Badge>
               </Button>
             </CollapsibleTrigger>
           </div>
@@ -663,17 +718,23 @@ export function ProjectDashboard() {
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Name</p>
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
+                  Name
+                </p>
                 <p className="text-sm font-semibold">{activeConnection?.name || '—'}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">URL</p>
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
+                  URL
+                </p>
                 <p className="text-sm font-mono text-muted-foreground truncate">
                   {activeConnection?.supabaseUrl || '—'}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Health</p>
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
+                  Health
+                </p>
                 <div className="flex items-center gap-1.5">
                   {isDemoMode ? (
                     <>
@@ -691,7 +752,9 @@ export function ProjectDashboard() {
                       {healthStatus.status === 'degraded' && (
                         <>
                           <span className="size-2 rounded-full bg-amber-500" />
-                          <span className="text-sm text-amber-600 dark:text-amber-400">Degraded</span>
+                          <span className="text-sm text-amber-600 dark:text-amber-400">
+                            Degraded
+                          </span>
                         </>
                       )}
                       {healthStatus.status === 'unhealthy' && (
@@ -720,7 +783,11 @@ export function ProjectDashboard() {
           <div className="flex items-center gap-2 mb-3">
             <CollapsibleTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-1.5 p-1 h-auto hover:bg-accent/50">
-                {activityOpen ? <ChevronDown className="size-4 text-muted-foreground" /> : <ChevronRight className="size-4 text-muted-foreground" />}
+                {activityOpen ? (
+                  <ChevronDown className="size-4 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="size-4 text-muted-foreground" />
+                )}
                 <Clock className="size-4 text-primary" />
                 <span className="text-sm font-semibold">Recent Activity</span>
                 {activityLog.length > 0 && (
@@ -733,59 +800,67 @@ export function ProjectDashboard() {
           </div>
           <CollapsibleContent>
             <Card>
-          <CardContent>
-            {activityLog.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="size-14 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
-                  <Activity className="size-7 text-muted-foreground/50" />
-                </div>
-                <p className="text-sm font-medium mb-1">No activity yet</p>
-                <p className="text-xs text-muted-foreground max-w-[280px]">
-                  Actions like fetching schema, running RLS tests, executing SQL queries, and invoking edge functions will appear here.
-                </p>
-              </div>
-            ) : (
-              <div className="relative max-h-96 overflow-y-auto space-y-0">
-                {activityLog.slice(0, 10).map((entry, index) => (
-                  <div
-                    key={entry.id}
-                    className="flex items-start gap-3 py-3 animate-slide-in-left"
-                    style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}
-                  >
-                    {/* Timeline dot + line */}
-                    <div className="flex flex-col items-center shrink-0">
-                      <div
-                        className={cn(
-                          'size-3 rounded-full ring-2 ring-background shrink-0 mt-1',
-                          getActivityDotColor(entry.type)
-                        )}
-                      />
-                      {index < Math.min(activityLog.length, 10) - 1 && (
-                        <div className="w-px flex-1 bg-border mt-1 min-h-6" />
-                      )}
+              <CardContent>
+                {activityLog.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center">
+                    <div className="size-14 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
+                      <Activity className="size-7 text-muted-foreground/50" />
                     </div>
-                    {/* Content */}
-                    <div className="flex-1 min-w-0 pb-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium truncate">{entry.action}</span>
-                        <Badge
-                          variant="outline"
-                          className={cn('text-[10px] px-1.5 py-0 shrink-0', getActivityBadgeColor(entry.type))}
-                        >
-                          {entry.type}
-                        </Badge>
-                      </div>
-                      {entry.details && (
-                        <p className="text-xs text-muted-foreground mt-0.5 truncate">{entry.details}</p>
-                      )}
-                      <p className="text-[10px] text-muted-foreground/70 mt-0.5">{formatRelativeTime(entry.timestamp)}</p>
-                    </div>
+                    <p className="text-sm font-medium mb-1">No activity yet</p>
+                    <p className="text-xs text-muted-foreground max-w-[280px]">
+                      Actions like fetching schema, running RLS tests, executing SQL queries, and
+                      invoking edge functions will appear here.
+                    </p>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                ) : (
+                  <div className="relative max-h-96 overflow-y-auto space-y-0">
+                    {activityLog.slice(0, 10).map((entry, index) => (
+                      <div
+                        key={entry.id}
+                        className="flex items-start gap-3 py-3 animate-slide-in-left"
+                        style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}
+                      >
+                        {/* Timeline dot + line */}
+                        <div className="flex flex-col items-center shrink-0">
+                          <div
+                            className={cn(
+                              'size-3 rounded-full ring-2 ring-background shrink-0 mt-1',
+                              getActivityDotColor(entry.type)
+                            )}
+                          />
+                          {index < Math.min(activityLog.length, 10) - 1 && (
+                            <div className="w-px flex-1 bg-border mt-1 min-h-6" />
+                          )}
+                        </div>
+                        {/* Content */}
+                        <div className="flex-1 min-w-0 pb-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium truncate">{entry.action}</span>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                'text-[10px] px-1.5 py-0 shrink-0',
+                                getActivityBadgeColor(entry.type)
+                              )}
+                            >
+                              {entry.type}
+                            </Badge>
+                          </div>
+                          {entry.details && (
+                            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                              {entry.details}
+                            </p>
+                          )}
+                          <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+                            {formatRelativeTime(entry.timestamp)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </CollapsibleContent>
         </Collapsible>
       </motion.div>

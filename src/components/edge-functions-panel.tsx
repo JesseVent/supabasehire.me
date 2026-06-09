@@ -1,31 +1,29 @@
 'use client'
 
-import { useState, useCallback, useEffect, useMemo, Fragment } from 'react'
-import { apiFetch } from '@/lib/api-auth'
-import { toast } from 'sonner'
 import {
-  Zap,
-  Loader2,
-  CheckCircle2,
-  XCircle,
-  Play,
-  Copy,
   Check,
-  Globe,
+  CheckCircle2,
   Clock,
-  Pencil,
-  Save,
-  X,
+  Copy,
+  Globe,
   Info,
+  Loader2,
+  Pencil,
+  Play,
+  Save,
   Wand2,
+  X,
+  XCircle,
+  Zap,
 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { Textarea } from '@/components/ui/textarea'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
@@ -34,12 +32,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { useSupabaseStore } from '@/store/supabase-store'
-import type { EdgeFunction } from '@/lib/supabase-types'
-import { DEMO_CONNECTION_ID, DEMO_FUNCTION_NOTES } from '@/lib/demo-data'
-import { parseFunctionNotes, generateBodyFromSchema } from '@/lib/edge-function-utils'
+import { Separator } from '@/components/ui/separator'
+import { Textarea } from '@/components/ui/textarea'
 import { BUILT_IN_FUNCTION_SCHEMAS } from '@/config/function-schemas'
+import { apiFetch } from '@/lib/api-auth'
+import { DEMO_CONNECTION_ID, DEMO_FUNCTION_NOTES } from '@/lib/demo-data'
+import { generateBodyFromSchema, parseFunctionNotes } from '@/lib/edge-function-utils'
+import type { EdgeFunction } from '@/lib/supabase-types'
+import { useSupabaseStore } from '@/store/supabase-store'
 
 interface InvokeResult {
   data?: unknown
@@ -49,7 +49,15 @@ interface InvokeResult {
 }
 
 export function EdgeFunctionsPanel() {
-  const { activeConnectionId, connections, edgeFunctions, setEdgeFunctions, addActivityLog, functionNotes, setFunctionNotes } = useSupabaseStore()
+  const {
+    activeConnectionId,
+    connections,
+    edgeFunctions,
+    setEdgeFunctions,
+    addActivityLog,
+    functionNotes,
+    setFunctionNotes,
+  } = useSupabaseStore()
   const activeConnection = connections.find((c) => c.id === activeConnectionId) || null
 
   const [isLoading, setIsLoading] = useState(false)
@@ -72,12 +80,12 @@ export function EdgeFunctionsPanel() {
   const [isEditingNotes, setIsEditingNotes] = useState(false)
   const [draftNotes, setDraftNotes] = useState('')
 
-  const notesKey = activeConnectionId && selectedFunction
-    ? `${activeConnectionId}:${selectedFunction.name}`
-    : null
+  const notesKey =
+    activeConnectionId && selectedFunction ? `${activeConnectionId}:${selectedFunction.name}` : null
 
   const savedNotes = notesKey ? (functionNotes[notesKey] ?? '') : ''
-  const effectiveNotes = savedNotes || (selectedFunction ? (BUILT_IN_FUNCTION_SCHEMAS[selectedFunction.name] ?? '') : '')
+  const effectiveNotes =
+    savedNotes || (selectedFunction ? (BUILT_IN_FUNCTION_SCHEMAS[selectedFunction.name] ?? '') : '')
 
   const parsedSchema = useMemo(() => parseFunctionNotes(effectiveNotes), [effectiveNotes])
 
@@ -111,13 +119,31 @@ export function EdgeFunctionsPanel() {
       await new Promise((r) => setTimeout(r, 200 + Math.random() * 400))
       const responseTime = Date.now() - startTime
       const demoResponses: Record<string, unknown> = {
-        'hello-world': { message: 'Hello from Edge Function!', timestamp: new Date().toISOString() },
-        'send-notification': { success: true, notificationId: `notif_${Math.random().toString(36).slice(2, 9)}`, recipient: 'user@example.com' },
-        'process-webhook': { received: true, eventType: 'demo.event', processedAt: new Date().toISOString() },
+        'hello-world': {
+          message: 'Hello from Edge Function!',
+          timestamp: new Date().toISOString(),
+        },
+        'send-notification': {
+          success: true,
+          notificationId: `notif_${Math.random().toString(36).slice(2, 9)}`,
+          recipient: 'user@example.com',
+        },
+        'process-webhook': {
+          received: true,
+          eventType: 'demo.event',
+          processedAt: new Date().toISOString(),
+        },
       }
-      const demoData = demoResponses[selectedFunction.name] ?? { result: 'ok', function: selectedFunction.name }
+      const demoData = demoResponses[selectedFunction.name] ?? {
+        result: 'ok',
+        function: selectedFunction.name,
+      }
       setInvokeResult({ data: demoData, status: 200, responseTime })
-      addActivityLog({ type: 'function', action: `Invoked: ${selectedFunction.name}`, details: `Status: 200, ${responseTime}ms (demo)` })
+      addActivityLog({
+        type: 'function',
+        action: `Invoked: ${selectedFunction.name}`,
+        details: `Status: 200, ${responseTime}ms (demo)`,
+      })
       toast.success('Function invoked (demo)', { description: `Status: 200, ${responseTime}ms` })
       setIsInvoking(false)
       return
@@ -147,11 +173,11 @@ export function EdgeFunctionsPanel() {
       }
 
       const res = await apiFetch('/api/edge-functions/invoke', activeConnection, {
-          functionName: selectedFunction.name,
-          method: httpMethod,
-          body,
-          headers: Object.keys(headersObj).length > 0 ? headersObj : undefined,
-        })
+        functionName: selectedFunction.name,
+        method: httpMethod,
+        body,
+        headers: Object.keys(headersObj).length > 0 ? headersObj : undefined,
+      })
 
       const data = await res.json()
       const responseTime = Date.now() - startTime
@@ -162,11 +188,17 @@ export function EdgeFunctionsPanel() {
         status: data.status || res.status,
         responseTime,
       })
-      addActivityLog({ type: 'function', action: `Invoked: ${selectedFunction.name}`, details: `Status: ${data.status || res.status}, ${responseTime}ms` })
+      addActivityLog({
+        type: 'function',
+        action: `Invoked: ${selectedFunction.name}`,
+        details: `Status: ${data.status || res.status}, ${responseTime}ms`,
+      })
       if (data.error) {
         toast.error('Invocation failed', { description: data.error })
       } else {
-        toast.success('Function invoked', { description: `Status: ${data.status || res.status}, ${responseTime}ms` })
+        toast.success('Function invoked', {
+          description: `Status: ${data.status || res.status}, ${responseTime}ms`,
+        })
       }
     } catch {
       setInvokeResult({
@@ -192,22 +224,26 @@ export function EdgeFunctionsPanel() {
 
     if (name === 'insert-person') {
       const personId = Math.floor(Math.random() * 900000) + 100000
-      setRequestBody(JSON.stringify({
-        person_id: personId,
-        gender_concept_id: 8532,
-        year_of_birth: 1985,
-        race_concept_id: 8527,
-        ethnicity_concept_id: 38003564,
-        month_of_birth: 6,
-        day_of_birth: 15,
-        person_source_value: `PAT-${personId}`,
-      }, null, 2))
+      setRequestBody(
+        JSON.stringify(
+          {
+            person_id: personId,
+            gender_concept_id: 8532,
+            year_of_birth: 1985,
+            race_concept_id: 8527,
+            ethnicity_concept_id: 38003564,
+            month_of_birth: 6,
+            day_of_birth: 15,
+            person_source_value: `PAT-${personId}`,
+          },
+          null,
+          2
+        )
+      )
     } else {
       setRequestBody('')
     }
   }, [selectedFunction])
-
-
 
   const addHeader = useCallback(() => {
     setCustomHeaders((prev) => [...prev, { key: '', value: '' }])
@@ -217,14 +253,9 @@ export function EdgeFunctionsPanel() {
     setCustomHeaders((prev) => prev.filter((_, i) => i !== index))
   }, [])
 
-  const updateHeader = useCallback(
-    (index: number, field: 'key' | 'value', val: string) => {
-      setCustomHeaders((prev) =>
-        prev.map((h, i) => (i === index ? { ...h, [field]: val } : h))
-      )
-    },
-    []
-  )
+  const updateHeader = useCallback((index: number, field: 'key' | 'value', val: string) => {
+    setCustomHeaders((prev) => prev.map((h, i) => (i === index ? { ...h, [field]: val } : h)))
+  }, [])
 
   const copyToClipboard = useCallback((text: string) => {
     navigator.clipboard.writeText(text)
@@ -254,9 +285,7 @@ export function EdgeFunctionsPanel() {
             <Zap className="size-5 text-primary" />
             <CardTitle>Edge Functions</CardTitle>
           </div>
-          <CardDescription>
-            Test and invoke your Supabase Edge Functions
-          </CardDescription>
+          <CardDescription>Test and invoke your Supabase Edge Functions</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap items-center gap-3">
@@ -304,7 +333,9 @@ export function EdgeFunctionsPanel() {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className={`size-2 rounded-full shrink-0 ${fn.status === 'active' ? 'bg-primary' : fn.status === 'failed' ? 'bg-red-500' : 'bg-muted-foreground'}`} />
+                      <span
+                        className={`size-2 rounded-full shrink-0 ${fn.status === 'active' ? 'bg-primary' : fn.status === 'failed' ? 'bg-red-500' : 'bg-muted-foreground'}`}
+                      />
                       <div className="flex flex-col">
                         <span className="font-mono text-sm font-medium">{fn.name}</span>
                         <span className="text-xs text-muted-foreground">
@@ -347,7 +378,10 @@ export function EdgeFunctionsPanel() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => { setDraftNotes(effectiveNotes); setIsEditingNotes(true) }}
+                    onClick={() => {
+                      setDraftNotes(effectiveNotes)
+                      setIsEditingNotes(true)
+                    }}
                     className="h-7 px-2 text-xs"
                   >
                     <Pencil className="size-3 mr-1" />
@@ -385,19 +419,38 @@ export function EdgeFunctionsPanel() {
             <div className="flex flex-col gap-4">
               {/* Metadata row */}
               <div className="flex flex-wrap gap-x-6 gap-y-1.5 text-xs text-muted-foreground">
-                <span><span className="font-medium text-foreground">Version</span> v{selectedFunction.version}</span>
-                <span><span className="font-medium text-foreground">Status</span> {selectedFunction.status}</span>
-                <span><span className="font-medium text-foreground">JWT</span> {selectedFunction.verify_jwt ? 'required' : 'disabled'}</span>
+                <span>
+                  <span className="font-medium text-foreground">Version</span> v
+                  {selectedFunction.version}
+                </span>
+                <span>
+                  <span className="font-medium text-foreground">Status</span>{' '}
+                  {selectedFunction.status}
+                </span>
+                <span>
+                  <span className="font-medium text-foreground">JWT</span>{' '}
+                  {selectedFunction.verify_jwt ? 'required' : 'disabled'}
+                </span>
                 {selectedFunction.import_map !== undefined && (
-                  <span><span className="font-medium text-foreground">Import map</span> {selectedFunction.import_map ? 'yes' : 'no'}</span>
+                  <span>
+                    <span className="font-medium text-foreground">Import map</span>{' '}
+                    {selectedFunction.import_map ? 'yes' : 'no'}
+                  </span>
                 )}
-                {selectedFunction.entrypoint_path && (() => {
-                  const raw = selectedFunction.entrypoint_path!
-                  // Strip Supabase's internal deployed path prefix (file:///tmp/user_fn_.../source/)
-                  const cleaned = raw.replace(/^file:\/\/\/tmp\/[^/]+\/source\//, '')
-                  return <span className="font-mono">{cleaned}</span>
-                })()}
-                <span>{new Date(selectedFunction.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                {selectedFunction.entrypoint_path &&
+                  (() => {
+                    const raw = selectedFunction.entrypoint_path!
+                    // Strip Supabase's internal deployed path prefix (file:///tmp/user_fn_.../source/)
+                    const cleaned = raw.replace(/^file:\/\/\/tmp\/[^/]+\/source\//, '')
+                    return <span className="font-mono">{cleaned}</span>
+                  })()}
+                <span>
+                  {new Date(selectedFunction.updated_at).toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </span>
               </div>
 
               <Separator />
@@ -406,7 +459,8 @@ export function EdgeFunctionsPanel() {
               {isEditingNotes ? (
                 <div className="flex flex-col gap-2">
                   <Label className="text-xs text-muted-foreground">
-                    Schema annotations — document inputs using <code className="font-mono bg-muted px-1 rounded">@param</code>
+                    Schema annotations — document inputs using{' '}
+                    <code className="font-mono bg-muted px-1 rounded">@param</code>
                   </Label>
                   <Textarea
                     value={draftNotes}
@@ -415,7 +469,10 @@ export function EdgeFunctionsPanel() {
                     className="font-mono text-xs min-h-[120px] bg-muted/50"
                   />
                   <p className="text-[11px] text-muted-foreground">
-                    Format: <code className="font-mono">@param name type required|optional - description</code>
+                    Format:{' '}
+                    <code className="font-mono">
+                      @param name type required|optional - description
+                    </code>
                   </p>
                 </div>
               ) : effectiveNotes ? (
@@ -425,7 +482,8 @@ export function EdgeFunctionsPanel() {
                   )}
                   {!savedNotes && effectiveNotes && (
                     <p className="text-[11px] text-muted-foreground">
-                      Schema from built-in registry — click <span className="font-medium">Edit schema</span> to customise.
+                      Schema from built-in registry — click{' '}
+                      <span className="font-medium">Edit schema</span> to customise.
                     </p>
                   )}
                   {parsedSchema.params.length > 0 ? (
@@ -438,8 +496,16 @@ export function EdgeFunctionsPanel() {
                         {parsedSchema.params.map((p) => (
                           <Fragment key={p.name}>
                             <code className="font-mono text-primary">{p.name}</code>
-                            <code className="font-mono text-blue-600 dark:text-blue-400">{p.type}</code>
-                            <span className={p.required ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}>
+                            <code className="font-mono text-blue-600 dark:text-blue-400">
+                              {p.type}
+                            </code>
+                            <span
+                              className={
+                                p.required
+                                  ? 'text-amber-600 dark:text-amber-400'
+                                  : 'text-muted-foreground'
+                              }
+                            >
                               {p.required ? 'yes' : 'no'}
                             </span>
                             <span className="text-muted-foreground">{p.description || '—'}</span>
@@ -448,9 +514,13 @@ export function EdgeFunctionsPanel() {
                       </div>
                     </div>
                   ) : parsedSchema.description ? (
-                    <p className="text-xs text-muted-foreground italic">No parameters — this function takes no request body.</p>
+                    <p className="text-xs text-muted-foreground italic">
+                      No parameters — this function takes no request body.
+                    </p>
                   ) : (
-                    <p className="text-xs text-muted-foreground italic">No @param annotations found — add them in the schema editor.</p>
+                    <p className="text-xs text-muted-foreground italic">
+                      No @param annotations found — add them in the schema editor.
+                    </p>
                   )}
                   {parsedSchema.params.length > 0 && (
                     <Button
@@ -473,7 +543,9 @@ export function EdgeFunctionsPanel() {
                 </div>
               ) : (
                 <p className="text-xs text-muted-foreground italic">
-                  No schema annotations yet. Click <span className="font-medium not-italic">Add schema</span> to document the expected inputs for this function.
+                  No schema annotations yet. Click{' '}
+                  <span className="font-medium not-italic">Add schema</span> to document the
+                  expected inputs for this function.
                 </p>
               )}
             </div>
@@ -488,9 +560,7 @@ export function EdgeFunctionsPanel() {
             <CardTitle className="text-base">
               Invoke: <span className="font-mono">{selectedFunction.name}</span>
             </CardTitle>
-            <CardDescription>
-              Send a request to this edge function
-            </CardDescription>
+            <CardDescription>Send a request to this edge function</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col gap-4">
@@ -503,7 +573,11 @@ export function EdgeFunctionsPanel() {
                       variant={httpMethod === 'GET' ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => setHttpMethod('GET')}
-                      className={httpMethod === 'GET' ? 'bg-primary hover:bg-primary text-white gap-1' : 'gap-1'}
+                      className={
+                        httpMethod === 'GET'
+                          ? 'bg-primary hover:bg-primary text-white gap-1'
+                          : 'gap-1'
+                      }
                     >
                       GET
                     </Button>
@@ -511,18 +585,18 @@ export function EdgeFunctionsPanel() {
                       variant={httpMethod === 'POST' ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => setHttpMethod('POST')}
-                      className={httpMethod === 'POST' ? 'bg-amber-600 hover:bg-amber-700 text-white gap-1' : 'gap-1'}
+                      className={
+                        httpMethod === 'POST'
+                          ? 'bg-amber-600 hover:bg-amber-700 text-white gap-1'
+                          : 'gap-1'
+                      }
                     >
                       POST
                     </Button>
                   </div>
                 </div>
 
-                <Button
-                  onClick={invokeFunction}
-                  disabled={isInvoking}
-                  size="sm"
-                >
+                <Button onClick={invokeFunction} disabled={isInvoking} size="sm">
                   {isInvoking ? (
                     <Loader2 className="mr-2 size-4 animate-spin" />
                   ) : (
@@ -619,11 +693,17 @@ export function EdgeFunctionsPanel() {
                                   ? 'bg-amber-500'
                                   : 'bg-red-500'
                             }`}
-                            style={{ width: `${Math.min(100, (invokeResult.responseTime / 2000) * 100)}%` }}
+                            style={{
+                              width: `${Math.min(100, (invokeResult.responseTime / 2000) * 100)}%`,
+                            }}
                           />
                         </div>
                         <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                          {invokeResult.responseTime < 200 ? 'Fast' : invokeResult.responseTime < 1000 ? 'Medium' : 'Slow'}
+                          {invokeResult.responseTime < 200
+                            ? 'Fast'
+                            : invokeResult.responseTime < 1000
+                              ? 'Medium'
+                              : 'Slow'}
                         </span>
                       </div>
                     )}
@@ -682,9 +762,7 @@ export function EdgeFunctionsPanel() {
           <CardContent className="py-12">
             <div className="flex flex-col items-center justify-center text-center">
               <Zap className="mb-3 size-12 text-muted-foreground/30" />
-              <p className="text-sm font-medium text-muted-foreground">
-                No connection selected
-              </p>
+              <p className="text-sm font-medium text-muted-foreground">No connection selected</p>
               <p className="text-xs text-muted-foreground">
                 Connect to a Supabase project to view edge functions
               </p>
@@ -706,7 +784,8 @@ export function EdgeFunctionsPanel() {
                   No edge functions loaded
                 </p>
                 <p className="text-xs text-muted-foreground max-w-sm">
-                  Click &quot;Load Edge Functions&quot; to fetch your deployed functions, or deploy your first function to get started.
+                  Click &quot;Load Edge Functions&quot; to fetch your deployed functions, or deploy
+                  your first function to get started.
                 </p>
               </div>
               <a

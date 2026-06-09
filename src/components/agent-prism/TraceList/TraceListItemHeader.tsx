@@ -1,19 +1,16 @@
-import type { TraceRecord } from "@evilmartians/agent-prism-types";
+import type { TraceRecord } from '@evilmartians/agent-prism-types'
 
-import type { AvatarProps } from "../Avatar";
+import type { AvatarProps } from '../Avatar'
 
-import { Avatar } from "../Avatar";
-import { Badge } from "../Badge";
+import { Avatar } from '../Avatar'
+import { Badge } from '../Badge'
 
 interface TraceListItemHeaderProps {
-  trace: TraceRecord;
-  avatar?: AvatarProps;
+  trace: TraceRecord
+  avatar?: AvatarProps
 }
 
-export const TraceListItemHeader = ({
-  trace,
-  avatar,
-}: TraceListItemHeaderProps) => {
+export const TraceListItemHeader = ({ trace, avatar }: TraceListItemHeaderProps) => {
   return (
     <header className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2 p-2">
       <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
@@ -25,13 +22,8 @@ export const TraceListItemHeader = ({
       </div>
 
       <div className="flex items-center gap-2">
-        <Badge
-          size="4"
-          label={
-            trace.spansCount === 1 ? "1 span" : `${trace.spansCount} spans`
-          }
-        />
+        <Badge size="4" label={trace.spansCount === 1 ? '1 span' : `${trace.spansCount} spans`} />
       </div>
     </header>
-  );
-};
+  )
+}

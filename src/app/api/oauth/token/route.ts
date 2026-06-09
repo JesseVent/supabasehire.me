@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
 // Server-side proxy for Supabase token exchange and refresh.
 // api.supabase.com/v1/oauth/token blocks CORS from browser origins,

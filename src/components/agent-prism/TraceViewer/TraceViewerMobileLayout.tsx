@@ -1,10 +1,10 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft } from 'lucide-react'
 
-import { Button } from "../Button";
-import { DetailsView } from "../DetailsView/DetailsView";
-import { TraceList } from "../TraceList/TraceList";
-import { type TraceViewerLayoutProps } from "../TraceViewer/TraceViewer";
-import { TraceViewerTreeViewContainer } from "./TraceViewerTreeViewContainer";
+import { Button } from '../Button'
+import { DetailsView } from '../DetailsView/DetailsView'
+import { TraceList } from '../TraceList/TraceList'
+import type { TraceViewerLayoutProps } from '../TraceViewer/TraceViewer'
+import { TraceViewerTreeViewContainer } from './TraceViewerTreeViewContainer'
 
 export const TraceViewerMobileLayout = ({
   traceRecords,
@@ -25,17 +25,12 @@ export const TraceViewerMobileLayout = ({
   spanCardViewOptions,
   onClearTraceSelection,
 }: TraceViewerLayoutProps) => {
-  if (
-    selectedTrace &&
-    selectedTraceId &&
-    filteredSpans.length > 0 &&
-    selectedSpan
-  ) {
+  if (selectedTrace && selectedTraceId && filteredSpans.length > 0 && selectedSpan) {
     return (
       <div className="flex h-full flex-col gap-4 overflow-y-auto">
         <Button
           onClick={() => {
-            setSelectedSpan(undefined);
+            setSelectedSpan(undefined)
           }}
           iconStart={<ArrowLeft className="size-3" />}
           variant="ghost"
@@ -45,22 +40,17 @@ export const TraceViewerMobileLayout = ({
         </Button>
         <DetailsView data={selectedSpan} />
       </div>
-    );
+    )
   }
 
-  if (
-    selectedTrace &&
-    selectedTraceId &&
-    filteredSpans.length > 0 &&
-    !selectedSpan
-  ) {
+  if (selectedTrace && selectedTraceId && filteredSpans.length > 0 && !selectedSpan) {
     return (
       <div className="flex h-full flex-col gap-4">
         <div className="shrink-0">
           <Button
             onClick={() => {
               if (onClearTraceSelection) {
-                onClearTraceSelection();
+                onClearTraceSelection()
               }
             }}
             iconStart={<ArrowLeft className="size-3" />}
@@ -85,7 +75,7 @@ export const TraceViewerMobileLayout = ({
           selectedTrace={selectedTrace}
         />
       </div>
-    );
+    )
   }
 
   return (
@@ -98,5 +88,5 @@ export const TraceViewerMobileLayout = ({
         selectedTrace={traceRecords.find((t) => t.id === selectedTraceId)}
       />
     </div>
-  );
-};
+  )
+}

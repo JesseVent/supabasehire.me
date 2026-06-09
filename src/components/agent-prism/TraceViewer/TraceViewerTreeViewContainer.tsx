@@ -1,12 +1,10 @@
-import type { TraceSpan } from "@evilmartians/agent-prism-types";
-
-import type { SpanCardViewOptions } from "../SpanCard/SpanCard";
-
-import { Badge } from "../Badge";
-import { TraceListItemHeader } from "../TraceList/TraceListItemHeader";
-import { TreeView } from "../TreeView";
-import { type TraceRecordWithDisplayData } from "./TraceViewer";
-import { TraceViewerSearchAndControls } from "./TraceViewerSearchAndControls";
+import type { TraceSpan } from '@evilmartians/agent-prism-types'
+import { Badge } from '../Badge'
+import type { SpanCardViewOptions } from '../SpanCard/SpanCard'
+import { TraceListItemHeader } from '../TraceList/TraceListItemHeader'
+import { TreeView } from '../TreeView'
+import type { TraceRecordWithDisplayData } from './TraceViewer'
+import { TraceViewerSearchAndControls } from './TraceViewerSearchAndControls'
 
 export const TraceViewerTreeViewContainer = ({
   searchValue,
@@ -22,18 +20,18 @@ export const TraceViewerTreeViewContainer = ({
   selectedTrace,
   showHeader = true,
 }: {
-  searchValue: string;
-  setSearchValue: (value: string) => void;
-  handleExpandAll: () => void;
-  handleCollapseAll: () => void;
-  filteredSpans: TraceSpan[];
-  selectedSpan: TraceSpan | undefined;
-  setSelectedSpan: (span: TraceSpan | undefined) => void;
-  expandedSpansIds: string[];
-  setExpandedSpansIds: (ids: string[]) => void;
-  spanCardViewOptions?: SpanCardViewOptions;
-  selectedTrace?: TraceRecordWithDisplayData;
-  showHeader?: boolean;
+  searchValue: string
+  setSearchValue: (value: string) => void
+  handleExpandAll: () => void
+  handleCollapseAll: () => void
+  filteredSpans: TraceSpan[]
+  selectedSpan: TraceSpan | undefined
+  setSelectedSpan: (span: TraceSpan | undefined) => void
+  expandedSpansIds: string[]
+  setExpandedSpansIds: (ids: string[]) => void
+  spanCardViewOptions?: SpanCardViewOptions
+  selectedTrace?: TraceRecordWithDisplayData
+  showHeader?: boolean
 }) => (
   <>
     {showHeader && selectedTrace && (
@@ -57,9 +55,7 @@ export const TraceViewerTreeViewContainer = ({
       />
       <div className="min-h-0 flex-1 overflow-y-auto">
         {filteredSpans.length === 0 ? (
-          <div className="text-agentprism-muted-foreground p-3 text-center">
-            No spans found
-          </div>
+          <div className="text-agentprism-muted-foreground p-3 text-center">No spans found</div>
         ) : (
           <TreeView
             spans={filteredSpans}
@@ -73,4 +69,4 @@ export const TraceViewerTreeViewContainer = ({
       </div>
     </div>
   </>
-);
+)

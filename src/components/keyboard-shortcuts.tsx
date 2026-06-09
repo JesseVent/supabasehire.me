@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
+import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -8,12 +9,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { useSupabaseStore } from '@/store/supabase-store'
-import { useAgentStore } from '@/store/agent-store'
-import type { ActivePanel } from '@/lib/supabase-types'
 import { DEMO_CONNECTION_ID } from '@/lib/demo-data'
+import type { ActivePanel } from '@/lib/supabase-types'
+import { useAgentStore } from '@/store/agent-store'
+import { useSupabaseStore } from '@/store/supabase-store'
 
 interface ShortcutGroup {
   category: string

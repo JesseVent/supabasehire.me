@@ -10,21 +10,22 @@
  * identify relevant references with a half-full, noisy context.
  */
 
-export type ContextMessage = { role: "user" | "assistant"; content: string };
-export type Context = { name: string; description: string; messages: ContextMessage[] };
+export type ContextMessage = { role: 'user' | 'assistant'; content: string }
+export type Context = { name: string; description: string; messages: ContextMessage[] }
 
 export const contexts: Context[] = [
   // ── 1. TypeScript refactor in progress ──────────────────────────────────────
   {
-    name: "ts-refactor",
-    description: "Mid-refactor of a React/TypeScript codebase",
+    name: 'ts-refactor',
+    description: 'Mid-refactor of a React/TypeScript codebase',
     messages: [
       {
-        role: "user",
-        content: "Refactor UserProfile to use the new useUser hook and remove the direct service calls.",
+        role: 'user',
+        content:
+          'Refactor UserProfile to use the new useUser hook and remove the direct service calls.',
       },
       {
-        role: "assistant",
+        role: 'assistant',
         content: `I'll refactor it. Reading the current file first.
 
 \`\`\`typescript
@@ -71,11 +72,12 @@ export const UserProfile: React.FC<Props> = ({ userId }) => {
 \`\`\``,
       },
       {
-        role: "user",
-        content: "Getting TS errors: Property 'avatar_url' does not exist on type 'User'. Also 'created_at' is missing.",
+        role: 'user',
+        content:
+          "Getting TS errors: Property 'avatar_url' does not exist on type 'User'. Also 'created_at' is missing.",
       },
       {
-        role: "assistant",
+        role: 'assistant',
         content: `The \`User\` type is out of sync with the DB schema. Update \`src/types/index.ts\`:
 
 \`\`\`typescript
@@ -102,11 +104,12 @@ const mockUser: User = {
 \`\`\``,
       },
       {
-        role: "user",
-        content: "Tests pass now. Can you also update the API route to validate the request body properly?",
+        role: 'user',
+        content:
+          'Tests pass now. Can you also update the API route to validate the request body properly?',
       },
       {
-        role: "assistant",
+        role: 'assistant',
         content: `Here's the updated route with Zod validation:
 
 \`\`\`typescript
@@ -136,11 +139,11 @@ The validation rejects unknown fields and enforces types at the API boundary.`,
 
   // ── 2. Debugging a broken CI pipeline ────────────────────────────────────────
   {
-    name: "ci-debug",
-    description: "Debugging failing CI — test timeouts and env var issues",
+    name: 'ci-debug',
+    description: 'Debugging failing CI — test timeouts and env var issues',
     messages: [
       {
-        role: "user",
+        role: 'user',
         content: `CI is failing on the integration tests. Here's the output:
 
 \`\`\`
@@ -162,7 +165,7 @@ FAIL src/__tests__/integration/users.test.ts (12.4 s)
 \`\`\``,
       },
       {
-        role: "assistant",
+        role: 'assistant',
         content: `Two separate issues:
 
 1. **Timeout** — the test is calling a real endpoint or waiting on a real DB. Check that \`TEST_DATABASE_URL\` points to a test DB and the connection isn't timing out:
@@ -183,11 +186,12 @@ const valid = await bcrypt.compare(password, user.password_hash);
 Add a \`jest.setTimeout(15000)\` at the top of the integration test file while you investigate the DB connection speed.`,
       },
       {
-        role: "user",
-        content: "TEST_DATABASE_URL was pointing to prod. Fixed. Now 47 tests pass but 3 still fail — all related to token expiry.",
+        role: 'user',
+        content:
+          'TEST_DATABASE_URL was pointing to prod. Fixed. Now 47 tests pass but 3 still fail — all related to token expiry.',
       },
       {
-        role: "assistant",
+        role: 'assistant',
         content: `Token expiry tests fail when system clock drift differs between where the token is signed and verified. Freeze time in tests:
 
 \`\`\`typescript
@@ -212,24 +216,26 @@ it('rejects expired token', async () => {
 This makes expiry deterministic regardless of when the test runs.`,
       },
       {
-        role: "user",
-        content: "All 50 tests passing now. Let's move on — I need to optimize some database stuff.",
+        role: 'user',
+        content:
+          "All 50 tests passing now. Let's move on — I need to optimize some database stuff.",
       },
-      { role: "assistant", content: "Sure, what are you working on?" },
+      { role: 'assistant', content: 'Sure, what are you working on?' },
     ],
   },
 
   // ── 3. Large file read + partial implementation ───────────────────────────────
   {
-    name: "file-read-noise",
-    description: "Agent just read several large files and is mid-implementation",
+    name: 'file-read-noise',
+    description: 'Agent just read several large files and is mid-implementation',
     messages: [
       {
-        role: "user",
-        content: "Read the main entry point and the config so you understand the project structure.",
+        role: 'user',
+        content:
+          'Read the main entry point and the config so you understand the project structure.',
       },
       {
-        role: "assistant",
+        role: 'assistant',
         content: `Read \`src/index.ts\` (187 lines):
 
 \`\`\`typescript
@@ -300,11 +306,11 @@ export const config = {
 \`\`\``,
       },
       {
-        role: "user",
+        role: 'user',
         content: "Now read the posts router — I think there's an N+1 query in there.",
       },
       {
-        role: "assistant",
+        role: 'assistant',
         content: `Read \`src/routes/posts.ts\` (143 lines). Found it — line 67:
 
 \`\`\`typescript
@@ -341,20 +347,20 @@ router.get('/', async (req, res) => {
 \`\`\``,
       },
       {
-        role: "user",
-        content: "Good catch. Now I need your help with something in the database layer.",
+        role: 'user',
+        content: 'Good catch. Now I need your help with something in the database layer.',
       },
-      { role: "assistant", content: "What do you need?" },
+      { role: 'assistant', content: 'What do you need?' },
     ],
   },
 
   // ── 4. Mixed noise — Slack export, bash output, errors ───────────────────────
   {
-    name: "mixed-noise",
-    description: "Scattered context: bash output, stack traces, unrelated discussion",
+    name: 'mixed-noise',
+    description: 'Scattered context: bash output, stack traces, unrelated discussion',
     messages: [
       {
-        role: "user",
+        role: 'user',
         content: `Here's the output from the deploy:
 
 \`\`\`
@@ -367,7 +373,7 @@ $ pnpm build
 \`\`\``,
       },
       {
-        role: "assistant",
+        role: 'assistant',
         content: `Two type errors in \`cache.ts\`. Fix:
 
 \`\`\`typescript
@@ -384,7 +390,7 @@ interface CacheOptions {
 \`\`\``,
       },
       {
-        role: "user",
+        role: 'user',
         content: `Build passes. But now there's a runtime error in prod:
 
 \`\`\`
@@ -393,7 +399,7 @@ UnhandledPromiseRejection: Error: connect ECONNREFUSED 127.0.0.1:6379
 \`\`\``,
       },
       {
-        role: "assistant",
+        role: 'assistant',
         content: `Redis is refusing connections — likely not running in the prod environment. Two options:
 
 1. **Start Redis** or point \`REDIS_URL\` to your managed instance (Upstash, Redis Cloud, etc.)
@@ -415,20 +421,23 @@ async function getCached<T>(key: string, fn: () => Promise<T>): Promise<T> {
 \`\`\``,
       },
       {
-        role: "user",
-        content: "Perfect. Okay different topic — can you help me with the database schema?",
+        role: 'user',
+        content: 'Perfect. Okay different topic — can you help me with the database schema?',
       },
-      { role: "assistant", content: "Of course, what are you working on?" },
+      { role: 'assistant', content: 'Of course, what are you working on?' },
     ],
   },
-];
+]
 
 /** Pick a random context, or a specific one by name */
 export function pickContext(name?: string): Context {
   if (name) {
-    const found = contexts.find((c) => c.name === name);
-    if (!found) throw new Error(`Unknown context: "${name}". Available: ${contexts.map(c => c.name).join(', ')}`);
-    return found;
+    const found = contexts.find((c) => c.name === name)
+    if (!found)
+      throw new Error(
+        `Unknown context: "${name}". Available: ${contexts.map((c) => c.name).join(', ')}`
+      )
+    return found
   }
-  return contexts[Math.floor(Math.random() * contexts.length)];
+  return contexts[Math.floor(Math.random() * contexts.length)]
 }

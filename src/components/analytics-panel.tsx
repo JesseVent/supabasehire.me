@@ -1,29 +1,28 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect } from 'react'
-import { toast } from 'sonner'
-import { apiFetch } from '@/lib/api-auth'
 import {
+  AlertCircle,
+  BarChart3,
+  ChevronDown,
+  ChevronRight,
   Database,
+  Layers,
   Loader2,
   Play,
   RefreshCw,
-  ChevronRight,
-  ChevronDown,
-  Table2,
-  BarChart3,
-  Terminal,
-  Layers,
-  AlertCircle,
   Settings,
+  Table2,
+  Terminal,
   Zap,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Textarea } from '@/components/ui/textarea'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Table,
   TableBody,
@@ -32,13 +31,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
+import { apiFetch } from '@/lib/api-auth'
 import { extractProjectRef, type SupabaseConnection } from '@/lib/supabase-types'
 import { useSupabaseStore } from '@/store/supabase-store'
 
@@ -53,8 +48,8 @@ interface IcebergColumn {
 interface IcebergTable {
   namespace: string
   name: string
-  fullName: string  // DuckDB view name
-  location: string  // Iceberg metadata-location (S3 URL)
+  fullName: string // DuckDB view name
+  location: string // Iceberg metadata-location (S3 URL)
   rowCount: number | null
 }
 
@@ -74,8 +69,8 @@ interface BenchResult {
 }
 
 const BENCH_QUERIES: { label: string; sql: (t: string) => string }[] = [
-  { label: 'COUNT(*)',     sql: (t) => `SELECT COUNT(*) FROM ${t}` },
-  { label: 'Sample 100',  sql: (t) => `SELECT * FROM ${t} LIMIT 100` },
+  { label: 'COUNT(*)', sql: (t) => `SELECT COUNT(*) FROM ${t}` },
+  { label: 'Sample 100', sql: (t) => `SELECT * FROM ${t} LIMIT 100` },
   { label: 'Sample 1 000', sql: (t) => `SELECT * FROM ${t} LIMIT 1000` },
   { label: 'Sample 5 000', sql: (t) => `SELECT * FROM ${t} LIMIT 5000` },
 ]
@@ -116,8 +111,10 @@ function formatCell(val: unknown): string {
 
 function typeColor(type: string) {
   const t = type.toLowerCase()
-  if (t.includes('int') || t.includes('float') || t.includes('double') || t.includes('decimal')) return 'text-blue-500'
-  if (t.includes('varchar') || t.includes('text') || t.includes('char') || t.includes('string')) return 'text-brand'
+  if (t.includes('int') || t.includes('float') || t.includes('double') || t.includes('decimal'))
+    return 'text-blue-500'
+  if (t.includes('varchar') || t.includes('text') || t.includes('char') || t.includes('string'))
+    return 'text-brand'
   if (t.includes('bool')) return 'text-amber-500'
   if (t.includes('date') || t.includes('time') || t.includes('timestamp')) return 'text-violet-500'
   return 'text-muted-foreground'
@@ -138,9 +135,15 @@ export function AnalyticsPanel({
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   // Pre-filled from saved connection; updated on successful connect
-  const [s3KeyId, setS3KeyId] = useState(connection?.s3KeyId ?? process.env.NEXT_PUBLIC_S3_KEY_ID ?? '')
-  const [s3Secret, setS3Secret] = useState(connection?.s3Secret ?? process.env.NEXT_PUBLIC_S3_SECRET ?? '')
-  const [warehouse, setWarehouse] = useState(connection?.s3Warehouse ?? process.env.NEXT_PUBLIC_S3_WAREHOUSE ?? '')
+  const [s3KeyId, setS3KeyId] = useState(
+    connection?.s3KeyId ?? process.env.NEXT_PUBLIC_S3_KEY_ID ?? ''
+  )
+  const [s3Secret, setS3Secret] = useState(
+    connection?.s3Secret ?? process.env.NEXT_PUBLIC_S3_SECRET ?? ''
+  )
+  const [warehouse, setWarehouse] = useState(
+    connection?.s3Warehouse ?? process.env.NEXT_PUBLIC_S3_WAREHOUSE ?? ''
+  )
 
   const [tables, setTables] = useState<IcebergTable[]>([])
   const [selectedTable, setSelectedTable] = useState<IcebergTable | null>(null)
@@ -218,30 +221,47 @@ export function AnalyticsPanel({
       for (const pattern of globPatterns) {
         try {
           const res = await conn.query(`SELECT file FROM glob('${pattern}') ORDER BY file;`)
-          const files = res.toArray()
-            .map((r) => { const row = r.toJSON(); return String(row.file ?? row[Object.keys(row)[0]] ?? '') })
+          const files = res
+            .toArray()
+            .map((r) => {
+              const row = r.toJSON()
+              return String(row.file ?? row[Object.keys(row)[0]] ?? '')
+            })
             .filter((f) => f && f.includes('/metadata/'))
           allFound.push(...files)
-        } catch { /* pattern unsupported or no matches */ }
+        } catch {
+          /* pattern unsupported or no matches */
+        }
       }
 
       // Deduplicate and filter to actual Iceberg metadata files
       const metaFiles = [...new Set(allFound)]
-        .filter((f) => f.endsWith('.metadata.json') || /\/metadata\/\d{5}-[a-f0-9-]+\.json$/.test(f))
+        .filter(
+          (f) => f.endsWith('.metadata.json') || /\/metadata\/\d{5}-[a-f0-9-]+\.json$/.test(f)
+        )
         .sort()
 
       if (metaFiles.length === 0) {
         // Diagnostic: list top-level entries to surface what IS in the bucket
         let hint = ''
         try {
-          const diagRes = await conn.query(`SELECT file FROM glob('s3://${safeWarehouse}/*') ORDER BY file LIMIT 20;`)
-          const top = diagRes.toArray()
-            .map((r) => { const row = r.toJSON(); return String(row.file ?? row[Object.keys(row)[0]] ?? '') })
+          const diagRes = await conn.query(
+            `SELECT file FROM glob('s3://${safeWarehouse}/*') ORDER BY file LIMIT 20;`
+          )
+          const top = diagRes
+            .toArray()
+            .map((r) => {
+              const row = r.toJSON()
+              return String(row.file ?? row[Object.keys(row)[0]] ?? '')
+            })
             .filter(Boolean)
-          hint = top.length > 0
-            ? ` Top-level entries: ${top.slice(0, 5).join(', ')}${top.length > 5 ? '…' : ''}`
-            : ' Bucket appears empty or inaccessible — verify credentials.'
-        } catch { hint = ' Could not list bucket — check S3 credentials and warehouse name.' }
+          hint =
+            top.length > 0
+              ? ` Top-level entries: ${top.slice(0, 5).join(', ')}${top.length > 5 ? '…' : ''}`
+              : ' Bucket appears empty or inaccessible — verify credentials.'
+        } catch {
+          hint = ' Could not list bucket — check S3 credentials and warehouse name.'
+        }
         throw new Error(`No Iceberg metadata found in s3://${warehouse}/.${hint}`)
       }
 
@@ -272,7 +292,13 @@ export function AnalyticsPanel({
           // skip corrupt/empty tables
         }
 
-        tableList.push({ namespace, name: tableName, fullName: viewName, location: latestMeta, rowCount: null })
+        tableList.push({
+          namespace,
+          name: tableName,
+          fullName: viewName,
+          location: latestMeta,
+          rowCount: null,
+        })
       }
 
       // Row counts (best-effort — skip on failure)
@@ -294,7 +320,9 @@ export function AnalyticsPanel({
       if (firstNs.length > 0) setExpandedNamespaces(new Set([firstNs[0]]))
 
       setPhase('connected')
-      toast.success(`Connected — ${withCounts.length} table${withCounts.length !== 1 ? 's' : ''} found`)
+      toast.success(
+        `Connected — ${withCounts.length} table${withCounts.length !== 1 ? 's' : ''} found`
+      )
     } catch (err) {
       setPhase('error')
       const msg = err instanceof Error ? err.message : String(err)
@@ -322,7 +350,9 @@ export function AnalyticsPanel({
       const conn = connRef.current
 
       // Schema
-      const descResult = await conn.query(`DESCRIBE SELECT * FROM iceberg_scan('${table.location.replace(/'/g, "''")}');`)
+      const descResult = await conn.query(
+        `DESCRIBE SELECT * FROM iceberg_scan('${table.location.replace(/'/g, "''")}');`
+      )
       const cols: IcebergColumn[] = descResult.toArray().map((r) => {
         const row = r.toJSON()
         return {
@@ -334,7 +364,9 @@ export function AnalyticsPanel({
       setTableSchema(cols)
 
       // Preview
-      const previewResult = await conn.query(`SELECT * FROM iceberg_scan('${table.location.replace(/'/g, "''")}') LIMIT 100;`)
+      const previewResult = await conn.query(
+        `SELECT * FROM iceberg_scan('${table.location.replace(/'/g, "''")}') LIMIT 100;`
+      )
       const previewRows = previewResult.toArray().map((r) => r.toJSON())
       const previewCols = Object.keys(previewRows[0] ?? {})
       setPreviewData({ columns: previewCols, rows: previewRows })
@@ -361,15 +393,26 @@ export function AnalyticsPanel({
           column: c.name,
           type: c.type,
           nullable: c.nullable ? 'YES' : 'NO',
-          null_pct: totalRows > 0 ? (((totalRows - Number(pr[`${c.name}_count`] ?? totalRows)) / totalRows) * 100).toFixed(1) + '%' : '—',
+          null_pct:
+            totalRows > 0
+              ? (
+                  ((totalRows - Number(pr[`${c.name}_count`] ?? totalRows)) / totalRows) *
+                  100
+                ).toFixed(1) + '%'
+              : '—',
           distinct: String(pr[`${c.name}_distinct`] ?? '—'),
           min: String(pr[`${c.name}_min`] ?? '—'),
           max: String(pr[`${c.name}_max`] ?? '—'),
         }))
-        setProfileData({ columns: ['column', 'type', 'nullable', 'null_pct', 'distinct', 'min', 'max'], rows: profileRows })
+        setProfileData({
+          columns: ['column', 'type', 'nullable', 'null_pct', 'distinct', 'min', 'max'],
+          rows: profileRows,
+        })
       }
     } catch (err) {
-      toast.error(`Failed to load ${table.name}: ${err instanceof Error ? err.message : String(err)}`)
+      toast.error(
+        `Failed to load ${table.name}: ${err instanceof Error ? err.message : String(err)}`
+      )
     } finally {
       setIsLoadingTable(false)
     }
@@ -518,7 +561,9 @@ export function AnalyticsPanel({
             )}
 
             <div className="text-xs text-muted-foreground">
-              <p><span className="font-medium">S3 endpoint:</span> {s3Endpoint}</p>
+              <p>
+                <span className="font-medium">S3 endpoint:</span> {s3Endpoint}
+              </p>
             </div>
 
             <Button onClick={connect} className="w-full gap-2">
@@ -550,12 +595,26 @@ export function AnalyticsPanel({
       {/* Sidebar: table list */}
       <div className="w-56 shrink-0 border-r flex flex-col">
         <div className="flex items-center justify-between px-3 py-2 border-b">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tables</span>
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Tables
+          </span>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="size-6" onClick={connect} title="Reconnect / refresh">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-6"
+              onClick={connect}
+              title="Reconnect / refresh"
+            >
               <RefreshCw className="size-3" />
             </Button>
-            <Button variant="ghost" size="icon" className="size-6" onClick={() => setPhase('idle')} title="Edit S3 keys / reconnect">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-6"
+              onClick={() => setPhase('idle')}
+              title="Edit S3 keys / reconnect"
+            >
               <Settings className="size-3" />
             </Button>
           </div>
@@ -575,29 +634,36 @@ export function AnalyticsPanel({
                       setExpandedNamespaces(next)
                     }}
                   >
-                    {expanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+                    {expanded ? (
+                      <ChevronDown className="size-3" />
+                    ) : (
+                      <ChevronRight className="size-3" />
+                    )}
                     {ns}
-                    <Badge variant="secondary" className="ml-auto text-[10px] h-4 px-1">{nsTables.length}</Badge>
+                    <Badge variant="secondary" className="ml-auto text-[10px] h-4 px-1">
+                      {nsTables.length}
+                    </Badge>
                   </button>
-                  {expanded && nsTables.map((t) => (
-                    <button
-                      key={t.name}
-                      className={`flex items-center gap-1.5 w-full pl-6 pr-2 py-1 rounded text-xs transition-colors ${
-                        selectedTable?.name === t.name && selectedTable?.namespace === t.namespace
-                          ? 'bg-primary/10 text-primary font-medium'
-                          : 'text-foreground/70 hover:bg-muted/50 hover:text-foreground'
-                      }`}
-                      onClick={() => selectTable(t)}
-                    >
-                      <Table2 className="size-3 shrink-0" />
-                      <span className="truncate">{t.name}</span>
-                      {t.rowCount !== null && (
-                        <span className="ml-auto text-[10px] text-muted-foreground shrink-0">
-                          {t.rowCount.toLocaleString()}
-                        </span>
-                      )}
-                    </button>
-                  ))}
+                  {expanded &&
+                    nsTables.map((t) => (
+                      <button
+                        key={t.name}
+                        className={`flex items-center gap-1.5 w-full pl-6 pr-2 py-1 rounded text-xs transition-colors ${
+                          selectedTable?.name === t.name && selectedTable?.namespace === t.namespace
+                            ? 'bg-primary/10 text-primary font-medium'
+                            : 'text-foreground/70 hover:bg-muted/50 hover:text-foreground'
+                        }`}
+                        onClick={() => selectTable(t)}
+                      >
+                        <Table2 className="size-3 shrink-0" />
+                        <span className="truncate">{t.name}</span>
+                        {t.rowCount !== null && (
+                          <span className="ml-auto text-[10px] text-muted-foreground shrink-0">
+                            {t.rowCount.toLocaleString()}
+                          </span>
+                        )}
+                      </button>
+                    ))}
                 </div>
               )
             })}
@@ -618,23 +684,31 @@ export function AnalyticsPanel({
               <div className="flex items-center gap-2">
                 <Table2 className="size-4 text-muted-foreground" />
                 <span className="font-medium text-sm">{selectedTable.name}</span>
-                <Badge variant="outline" className="text-xs">{selectedTable.namespace}</Badge>
+                <Badge variant="outline" className="text-xs">
+                  {selectedTable.namespace}
+                </Badge>
                 {selectedTable.rowCount !== null && (
-                  <span className="text-xs text-muted-foreground">{selectedTable.rowCount.toLocaleString()} rows</span>
+                  <span className="text-xs text-muted-foreground">
+                    {selectedTable.rowCount.toLocaleString()} rows
+                  </span>
                 )}
               </div>
               <TabsList className="ml-auto h-7">
                 <TabsTrigger value="preview" className="text-xs px-2 h-6 gap-1">
-                  <Table2 className="size-3" />Preview
+                  <Table2 className="size-3" />
+                  Preview
                 </TabsTrigger>
                 <TabsTrigger value="profile" className="text-xs px-2 h-6 gap-1">
-                  <BarChart3 className="size-3" />Profile
+                  <BarChart3 className="size-3" />
+                  Profile
                 </TabsTrigger>
                 <TabsTrigger value="sql" className="text-xs px-2 h-6 gap-1">
-                  <Terminal className="size-3" />SQL
+                  <Terminal className="size-3" />
+                  SQL
                 </TabsTrigger>
                 <TabsTrigger value="benchmark" className="text-xs px-2 h-6 gap-1">
-                  <Zap className="size-3" />Benchmark
+                  <Zap className="size-3" />
+                  Benchmark
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -653,7 +727,9 @@ export function AnalyticsPanel({
                         <TableHeader>
                           <TableRow>
                             {previewData.columns.map((c) => (
-                              <TableHead key={c} className="text-xs whitespace-nowrap">{c}</TableHead>
+                              <TableHead key={c} className="text-xs whitespace-nowrap">
+                                {c}
+                              </TableHead>
                             ))}
                           </TableRow>
                         </TableHeader>
@@ -661,7 +737,10 @@ export function AnalyticsPanel({
                           {previewData.rows.map((row, i) => (
                             <TableRow key={i}>
                               {previewData.columns.map((c) => (
-                                <TableCell key={c} className="text-xs font-mono max-w-[200px] truncate">
+                                <TableCell
+                                  key={c}
+                                  className="text-xs font-mono max-w-[200px] truncate"
+                                >
                                   {formatCell(row[c])}
                                 </TableCell>
                               ))}
@@ -671,7 +750,9 @@ export function AnalyticsPanel({
                       </Table>
                     </ScrollArea>
                   ) : (
-                    <div className="flex items-center justify-center h-full text-muted-foreground text-sm">No data</div>
+                    <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                      No data
+                    </div>
                   )}
                 </TabsContent>
 
@@ -682,7 +763,9 @@ export function AnalyticsPanel({
                         <TableHeader>
                           <TableRow>
                             {profileData.columns.map((c) => (
-                              <TableHead key={c} className="text-xs capitalize">{c.replace('_', ' ')}</TableHead>
+                              <TableHead key={c} className="text-xs capitalize">
+                                {c.replace('_', ' ')}
+                              </TableHead>
                             ))}
                           </TableRow>
                         </TableHeader>
@@ -690,7 +773,10 @@ export function AnalyticsPanel({
                           {profileData.rows.map((row, i) => (
                             <TableRow key={i}>
                               {profileData.columns.map((c) => (
-                                <TableCell key={c} className={`text-xs font-mono ${c === 'type' ? typeColor(String(row[c])) : ''}`}>
+                                <TableCell
+                                  key={c}
+                                  className={`text-xs font-mono ${c === 'type' ? typeColor(String(row[c])) : ''}`}
+                                >
                                   {formatCell(row[c])}
                                 </TableCell>
                               ))}
@@ -700,11 +786,16 @@ export function AnalyticsPanel({
                       </Table>
                     </ScrollArea>
                   ) : (
-                    <div className="flex items-center justify-center h-full text-muted-foreground text-sm">No profile data</div>
+                    <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                      No profile data
+                    </div>
                   )}
                 </TabsContent>
 
-                <TabsContent value="sql" className="flex flex-col flex-1 overflow-hidden m-0 p-3 gap-3">
+                <TabsContent
+                  value="sql"
+                  className="flex flex-col flex-1 overflow-hidden m-0 p-3 gap-3"
+                >
                   <div className="flex gap-2">
                     <Textarea
                       value={sql}
@@ -715,13 +806,24 @@ export function AnalyticsPanel({
                         if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') runSql()
                       }}
                     />
-                    <Button onClick={runSql} disabled={isRunning} size="sm" className="gap-1.5 self-start">
-                      {isRunning ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
+                    <Button
+                      onClick={runSql}
+                      disabled={isRunning}
+                      size="sm"
+                      className="gap-1.5 self-start"
+                    >
+                      {isRunning ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <Play className="size-3.5" />
+                      )}
                       Run
                     </Button>
                   </div>
                   {sqlError && (
-                    <div className="text-xs text-destructive bg-destructive/10 rounded p-2 font-mono">{sqlError}</div>
+                    <div className="text-xs text-destructive bg-destructive/10 rounded p-2 font-mono">
+                      {sqlError}
+                    </div>
                   )}
                   {sqlResult && (
                     <ScrollArea className="flex-1">
@@ -729,7 +831,9 @@ export function AnalyticsPanel({
                         <TableHeader>
                           <TableRow>
                             {sqlResult.columns.map((c) => (
-                              <TableHead key={c} className="text-xs whitespace-nowrap">{c}</TableHead>
+                              <TableHead key={c} className="text-xs whitespace-nowrap">
+                                {c}
+                              </TableHead>
                             ))}
                           </TableRow>
                         </TableHeader>
@@ -737,7 +841,10 @@ export function AnalyticsPanel({
                           {sqlResult.rows.map((row, i) => (
                             <TableRow key={i}>
                               {sqlResult.columns.map((c) => (
-                                <TableCell key={c} className="text-xs font-mono max-w-[200px] truncate">
+                                <TableCell
+                                  key={c}
+                                  className="text-xs font-mono max-w-[200px] truncate"
+                                >
                                   {formatCell(row[c])}
                                 </TableCell>
                               ))}
@@ -749,7 +856,10 @@ export function AnalyticsPanel({
                   )}
                 </TabsContent>
 
-                <TabsContent value="benchmark" className="flex flex-col flex-1 overflow-hidden m-0 p-3 gap-3">
+                <TabsContent
+                  value="benchmark"
+                  className="flex flex-col flex-1 overflow-hidden m-0 p-3 gap-3"
+                >
                   <div className="flex gap-2 items-end">
                     <div className="flex-1 grid gap-1.5">
                       <Label className="text-xs">Postgres table name</Label>
@@ -760,14 +870,24 @@ export function AnalyticsPanel({
                         className="h-8 text-sm font-mono"
                       />
                     </div>
-                    <Button onClick={runBenchmark} disabled={isBenchmarking} size="sm" className="gap-1.5 shrink-0">
-                      {isBenchmarking ? <Loader2 className="size-3.5 animate-spin" /> : <Zap className="size-3.5" />}
+                    <Button
+                      onClick={runBenchmark}
+                      disabled={isBenchmarking}
+                      size="sm"
+                      className="gap-1.5 shrink-0"
+                    >
+                      {isBenchmarking ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <Zap className="size-3.5" />
+                      )}
                       Run Benchmark
                     </Button>
                   </div>
 
                   <p className="text-xs text-muted-foreground -mt-1">
-                    Postgres runs via Management API (network round-trip). Iceberg runs in DuckDB WASM (S3 reads, in-browser).
+                    Postgres runs via Management API (network round-trip). Iceberg runs in DuckDB
+                    WASM (S3 reads, in-browser).
                   </p>
 
                   {benchResults.length > 0 && (
@@ -789,15 +909,23 @@ export function AnalyticsPanel({
                             const iceWins = bothOk && r.icebergMs! < r.pgMs!
                             return (
                               <TableRow key={i}>
-                                <TableCell className="text-xs font-medium py-3">{r.label}</TableCell>
+                                <TableCell className="text-xs font-medium py-3">
+                                  {r.label}
+                                </TableCell>
 
                                 <TableCell className="text-xs py-3">
                                   {r.pgError ? (
-                                    <span className="text-destructive font-mono text-[10px]">{r.pgError.slice(0, 60)}</span>
+                                    <span className="text-destructive font-mono text-[10px]">
+                                      {r.pgError.slice(0, 60)}
+                                    </span>
                                   ) : r.pgMs !== null ? (
                                     <div className="flex flex-col gap-1">
-                                      <span className={`font-mono font-semibold ${pgWins ? 'text-brand' : ''}`}>
-                                        {r.pgMs < 1000 ? `${r.pgMs.toFixed(0)} ms` : `${(r.pgMs / 1000).toFixed(2)} s`}
+                                      <span
+                                        className={`font-mono font-semibold ${pgWins ? 'text-brand' : ''}`}
+                                      >
+                                        {r.pgMs < 1000
+                                          ? `${r.pgMs.toFixed(0)} ms`
+                                          : `${(r.pgMs / 1000).toFixed(2)} s`}
                                       </span>
                                       <div className="flex items-center gap-1.5">
                                         <div className="h-1.5 w-24 rounded bg-muted overflow-hidden">
@@ -806,7 +934,9 @@ export function AnalyticsPanel({
                                             style={{ width: `${(r.pgMs / maxMs) * 100}%` }}
                                           />
                                         </div>
-                                        <span className="text-[10px] text-muted-foreground">{r.pgRows > 0 ? `${r.pgRows.toLocaleString()} rows` : ''}</span>
+                                        <span className="text-[10px] text-muted-foreground">
+                                          {r.pgRows > 0 ? `${r.pgRows.toLocaleString()} rows` : ''}
+                                        </span>
                                       </div>
                                     </div>
                                   ) : (
@@ -816,11 +946,17 @@ export function AnalyticsPanel({
 
                                 <TableCell className="text-xs py-3">
                                   {r.icebergError ? (
-                                    <span className="text-destructive font-mono text-[10px]">{r.icebergError.slice(0, 60)}</span>
+                                    <span className="text-destructive font-mono text-[10px]">
+                                      {r.icebergError.slice(0, 60)}
+                                    </span>
                                   ) : r.icebergMs !== null ? (
                                     <div className="flex flex-col gap-1">
-                                      <span className={`font-mono font-semibold ${iceWins ? 'text-brand' : ''}`}>
-                                        {r.icebergMs < 1000 ? `${r.icebergMs.toFixed(0)} ms` : `${(r.icebergMs / 1000).toFixed(2)} s`}
+                                      <span
+                                        className={`font-mono font-semibold ${iceWins ? 'text-brand' : ''}`}
+                                      >
+                                        {r.icebergMs < 1000
+                                          ? `${r.icebergMs.toFixed(0)} ms`
+                                          : `${(r.icebergMs / 1000).toFixed(2)} s`}
                                       </span>
                                       <div className="flex items-center gap-1.5">
                                         <div className="h-1.5 w-24 rounded bg-muted overflow-hidden">
@@ -829,7 +965,11 @@ export function AnalyticsPanel({
                                             style={{ width: `${(r.icebergMs / maxMs) * 100}%` }}
                                           />
                                         </div>
-                                        <span className="text-[10px] text-muted-foreground">{r.icebergRows > 0 ? `${r.icebergRows.toLocaleString()} rows` : ''}</span>
+                                        <span className="text-[10px] text-muted-foreground">
+                                          {r.icebergRows > 0
+                                            ? `${r.icebergRows.toLocaleString()} rows`
+                                            : ''}
+                                        </span>
                                       </div>
                                     </div>
                                   ) : (
@@ -838,8 +978,22 @@ export function AnalyticsPanel({
                                 </TableCell>
 
                                 <TableCell className="text-xs py-3">
-                                  {pgWins && <Badge variant="outline" className="text-[10px] text-blue-500 border-blue-500/30">PG</Badge>}
-                                  {iceWins && <Badge variant="outline" className="text-[10px] text-brand border-brand/30">Iceberg</Badge>}
+                                  {pgWins && (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] text-blue-500 border-blue-500/30"
+                                    >
+                                      PG
+                                    </Badge>
+                                  )}
+                                  {iceWins && (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] text-brand border-brand/30"
+                                    >
+                                      Iceberg
+                                    </Badge>
+                                  )}
                                 </TableCell>
                               </TableRow>
                             )
@@ -847,33 +1001,58 @@ export function AnalyticsPanel({
                         </TableBody>
                       </Table>
 
-                      {!isBenchmarking && benchResults.length === BENCH_QUERIES.length && (() => {
-                        const pgWins = benchResults.filter((r) => r.pgMs !== null && r.icebergMs !== null && r.pgMs < r.icebergMs).length
-                        const iceWins = benchResults.filter((r) => r.pgMs !== null && r.icebergMs !== null && r.icebergMs < r.pgMs).length
-                        const validResults = benchResults.filter((r) => r.pgMs !== null && r.icebergMs !== null)
-                        const avgPg = validResults.length ? validResults.reduce((s, r) => s + r.pgMs!, 0) / validResults.length : null
-                        const avgIce = validResults.length ? validResults.reduce((s, r) => s + r.icebergMs!, 0) / validResults.length : null
-                        return (
-                          <div className="mx-4 my-3 p-3 rounded-lg border bg-muted/30 flex items-center gap-6 text-xs">
-                            <div>
-                              <span className="text-muted-foreground">Avg Postgres</span>
-                              <p className="font-mono font-semibold text-sm mt-0.5">{avgPg !== null ? `${avgPg.toFixed(0)} ms` : '—'}</p>
+                      {!isBenchmarking &&
+                        benchResults.length === BENCH_QUERIES.length &&
+                        (() => {
+                          const pgWins = benchResults.filter(
+                            (r) => r.pgMs !== null && r.icebergMs !== null && r.pgMs < r.icebergMs
+                          ).length
+                          const iceWins = benchResults.filter(
+                            (r) => r.pgMs !== null && r.icebergMs !== null && r.icebergMs < r.pgMs
+                          ).length
+                          const validResults = benchResults.filter(
+                            (r) => r.pgMs !== null && r.icebergMs !== null
+                          )
+                          const avgPg = validResults.length
+                            ? validResults.reduce((s, r) => s + r.pgMs!, 0) / validResults.length
+                            : null
+                          const avgIce = validResults.length
+                            ? validResults.reduce((s, r) => s + r.icebergMs!, 0) /
+                              validResults.length
+                            : null
+                          return (
+                            <div className="mx-4 my-3 p-3 rounded-lg border bg-muted/30 flex items-center gap-6 text-xs">
+                              <div>
+                                <span className="text-muted-foreground">Avg Postgres</span>
+                                <p className="font-mono font-semibold text-sm mt-0.5">
+                                  {avgPg !== null ? `${avgPg.toFixed(0)} ms` : '—'}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Avg Iceberg</span>
+                                <p className="font-mono font-semibold text-sm mt-0.5">
+                                  {avgIce !== null ? `${avgIce.toFixed(0)} ms` : '—'}
+                                </p>
+                              </div>
+                              <div className="ml-auto text-right">
+                                <span className="text-muted-foreground">Overall winner</span>
+                                <p className="font-semibold mt-0.5">
+                                  {pgWins > iceWins ? (
+                                    <span className="text-blue-500">
+                                      Postgres ({pgWins}/{validResults.length})
+                                    </span>
+                                  ) : iceWins > pgWins ? (
+                                    <span className="text-brand">
+                                      Iceberg ({iceWins}/{validResults.length})
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted-foreground">Tied</span>
+                                  )}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <span className="text-muted-foreground">Avg Iceberg</span>
-                              <p className="font-mono font-semibold text-sm mt-0.5">{avgIce !== null ? `${avgIce.toFixed(0)} ms` : '—'}</p>
-                            </div>
-                            <div className="ml-auto text-right">
-                              <span className="text-muted-foreground">Overall winner</span>
-                              <p className="font-semibold mt-0.5">
-                                {pgWins > iceWins ? <span className="text-blue-500">Postgres ({pgWins}/{validResults.length})</span>
-                                  : iceWins > pgWins ? <span className="text-brand">Iceberg ({iceWins}/{validResults.length})</span>
-                                  : <span className="text-muted-foreground">Tied</span>}
-                              </p>
-                            </div>
-                          </div>
-                        )
-                      })()}
+                          )
+                        })()}
                     </ScrollArea>
                   )}
 

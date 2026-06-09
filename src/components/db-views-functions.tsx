@@ -1,30 +1,31 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback } from 'react'
-import { apiFetch } from '@/lib/api-auth'
-import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
-  Eye,
-  Code2,
-  Layers,
-  Search,
-  ChevronDown,
-  ChevronRight,
-  Database,
-  FunctionSquare,
   AlertCircle,
-  FileCode2,
   ArrowUpDown,
   Braces,
-  Shield,
-  RefreshCw,
-  Loader2,
+  ChevronDown,
+  ChevronRight,
+  Code2,
+  Database,
+  Eye,
+  FileCode2,
+  FunctionSquare,
   Info,
+  Layers,
+  Loader2,
+  RefreshCw,
+  Search,
+  Shield,
 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
   SelectContent,
@@ -32,18 +33,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from '@/components/ui/tabs'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
-import { useSupabaseStore } from '@/store/supabase-store'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { apiFetch } from '@/lib/api-auth'
 import { DEMO_CONNECTION_ID } from '@/lib/demo-data'
 import { cn } from '@/lib/utils'
+import { useSupabaseStore } from '@/store/supabase-store'
 
 // ─── Types ───
 
@@ -60,6 +55,7 @@ interface DbView {
   definition: string
   dependencies: string[]
   description: string
+  securityInvoker?: boolean
 }
 
 interface FunctionParameter {
@@ -96,6 +92,7 @@ interface ApiViewColumn {
 interface ApiView {
   name: string
   definition: string
+  security_invoker?: boolean
 }
 
 interface ApiFunction {
@@ -145,6 +142,7 @@ WHERE u.last_login > now() - interval '30 days'
 GROUP BY u.id, u.email, u.name, u.last_login;`,
     dependencies: ['users', 'posts'],
     description: 'Users who have logged in within the last 30 days with their post counts',
+    securityInvoker: false,
   },
   {
     name: 'post_stats',
@@ -171,6 +169,7 @@ LEFT JOIN likes l ON l.post_id = p.id
 GROUP BY p.id, p.title, u.email, p.created_at;`,
     dependencies: ['posts', 'users', 'comments', 'likes'],
     description: 'Aggregated statistics for each post including comment and like counts',
+    securityInvoker: true,
   },
   {
     name: 'user_activity',
@@ -195,7 +194,9 @@ GROUP BY p.id, p.title, u.email, p.created_at;`,
   ) AS last_activity
 FROM users u;`,
     dependencies: ['users', 'posts', 'comments', 'likes'],
-    description: 'Per-user activity summary with total posts, comments, likes and last activity timestamp',
+    description:
+      'Per-user activity summary with total posts, comments, likes and last activity timestamp',
+    securityInvoker: false,
   },
   {
     name: 'comment_details',
@@ -221,6 +222,7 @@ INNER JOIN posts p ON p.id = c.post_id
 INNER JOIN users u2 ON u2.id = p.user_id;`,
     dependencies: ['comments', 'users', 'posts'],
     description: 'Enriched comment view with commenter and post author names resolved',
+    securityInvoker: true,
   },
   {
     name: 'audit_summary',
@@ -242,7 +244,9 @@ FROM audit_logs
 GROUP BY action, table_name
 ORDER BY count DESC;`,
     dependencies: ['audit_logs'],
-    description: 'Summarized audit log counts grouped by action type and table with last occurrence',
+    description:
+      'Summarized audit log counts grouped by action type and table with last occurrence',
+    securityInvoker: false,
   },
 ]
 
@@ -252,9 +256,7 @@ const DEMO_FUNCTIONS: DbFunction[] = [
     schema: 'public',
     returnType: 'TABLE(user_id uuid, total_posts bigint, total_comments bigint)',
     language: 'plpgsql',
-    parameters: [
-      { name: 'target_user_id', type: 'uuid', mode: 'IN', default: null },
-    ],
+    parameters: [{ name: 'target_user_id', type: 'uuid', mode: 'IN', default: null }],
     sourceCode: `BEGIN
   RETURN QUERY
   SELECT
@@ -359,16 +361,15 @@ END;`,
     schema: 'public',
     returnType: 'text',
     language: 'sql',
-    parameters: [
-      { name: 'input_text', type: 'text', mode: 'IN', default: null },
-    ],
+    parameters: [{ name: 'input_text', type: 'text', mode: 'IN', default: null }],
     sourceCode: `SELECT lower(regexp_replace(
-  regexp_replace(trim(input_text), '[^a-zA-Z0-9\s-]', '', 'g'),
-  '[\s-]+', '-', 'g'
+  regexp_replace(trim(input_text), '[^a-zA-Z0-9s-]', '', 'g'),
+  '[s-]+', '-', 'g'
 ))`,
     volatility: 'IMMUTABLE',
     strict: true,
-    description: 'Generates a URL-friendly slug from input text by removing special characters and replacing spaces with hyphens',
+    description:
+      'Generates a URL-friendly slug from input text by removing special characters and replacing spaces with hyphens',
   },
 ]
 
@@ -376,13 +377,26 @@ END;`,
 
 function getTypeBadgeColor(type: string): string {
   const t = type.toLowerCase()
-  if (t.includes('uuid')) return 'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950/40 dark:text-violet-400 dark:border-violet-800'
-  if (t.includes('text') || t.includes('char') || t.includes('varchar')) return 'bg-primary/15 text-primary border-primary/30 dark:bg-primary/40 dark:text-primary dark:border-primary/30'
-  if (t.includes('int') || t.includes('serial') || t.includes('bigint')) return 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-800'
-  if (t.includes('timestamp') || t.includes('date') || t.includes('time')) return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800'
-  if (t.includes('bool')) return 'bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-950/40 dark:text-pink-400 dark:border-pink-800'
-  if (t.includes('numeric') || t.includes('decimal') || t.includes('float') || t.includes('double') || t.includes('real')) return 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-800'
-  if (t.includes('json')) return 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800'
+  if (t.includes('uuid'))
+    return 'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950/40 dark:text-violet-400 dark:border-violet-800'
+  if (t.includes('text') || t.includes('char') || t.includes('varchar'))
+    return 'bg-primary/15 text-primary border-primary/30 dark:bg-primary/40 dark:text-primary dark:border-primary/30'
+  if (t.includes('int') || t.includes('serial') || t.includes('bigint'))
+    return 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-800'
+  if (t.includes('timestamp') || t.includes('date') || t.includes('time'))
+    return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800'
+  if (t.includes('bool'))
+    return 'bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-950/40 dark:text-pink-400 dark:border-pink-800'
+  if (
+    t.includes('numeric') ||
+    t.includes('decimal') ||
+    t.includes('float') ||
+    t.includes('double') ||
+    t.includes('real')
+  )
+    return 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-800'
+  if (t.includes('json'))
+    return 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800'
   return 'bg-muted text-muted-foreground'
 }
 
@@ -421,10 +435,32 @@ function extractDependencies(definition: string): string[] {
   // Match table names after FROM or JOIN keywords
   const fromRegex = /\b(?:FROM|JOIN)\s+([a-zA-Z_][a-zA-Z0-9_]*)/gi
   let match: RegExpExecArray | null
+  // biome-ignore lint/suspicious/noAssignInExpressions: RegExp exec in while loop condition
   while ((match = fromRegex.exec(definition)) !== null) {
     const tableName = match[1].toLowerCase()
     // Skip common SQL keywords that might be captured
-    if (!['select', 'where', 'and', 'or', 'on', 'as', 'set', 'into', 'values', 'update', 'delete', 'insert', 'create', 'alter', 'drop', 'table', 'index', 'view'].includes(tableName)) {
+    if (
+      ![
+        'select',
+        'where',
+        'and',
+        'or',
+        'on',
+        'as',
+        'set',
+        'into',
+        'values',
+        'update',
+        'delete',
+        'insert',
+        'create',
+        'alter',
+        'drop',
+        'table',
+        'index',
+        'view',
+      ].includes(tableName)
+    ) {
       deps.add(tableName)
     }
   }
@@ -435,11 +471,7 @@ function decodePostgresString(str: string): string {
   // PostgreSQL returns escaped strings with doubled single quotes
   // and sometimes \\n for newlines in view definitions
   try {
-    return str
-      .replace(/\\n/g, '\n')
-      .replace(/\\t/g, '\t')
-      .replace(/\\r/g, '\r')
-      .replace(/''/g, "'")
+    return str.replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\r/g, '\r').replace(/''/g, "'")
   } catch {
     return str
   }
@@ -458,9 +490,10 @@ function mapApiViews(apiViews: ApiView[], apiColumns: ApiViewColumn[]): DbView[]
 
     // Generate description from name
     const words = v.name.replace(/_/g, ' ').split(' ')
-    const description = words.length > 0
-      ? `${words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} view`
-      : `Database view ${v.name}`
+    const description =
+      words.length > 0
+        ? `${words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} view`
+        : `Database view ${v.name}`
 
     return {
       name: v.name,
@@ -469,16 +502,21 @@ function mapApiViews(apiViews: ApiView[], apiColumns: ApiViewColumn[]): DbView[]
       definition,
       dependencies: extractDependencies(definition),
       description,
+      securityInvoker: v.security_invoker,
     }
   })
 }
 
 function mapVolatility(volatility: string): FunctionVolatility {
   switch (volatility) {
-    case 'i': return 'IMMUTABLE'
-    case 's': return 'STABLE'
-    case 'v': return 'VOLATILE'
-    default: return 'VOLATILE'
+    case 'i':
+      return 'IMMUTABLE'
+    case 's':
+      return 'STABLE'
+    case 'v':
+      return 'VOLATILE'
+    default:
+      return 'VOLATILE'
   }
 }
 
@@ -647,7 +685,7 @@ export function DbViewsFunctions() {
     } finally {
       setLoading(false)
     }
-  }, [activeConnectionId, isDemoMode, addActivityLog])
+  }, [activeConnectionId, isDemoMode, addActivityLog, activeConnection])
 
   // Fetch on mount and when connection changes
   useEffect(() => {
@@ -754,9 +792,7 @@ export function DbViewsFunctions() {
         <CardContent className="py-16">
           <div className="flex flex-col items-center justify-center text-center space-y-3">
             <Loader2 className="size-8 text-primary animate-spin" />
-            <p className="text-sm text-muted-foreground">
-              Loading database views and functions...
-            </p>
+            <p className="text-sm text-muted-foreground">Loading database views and functions...</p>
           </div>
         </CardContent>
       </Card>
@@ -773,12 +809,7 @@ export function DbViewsFunctions() {
               <Layers className="size-5 text-primary" />
               <CardTitle>Database Views & Functions</CardTitle>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchViewsFunctions}
-              className="gap-1.5"
-            >
+            <Button variant="outline" size="sm" onClick={fetchViewsFunctions} className="gap-1.5">
               <RefreshCw className="size-3.5" />
               Retry
             </Button>
@@ -807,7 +838,10 @@ export function DbViewsFunctions() {
             </div>
             <div className="flex items-center gap-2">
               {isDemoMode && (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-amber-600 border-amber-300 dark:text-amber-400 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30">
+                <Badge
+                  variant="outline"
+                  className="text-[10px] px-1.5 py-0 text-amber-600 border-amber-300 dark:text-amber-400 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30"
+                >
                   Demo Data
                 </Badge>
               )}
@@ -864,7 +898,9 @@ export function DbViewsFunctions() {
               </div>
               <span className="text-xs font-medium text-muted-foreground">Total Functions</span>
             </div>
-            <p className="text-2xl font-bold tracking-tight text-cyan-600 dark:text-cyan-400">{totalFunctions}</p>
+            <p className="text-2xl font-bold tracking-tight text-cyan-600 dark:text-cyan-400">
+              {totalFunctions}
+            </p>
           </CardContent>
         </Card>
 
@@ -890,7 +926,9 @@ export function DbViewsFunctions() {
               </div>
               <span className="text-xs font-medium text-muted-foreground">Total Parameters</span>
             </div>
-            <p className="text-2xl font-bold tracking-tight text-violet-600 dark:text-violet-400">{totalParams}</p>
+            <p className="text-2xl font-bold tracking-tight text-violet-600 dark:text-violet-400">
+              {totalParams}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -963,7 +1001,10 @@ export function DbViewsFunctions() {
                       >
                         <Card
                           className={cn(
-                            'border-l-4 border-l-primary transition-all duration-200 hover:shadow-md cursor-pointer'
+                            'border-l-4 transition-all duration-200 hover:shadow-md cursor-pointer',
+                            view.securityInvoker === false
+                              ? 'border-l-destructive shadow-destructive/5'
+                              : 'border-l-primary'
                           )}
                           onClick={() => toggleViewExpanded(view.name)}
                         >
@@ -975,7 +1016,27 @@ export function DbViewsFunctions() {
                                   <h3 className="font-mono text-sm font-semibold truncate">
                                     {view.name}
                                   </h3>
-                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono gap-1">
+                                  {view.securityInvoker === false ? (
+                                    <Badge
+                                      variant="destructive"
+                                      className="text-[10px] px-1.5 py-0 bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400 border-red-500/20 gap-1 flex shrink-0 animate-pulse font-semibold"
+                                    >
+                                      <AlertCircle className="size-2.5" />
+                                      SECURITY DEFINER
+                                    </Badge>
+                                  ) : view.securityInvoker === true ? (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] px-1.5 py-0 text-brand border-brand/30 dark:text-brand dark:border-brand/30 gap-1 flex shrink-0 font-semibold"
+                                    >
+                                      <Shield className="size-2.5" />
+                                      SECURITY INVOKER
+                                    </Badge>
+                                  ) : null}
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] px-1.5 py-0 font-mono gap-1"
+                                  >
                                     <Database className="size-2.5" />
                                     {view.schema}
                                   </Badge>
@@ -983,7 +1044,8 @@ export function DbViewsFunctions() {
                                     variant="outline"
                                     className="text-[10px] px-1.5 py-0 text-primary border-primary/30 dark:text-primary dark:border-primary/30"
                                   >
-                                    {view.columns.length} column{view.columns.length !== 1 ? 's' : ''}
+                                    {view.columns.length} column
+                                    {view.columns.length !== 1 ? 's' : ''}
                                   </Badge>
                                 </div>
                                 <p className="text-xs text-muted-foreground line-clamp-2">
@@ -1003,12 +1065,17 @@ export function DbViewsFunctions() {
 
                             {/* Column summary badges */}
                             <div className="flex items-center gap-1.5 mt-3 flex-wrap">
-                              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Columns:</span>
+                              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                                Columns:
+                              </span>
                               {view.columns.slice(0, 4).map((col) => (
                                 <Badge
                                   key={col.name}
                                   variant="outline"
-                                  className={cn('text-[10px] px-1.5 py-0 border font-mono', getTypeBadgeColor(col.type))}
+                                  className={cn(
+                                    'text-[10px] px-1.5 py-0 border font-mono',
+                                    getTypeBadgeColor(col.type)
+                                  )}
                                 >
                                   {col.name}:{col.type}
                                 </Badge>
@@ -1019,9 +1086,15 @@ export function DbViewsFunctions() {
                                 </Badge>
                               )}
                               <Separator orientation="vertical" className="h-3.5 mx-1" />
-                              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Depends on:</span>
+                              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                                Depends on:
+                              </span>
                               {view.dependencies.map((dep) => (
-                                <Badge key={dep} variant="outline" className="text-[10px] px-1.5 py-0 font-mono gap-0.5">
+                                <Badge
+                                  key={dep}
+                                  variant="outline"
+                                  className="text-[10px] px-1.5 py-0 font-mono gap-0.5"
+                                >
                                   {dep}
                                 </Badge>
                               ))}
@@ -1038,6 +1111,27 @@ export function DbViewsFunctions() {
                                   className="overflow-hidden"
                                 >
                                   <div className="mt-4 space-y-3">
+                                    {view.securityInvoker === false && (
+                                      <Alert
+                                        variant="destructive"
+                                        className="bg-red-500/10 border-red-500/20 text-red-500 dark:text-red-400"
+                                      >
+                                        <AlertCircle className="size-4 shrink-0 text-red-500 dark:text-red-400 mt-0.5" />
+                                        <div className="ml-2">
+                                          <AlertTitle className="text-xs font-bold uppercase tracking-wider mb-1">
+                                            Security Risk: SECURITY DEFINER View
+                                          </AlertTitle>
+                                          <AlertDescription className="text-[11px] leading-relaxed text-red-500/90 dark:text-red-400/90">
+                                            By default, PostgreSQL views run with the permissions of
+                                            the view creator (<code>SECURITY DEFINER</code>). If you
+                                            do not enable RLS on the view itself, callers might
+                                            bypass the underlying table's RLS policies unless the
+                                            view is created with{' '}
+                                            <code>security_invoker = true</code>.
+                                          </AlertDescription>
+                                        </div>
+                                      </Alert>
+                                    )}
                                     {/* Column details */}
                                     <div>
                                       <div className="flex items-center gap-1.5 mb-1.5">
@@ -1048,26 +1142,43 @@ export function DbViewsFunctions() {
                                         <table className="w-full text-[11px]">
                                           <thead>
                                             <tr className="border-b bg-muted/50 dark:bg-muted/20">
-                                              <th className="text-left font-medium px-3 py-1.5">Name</th>
-                                              <th className="text-left font-medium px-3 py-1.5">Type</th>
-                                              <th className="text-left font-medium px-3 py-1.5">Nullable</th>
+                                              <th className="text-left font-medium px-3 py-1.5">
+                                                Name
+                                              </th>
+                                              <th className="text-left font-medium px-3 py-1.5">
+                                                Type
+                                              </th>
+                                              <th className="text-left font-medium px-3 py-1.5">
+                                                Nullable
+                                              </th>
                                             </tr>
                                           </thead>
                                           <tbody>
                                             {view.columns.map((col) => (
-                                              <tr key={col.name} className="border-b last:border-b-0">
-                                                <td className="font-mono px-3 py-1.5 text-primary/80">{col.name}</td>
+                                              <tr
+                                                key={col.name}
+                                                className="border-b last:border-b-0"
+                                              >
+                                                <td className="font-mono px-3 py-1.5 text-primary/80">
+                                                  {col.name}
+                                                </td>
                                                 <td className="px-3 py-1.5">
                                                   <Badge
                                                     variant="outline"
-                                                    className={cn('text-[10px] px-1.5 py-0 border font-mono', getTypeBadgeColor(col.type))}
+                                                    className={cn(
+                                                      'text-[10px] px-1.5 py-0 border font-mono',
+                                                      getTypeBadgeColor(col.type)
+                                                    )}
                                                   >
                                                     {col.type}
                                                   </Badge>
                                                 </td>
                                                 <td className="px-3 py-1.5">
                                                   {col.nullable ? (
-                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-amber-600 border-amber-200 dark:text-amber-400 dark:border-amber-800">
+                                                    <Badge
+                                                      variant="outline"
+                                                      className="text-[10px] px-1.5 py-0 text-amber-600 border-amber-200 dark:text-amber-400 dark:border-amber-800"
+                                                    >
                                                       NULLABLE
                                                     </Badge>
                                                   ) : (
@@ -1099,16 +1210,29 @@ export function DbViewsFunctions() {
                                     {/* Dependencies detail */}
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                       <div className="rounded-lg border p-2.5">
-                                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-0.5">Schema</span>
-                                        <span className="text-xs font-mono font-semibold">{view.schema}</span>
+                                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-0.5">
+                                          Schema
+                                        </span>
+                                        <span className="text-xs font-mono font-semibold">
+                                          {view.schema}
+                                        </span>
                                       </div>
                                       <div className="rounded-lg border p-2.5">
-                                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-0.5">Columns</span>
-                                        <span className="text-xs font-semibold">{view.columns.length}</span>
+                                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-0.5">
+                                          Columns
+                                        </span>
+                                        <span className="text-xs font-semibold">
+                                          {view.columns.length}
+                                        </span>
                                       </div>
                                       <div className="rounded-lg border p-2.5">
-                                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-0.5">Dependencies</span>
-                                        <span className="text-xs font-semibold">{view.dependencies.length} table{view.dependencies.length !== 1 ? 's' : ''}</span>
+                                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-0.5">
+                                          Dependencies
+                                        </span>
+                                        <span className="text-xs font-semibold">
+                                          {view.dependencies.length} table
+                                          {view.dependencies.length !== 1 ? 's' : ''}
+                                        </span>
                                       </div>
                                     </div>
                                   </div>
@@ -1209,14 +1333,20 @@ export function DbViewsFunctions() {
                                   {/* Language badge */}
                                   <Badge
                                     variant="outline"
-                                    className={cn('text-[10px] px-1.5 py-0 border font-mono', getLanguageBadge(fn.language))}
+                                    className={cn(
+                                      'text-[10px] px-1.5 py-0 border font-mono',
+                                      getLanguageBadge(fn.language)
+                                    )}
                                   >
                                     {fn.language}
                                   </Badge>
                                   {/* Volatility badge */}
                                   <Badge
                                     variant="outline"
-                                    className={cn('text-[10px] px-1.5 py-0 border font-semibold', getVolatilityBadge(fn.volatility))}
+                                    className={cn(
+                                      'text-[10px] px-1.5 py-0 border font-semibold',
+                                      getVolatilityBadge(fn.volatility)
+                                    )}
                                   >
                                     {fn.volatility}
                                   </Badge>
@@ -1232,7 +1362,8 @@ export function DbViewsFunctions() {
                                   )}
                                   {/* Arg count */}
                                   <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                                    {fn.parameters.length} arg{fn.parameters.length !== 1 ? 's' : ''}
+                                    {fn.parameters.length} arg
+                                    {fn.parameters.length !== 1 ? 's' : ''}
                                   </Badge>
                                 </div>
                                 <p className="text-xs text-muted-foreground line-clamp-2">
@@ -1252,24 +1383,38 @@ export function DbViewsFunctions() {
 
                             {/* Return type badge */}
                             <div className="flex items-center gap-2 mt-3 flex-wrap">
-                              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Returns:</span>
+                              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                                Returns:
+                              </span>
                               <Badge
                                 variant="outline"
-                                className={cn('text-[10px] px-1.5 py-0 border font-mono', getTypeBadgeColor(fn.returnType))}
+                                className={cn(
+                                  'text-[10px] px-1.5 py-0 border font-mono',
+                                  getTypeBadgeColor(fn.returnType)
+                                )}
                               >
                                 {fn.returnType}
                               </Badge>
                               {fn.parameters.length > 0 && (
                                 <>
                                   <Separator orientation="vertical" className="h-3.5 mx-1" />
-                                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Params:</span>
+                                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                                    Params:
+                                  </span>
                                   {fn.parameters.map((param) => (
                                     <Badge
                                       key={param.name}
                                       variant="outline"
-                                      className={cn('text-[10px] px-1.5 py-0 border font-mono', getTypeBadgeColor(param.type))}
+                                      className={cn(
+                                        'text-[10px] px-1.5 py-0 border font-mono',
+                                        getTypeBadgeColor(param.type)
+                                      )}
                                     >
-                                      {param.mode !== 'IN' && <span className="opacity-60">{param.mode.toLowerCase()} </span>}
+                                      {param.mode !== 'IN' && (
+                                        <span className="opacity-60">
+                                          {param.mode.toLowerCase()}{' '}
+                                        </span>
+                                      )}
                                       {param.name}:{param.type}
                                     </Badge>
                                   ))}
@@ -1299,31 +1444,52 @@ export function DbViewsFunctions() {
                                           <table className="w-full text-[11px]">
                                             <thead>
                                               <tr className="border-b bg-muted/50 dark:bg-muted/20">
-                                                <th className="text-left font-medium px-3 py-1.5">Name</th>
-                                                <th className="text-left font-medium px-3 py-1.5">Type</th>
-                                                <th className="text-left font-medium px-3 py-1.5">Mode</th>
-                                                <th className="text-left font-medium px-3 py-1.5">Default</th>
+                                                <th className="text-left font-medium px-3 py-1.5">
+                                                  Name
+                                                </th>
+                                                <th className="text-left font-medium px-3 py-1.5">
+                                                  Type
+                                                </th>
+                                                <th className="text-left font-medium px-3 py-1.5">
+                                                  Mode
+                                                </th>
+                                                <th className="text-left font-medium px-3 py-1.5">
+                                                  Default
+                                                </th>
                                               </tr>
                                             </thead>
                                             <tbody>
                                               {fn.parameters.map((param) => (
-                                                <tr key={param.name} className="border-b last:border-b-0">
-                                                  <td className="font-mono px-3 py-1.5 text-primary/80">{param.name}</td>
+                                                <tr
+                                                  key={param.name}
+                                                  className="border-b last:border-b-0"
+                                                >
+                                                  <td className="font-mono px-3 py-1.5 text-primary/80">
+                                                    {param.name}
+                                                  </td>
                                                   <td className="px-3 py-1.5">
                                                     <Badge
                                                       variant="outline"
-                                                      className={cn('text-[10px] px-1.5 py-0 border font-mono', getTypeBadgeColor(param.type))}
+                                                      className={cn(
+                                                        'text-[10px] px-1.5 py-0 border font-mono',
+                                                        getTypeBadgeColor(param.type)
+                                                      )}
                                                     >
                                                       {param.type}
                                                     </Badge>
                                                   </td>
                                                   <td className="px-3 py-1.5">
-                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                                    <Badge
+                                                      variant="outline"
+                                                      className="text-[10px] px-1.5 py-0"
+                                                    >
                                                       {param.mode}
                                                     </Badge>
                                                   </td>
                                                   <td className="px-3 py-1.5 font-mono text-muted-foreground">
-                                                    {param.default ?? <span className="opacity-40">&mdash;</span>}
+                                                    {param.default ?? (
+                                                      <span className="opacity-40">&mdash;</span>
+                                                    )}
                                                   </td>
                                                 </tr>
                                               ))}
@@ -1349,35 +1515,57 @@ export function DbViewsFunctions() {
                                     {/* Metadata summary */}
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                       <div className="rounded-lg border p-2.5">
-                                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-0.5">Language</span>
+                                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-0.5">
+                                          Language
+                                        </span>
                                         <Badge
                                           variant="outline"
-                                          className={cn('text-[10px] px-1.5 py-0 border font-mono', getLanguageBadge(fn.language))}
+                                          className={cn(
+                                            'text-[10px] px-1.5 py-0 border font-mono',
+                                            getLanguageBadge(fn.language)
+                                          )}
                                         >
                                           {fn.language}
                                         </Badge>
                                       </div>
                                       <div className="rounded-lg border p-2.5">
-                                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-0.5">Volatility</span>
+                                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-0.5">
+                                          Volatility
+                                        </span>
                                         <Badge
                                           variant="outline"
-                                          className={cn('text-[10px] px-1.5 py-0 border font-semibold', getVolatilityBadge(fn.volatility))}
+                                          className={cn(
+                                            'text-[10px] px-1.5 py-0 border font-semibold',
+                                            getVolatilityBadge(fn.volatility)
+                                          )}
                                         >
                                           {fn.volatility}
                                         </Badge>
                                       </div>
                                       <div className="rounded-lg border p-2.5">
-                                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-0.5">Strict</span>
-                                        <span className={cn(
-                                          'text-xs font-semibold',
-                                          fn.strict ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'
-                                        )}>
-                                          {fn.strict ? 'Yes (RETURNS NULL ON NULL INPUT)' : 'No (CALLED ON NULL INPUT)'}
+                                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-0.5">
+                                          Strict
+                                        </span>
+                                        <span
+                                          className={cn(
+                                            'text-xs font-semibold',
+                                            fn.strict
+                                              ? 'text-amber-600 dark:text-amber-400'
+                                              : 'text-muted-foreground'
+                                          )}
+                                        >
+                                          {fn.strict
+                                            ? 'Yes (RETURNS NULL ON NULL INPUT)'
+                                            : 'No (CALLED ON NULL INPUT)'}
                                         </span>
                                       </div>
                                       <div className="rounded-lg border p-2.5">
-                                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-0.5">Schema</span>
-                                        <span className="text-xs font-mono font-semibold">{fn.schema}</span>
+                                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-0.5">
+                                          Schema
+                                        </span>
+                                        <span className="text-xs font-mono font-semibold">
+                                          {fn.schema}
+                                        </span>
                                       </div>
                                     </div>
                                   </div>

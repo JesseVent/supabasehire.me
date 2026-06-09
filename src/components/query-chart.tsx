@@ -1,26 +1,36 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
 import {
+  AlertTriangle,
   BarChart3,
   LineChart as LineChartIcon,
   PieChart as PieChartIcon,
-  AlertTriangle,
 } from 'lucide-react'
+import { useCallback, useMemo, useState } from 'react'
 import {
-  BarChart,
   Bar,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
+  BarChart,
+  CartesianGrid,
   Cell,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
   XAxis,
   YAxis,
-  CartesianGrid,
 } from 'recharts'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import type { ChartConfig } from '@/components/ui/chart'
+import {
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/components/ui/chart'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -28,31 +38,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
-} from '@/components/ui/chart'
-import type { ChartConfig } from '@/components/ui/chart'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 type ChartType = 'bar' | 'line' | 'pie'
 
 const CHART_COLORS = [
-  'hsl(159, 84%, 62%)',  // Supabase green #3ECF8E
-  'hsl(45, 93%, 47%)',   // amber
-  'hsl(0, 72%, 51%)',    // red
-  'hsl(263, 70%, 50%)',  // violet
-  'hsl(199, 89%, 48%)',  // cyan
-  'hsl(25, 95%, 53%)',   // orange
-  'hsl(280, 67%, 53%)',  // purple
-  'hsl(142, 71%, 45%)',  // green
-  'hsl(346, 77%, 50%)',  // rose
-  'hsl(197, 71%, 52%)',  // light blue
+  'hsl(159, 84%, 62%)', // Supabase green #3ECF8E
+  'hsl(45, 93%, 47%)', // amber
+  'hsl(0, 72%, 51%)', // red
+  'hsl(263, 70%, 50%)', // violet
+  'hsl(199, 89%, 48%)', // cyan
+  'hsl(25, 95%, 53%)', // orange
+  'hsl(280, 67%, 53%)', // purple
+  'hsl(142, 71%, 45%)', // green
+  'hsl(346, 77%, 50%)', // rose
+  'hsl(197, 71%, 52%)', // light blue
 ]
 
 interface QueryChartProps {
@@ -146,10 +146,7 @@ export function QueryChart({ data }: QueryChartProps) {
     return Object.keys(data[0])
   }, [data])
 
-  const { xKey: autoXKey, yKey: autoYKey } = useMemo(
-    () => autoDetectColumns(data),
-    [data]
-  )
+  const { xKey: autoXKey, yKey: autoYKey } = useMemo(() => autoDetectColumns(data), [data])
 
   const [xKey, setXKey] = useState<string | undefined>(undefined)
   const [yKey, setYKey] = useState<string | undefined>(undefined)
@@ -217,9 +214,7 @@ export function QueryChart({ data }: QueryChartProps) {
         <CardContent className="py-8">
           <div className="flex flex-col items-center justify-center text-center">
             <BarChart3 className="mb-3 size-10 text-muted-foreground/30" />
-            <p className="text-sm font-medium text-muted-foreground">
-              No data to visualize
-            </p>
+            <p className="text-sm font-medium text-muted-foreground">No data to visualize</p>
             <p className="text-xs text-muted-foreground">
               Execute a query with results to see chart visualizations
             </p>
@@ -236,7 +231,8 @@ export function QueryChart({ data }: QueryChartProps) {
           <Alert>
             <AlertTriangle className="size-4" />
             <AlertDescription>
-              No numeric columns detected in the result set. Charts require at least one numeric column for the Y-axis.
+              No numeric columns detected in the result set. Charts require at least one numeric
+              column for the Y-axis.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -249,10 +245,7 @@ export function QueryChart({ data }: QueryChartProps) {
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <CardTitle className="text-base">Query Visualization</CardTitle>
-          <Tabs
-            value={chartType}
-            onValueChange={(v) => setChartType(v as ChartType)}
-          >
+          <Tabs value={chartType} onValueChange={(v) => setChartType(v as ChartType)}>
             <TabsList className="h-8">
               <TabsTrigger value="bar" className="gap-1.5 px-2.5 text-xs">
                 <BarChart3 className="size-3.5" />
@@ -339,15 +332,8 @@ export function QueryChart({ data }: QueryChartProps) {
                     tick={{ fontSize: 12 }}
                     interval="preserveStartEnd"
                   />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <ChartTooltip
-                    content={<ChartTooltipContent />}
-                  />
+                  <YAxis tickLine={false} axisLine={false} tickMargin={8} tick={{ fontSize: 12 }} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
                   <Bar
                     dataKey={activeYKey}
                     fill={`var(--color-${activeYKey})`}
@@ -370,15 +356,8 @@ export function QueryChart({ data }: QueryChartProps) {
                     tick={{ fontSize: 12 }}
                     interval="preserveStartEnd"
                   />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <ChartTooltip
-                    content={<ChartTooltipContent />}
-                  />
+                  <YAxis tickLine={false} axisLine={false} tickMargin={8} tick={{ fontSize: 12 }} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
                   <Line
                     type="monotone"
                     dataKey={activeYKey}
@@ -394,9 +373,7 @@ export function QueryChart({ data }: QueryChartProps) {
             <TabsContent value="pie" className="mt-0">
               <ChartContainer config={chartConfig} className="min-h-[300px] min-w-[300px] w-full">
                 <PieChart>
-                  <ChartTooltip
-                    content={<ChartTooltipContent nameKey="name" hideLabel />}
-                  />
+                  <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
                   <Pie
                     data={chartData}
                     dataKey={activeYKey}
@@ -415,9 +392,7 @@ export function QueryChart({ data }: QueryChartProps) {
                       />
                     ))}
                   </Pie>
-                  <ChartLegend
-                    content={<ChartLegendContent nameKey="name" />}
-                  />
+                  <ChartLegend content={<ChartLegendContent nameKey="name" />} />
                 </PieChart>
               </ChartContainer>
             </TabsContent>

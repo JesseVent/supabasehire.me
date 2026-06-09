@@ -1,80 +1,75 @@
-import type { TraceSpan } from "@evilmartians/agent-prism-types";
-import type { FC, KeyboardEvent, MouseEvent } from "react";
+import { formatDuration, getTimelineData } from '@evilmartians/agent-prism-data'
+import type { TraceSpan } from '@evilmartians/agent-prism-types'
+import * as Collapsible from '@radix-ui/react-collapsible'
+import cn from 'classnames'
+import type { FC, KeyboardEvent, MouseEvent } from 'react'
+import { useCallback } from 'react'
 
-import {
-  formatDuration,
-  getTimelineData,
-} from "@evilmartians/agent-prism-data";
-import * as Collapsible from "@radix-ui/react-collapsible";
-import cn from "classnames";
-import { useCallback } from "react";
-
-import type { AvatarProps } from "../Avatar";
-import type { SpanCardConnectorType } from "./SpanCardConnector";
-
-import { Avatar } from "../Avatar";
-import { BrandLogo } from "../BrandLogo";
-import { SpanStatus } from "../SpanStatus";
-import { SpanCardBadges } from "./SpanCardBadges";
-import { SpanCardConnector } from "./SpanCardConnector";
-import { SpanCardTimeline } from "./SpanCardTimeline";
-import { SpanCardToggle } from "./SpanCardToggle";
+import type { AvatarProps } from '../Avatar'
+import { Avatar } from '../Avatar'
+import { BrandLogo } from '../BrandLogo'
+import { SpanStatus } from '../SpanStatus'
+import { SpanCardBadges } from './SpanCardBadges'
+import type { SpanCardConnectorType } from './SpanCardConnector'
+import { SpanCardConnector } from './SpanCardConnector'
+import { SpanCardTimeline } from './SpanCardTimeline'
+import { SpanCardToggle } from './SpanCardToggle'
 
 const LAYOUT_CONSTANTS = {
   CONNECTOR_WIDTH: 20,
   CONTENT_BASE_WIDTH: 320,
-} as const;
+} as const
 
-type ExpandButtonPlacement = "inside" | "outside";
+type ExpandButtonPlacement = 'inside' | 'outside'
 
 export type SpanCardViewOptions = {
-  withStatus?: boolean;
-  expandButton?: ExpandButtonPlacement;
-};
+  withStatus?: boolean
+  expandButton?: ExpandButtonPlacement
+}
 
 const DEFAULT_VIEW_OPTIONS: Required<SpanCardViewOptions> = {
   withStatus: true,
-  expandButton: "inside",
-};
+  expandButton: 'inside',
+}
 
 interface SpanCardProps {
-  data: TraceSpan;
-  level?: number;
-  selectedSpan?: TraceSpan;
-  avatar?: AvatarProps;
-  onSpanSelect?: (span: TraceSpan) => void;
-  minStart: number;
-  maxEnd: number;
-  isLastChild: boolean;
-  prevLevelConnectors?: SpanCardConnectorType[];
-  expandedSpansIds: string[];
-  onExpandSpansIdsChange: (ids: string[]) => void;
-  viewOptions?: SpanCardViewOptions;
+  data: TraceSpan
+  level?: number
+  selectedSpan?: TraceSpan
+  avatar?: AvatarProps
+  onSpanSelect?: (span: TraceSpan) => void
+  minStart: number
+  maxEnd: number
+  isLastChild: boolean
+  prevLevelConnectors?: SpanCardConnectorType[]
+  expandedSpansIds: string[]
+  onExpandSpansIdsChange: (ids: string[]) => void
+  viewOptions?: SpanCardViewOptions
 }
 
 interface SpanCardState {
-  isExpanded: boolean;
-  hasChildren: boolean;
-  isSelected: boolean;
+  isExpanded: boolean
+  hasChildren: boolean
+  isSelected: boolean
 }
 
 // ─── Left-border accent per span type (sequence signaling) ───
 
 const SPAN_ACCENT_COLORS: Record<string, string> = {
-  llm:        "border-l-[#a78bfa]",       // violet — AI thinking
-  agent:      "border-l-[#818cf8]",       // indigo — agent orchestration
-  tool:       "border-l-[#3ECF8E]",       // Supabase green — tool execution
-  chain:      "border-l-[#67e8f9]",       // cyan — chain step
-  retrieval:  "border-l-[#93c5fd]",       // blue — data fetch
-  embedding:  "border-l-[#3ECF8E]",       // green — vector op
-  guardrail:  "border-l-[#f87171]",       // red — safety check
-  span:       "border-l-[#93c5fd]",       // blue — generic span
-  event:      "border-l-[#3ECF8E]",       // green — event
-  unknown:    "border-l-[#94a3b8]",       // slate — unknown
-};
+  llm: 'border-l-[#a78bfa]', // violet — AI thinking
+  agent: 'border-l-[#818cf8]', // indigo — agent orchestration
+  tool: 'border-l-[#3ECF8E]', // Supabase green — tool execution
+  chain: 'border-l-[#67e8f9]', // cyan — chain step
+  retrieval: 'border-l-[#93c5fd]', // blue — data fetch
+  embedding: 'border-l-[#3ECF8E]', // green — vector op
+  guardrail: 'border-l-[#f87171]', // red — safety check
+  span: 'border-l-[#93c5fd]', // blue — generic span
+  event: 'border-l-[#3ECF8E]', // green — event
+  unknown: 'border-l-[#94a3b8]', // slate — unknown
+}
 
 function getSpanAccentClass(type: string): string {
-  return SPAN_ACCENT_COLORS[type] ?? SPAN_ACCENT_COLORS.unknown;
+  return SPAN_ACCENT_COLORS[type] ?? SPAN_ACCENT_COLORS.unknown
 }
 
 const getContentWidth = ({
@@ -83,53 +78,51 @@ const getContentWidth = ({
   contentPadding,
   expandButton,
 }: {
-  level: number;
-  hasExpandButton: boolean;
-  contentPadding: number;
-  expandButton: ExpandButtonPlacement;
+  level: number
+  hasExpandButton: boolean
+  contentPadding: number
+  expandButton: ExpandButtonPlacement
 }) => {
-  let width =
-    LAYOUT_CONSTANTS.CONTENT_BASE_WIDTH -
-    level * LAYOUT_CONSTANTS.CONNECTOR_WIDTH;
+  let width = LAYOUT_CONSTANTS.CONTENT_BASE_WIDTH - level * LAYOUT_CONSTANTS.CONNECTOR_WIDTH
 
-  if (hasExpandButton && expandButton === "inside") {
-    width -= LAYOUT_CONSTANTS.CONNECTOR_WIDTH;
+  if (hasExpandButton && expandButton === 'inside') {
+    width -= LAYOUT_CONSTANTS.CONNECTOR_WIDTH
   }
 
-  if (expandButton === "outside" && level === 0) {
-    width -= LAYOUT_CONSTANTS.CONNECTOR_WIDTH;
+  if (expandButton === 'outside' && level === 0) {
+    width -= LAYOUT_CONSTANTS.CONNECTOR_WIDTH
   }
 
-  return width - contentPadding;
-};
+  return width - contentPadding
+}
 
 const getGridTemplateColumns = ({
   connectorsColumnWidth,
   expandButton,
 }: {
-  connectorsColumnWidth: number;
-  expandButton: ExpandButtonPlacement;
+  connectorsColumnWidth: number
+  expandButton: ExpandButtonPlacement
 }) => {
-  if (expandButton === "inside") {
-    return `${connectorsColumnWidth}px 1fr`;
+  if (expandButton === 'inside') {
+    return `${connectorsColumnWidth}px 1fr`
   }
 
-  return `${connectorsColumnWidth}px 1fr ${LAYOUT_CONSTANTS.CONNECTOR_WIDTH}px`;
-};
+  return `${connectorsColumnWidth}px 1fr ${LAYOUT_CONSTANTS.CONNECTOR_WIDTH}px`
+}
 
 const getContentPadding = ({
   level,
   hasExpandButton,
 }: {
-  level: number;
-  hasExpandButton: boolean;
+  level: number
+  hasExpandButton: boolean
 }) => {
-  if (level === 0) return 0;
+  if (level === 0) return 0
 
-  if (hasExpandButton) return 4;
+  if (hasExpandButton) return 4
 
-  return 8;
-};
+  return 8
+}
 
 const getConnectorsLayout = ({
   level,
@@ -138,101 +131,91 @@ const getConnectorsLayout = ({
   prevConnectors,
   expandButton,
 }: {
-  hasExpandButton: boolean;
-  isLastChild: boolean;
-  level: number;
-  prevConnectors: SpanCardConnectorType[];
-  expandButton: ExpandButtonPlacement;
+  hasExpandButton: boolean
+  isLastChild: boolean
+  level: number
+  prevConnectors: SpanCardConnectorType[]
+  expandButton: ExpandButtonPlacement
 }): {
-  connectors: SpanCardConnectorType[];
-  connectorsColumnWidth: number;
+  connectors: SpanCardConnectorType[]
+  connectorsColumnWidth: number
 } => {
-  const connectors: SpanCardConnectorType[] = [];
+  const connectors: SpanCardConnectorType[] = []
 
   if (level === 0) {
     return {
-      connectors: expandButton === "inside" ? [] : ["vertical"],
+      connectors: expandButton === 'inside' ? [] : ['vertical'],
       connectorsColumnWidth: 20,
-    };
+    }
   }
 
   for (let i = 0; i < level - 1; i++) {
-    connectors.push("vertical");
+    connectors.push('vertical')
   }
 
   if (!isLastChild) {
-    connectors.push("t-right");
+    connectors.push('t-right')
   }
 
   if (isLastChild) {
-    connectors.push("corner-top-right");
+    connectors.push('corner-top-right')
   }
 
-  let connectorsColumnWidth =
-    connectors.length * LAYOUT_CONSTANTS.CONNECTOR_WIDTH;
+  let connectorsColumnWidth = connectors.length * LAYOUT_CONSTANTS.CONNECTOR_WIDTH
 
   if (hasExpandButton) {
-    connectorsColumnWidth += LAYOUT_CONSTANTS.CONNECTOR_WIDTH;
+    connectorsColumnWidth += LAYOUT_CONSTANTS.CONNECTOR_WIDTH
   }
 
   for (let i = 0; i < prevConnectors.length; i++) {
-    if (
-      prevConnectors[i] === "empty" ||
-      prevConnectors[i] === "corner-top-right"
-    ) {
-      connectors[i] = "empty";
+    if (prevConnectors[i] === 'empty' || prevConnectors[i] === 'corner-top-right') {
+      connectors[i] = 'empty'
     }
   }
 
   return {
     connectors,
     connectorsColumnWidth,
-  };
-};
+  }
+}
 
-const useSpanCardEventHandlers = (
-  data: TraceSpan,
-  onSpanSelect?: (span: TraceSpan) => void,
-) => {
+const useSpanCardEventHandlers = (data: TraceSpan, onSpanSelect?: (span: TraceSpan) => void) => {
   const handleCardClick = useCallback((): void => {
-    onSpanSelect?.(data);
-  }, [data, onSpanSelect]);
+    onSpanSelect?.(data)
+  }, [data, onSpanSelect])
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent): void => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        handleCardClick();
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        handleCardClick()
       }
     },
-    [handleCardClick],
-  );
+    [handleCardClick]
+  )
 
-  const handleToggleClick = useCallback(
-    (e: MouseEvent | KeyboardEvent): void => {
-      e.stopPropagation();
-    },
-    [],
-  );
+  const handleToggleClick = useCallback((e: MouseEvent | KeyboardEvent): void => {
+    e.stopPropagation()
+  }, [])
 
   return {
     handleCardClick,
     handleKeyDown,
     handleToggleClick,
-  };
-};
+  }
+}
 
 const SpanCardChildren: FC<{
-  data: TraceSpan;
-  level: number;
-  selectedSpan?: TraceSpan;
-  onSpanSelect?: (span: TraceSpan) => void;
-  minStart: number;
-  maxEnd: number;
-  prevLevelConnectors: SpanCardConnectorType[];
-  expandedSpansIds: string[];
-  onExpandSpansIdsChange: (ids: string[]) => void;
-  viewOptions?: SpanCardViewOptions;
+  data: TraceSpan
+  level: number
+  selectedSpan?: TraceSpan
+  onSpanSelect?: (span: TraceSpan) => void
+  minStart: number
+  maxEnd: number
+  prevLevelConnectors: SpanCardConnectorType[]
+  expandedSpansIds: string[]
+  onExpandSpansIdsChange: (ids: string[]) => void
+  viewOptions?: SpanCardViewOptions
 }> = ({
   data,
   level,
@@ -245,14 +228,14 @@ const SpanCardChildren: FC<{
   onExpandSpansIdsChange,
   viewOptions = DEFAULT_VIEW_OPTIONS,
 }) => {
-  if (!data.children?.length) return null;
+  if (!data.children?.length) return null
 
   return (
     <div className="relative">
       <Collapsible.Content>
         <ul role="group">
           {data.children.map((child, idx) => {
-            const brand = child.metadata?.brand as { type: string } | undefined;
+            const brand = child.metadata?.brand as { type: string } | undefined
 
             return (
               <SpanCard
@@ -272,20 +255,20 @@ const SpanCardChildren: FC<{
                   brand
                     ? {
                         children: <BrandLogo brand={brand.type} />,
-                        size: "4",
-                        rounded: "sm",
+                        size: '4',
+                        rounded: 'sm',
                         category: child.type,
                       }
                     : undefined
                 }
               />
-            );
+            )
           })}
         </ul>
       </Collapsible.Content>
     </div>
-  );
-};
+  )
+}
 
 export const SpanCard: FC<SpanCardProps> = ({
   data,
@@ -301,55 +284,53 @@ export const SpanCard: FC<SpanCardProps> = ({
   expandedSpansIds,
   onExpandSpansIdsChange,
 }) => {
-  const isExpanded = expandedSpansIds.includes(data.id);
+  const isExpanded = expandedSpansIds.includes(data.id)
 
-  const withStatus = viewOptions.withStatus ?? DEFAULT_VIEW_OPTIONS.withStatus;
-  const expandButton =
-    viewOptions.expandButton || DEFAULT_VIEW_OPTIONS.expandButton;
+  const withStatus = viewOptions.withStatus ?? DEFAULT_VIEW_OPTIONS.withStatus
+  const expandButton = viewOptions.expandButton || DEFAULT_VIEW_OPTIONS.expandButton
 
   const handleToggleClick = useCallback(
     (expanded: boolean) => {
-      const alreadyExpanded = expandedSpansIds.includes(data.id);
+      const alreadyExpanded = expandedSpansIds.includes(data.id)
 
       if (alreadyExpanded && !expanded) {
-        onExpandSpansIdsChange(expandedSpansIds.filter((id) => id !== data.id));
+        onExpandSpansIdsChange(expandedSpansIds.filter((id) => id !== data.id))
       }
 
       if (!alreadyExpanded && expanded) {
-        onExpandSpansIdsChange([...expandedSpansIds, data.id]);
+        onExpandSpansIdsChange([...expandedSpansIds, data.id])
       }
     },
-    [expandedSpansIds, data.id, onExpandSpansIdsChange],
-  );
+    [expandedSpansIds, data.id, onExpandSpansIdsChange]
+  )
 
   const state: SpanCardState = {
     isExpanded,
     hasChildren: Boolean(data.children?.length),
     isSelected: selectedSpan?.id === data.id,
-  };
+  }
 
-  const eventHandlers = useSpanCardEventHandlers(data, onSpanSelect);
+  const eventHandlers = useSpanCardEventHandlers(data, onSpanSelect)
 
   const { durationMs } = getTimelineData({
     spanCard: data,
     minStart,
     maxEnd,
-  });
+  })
 
-  const hasExpandButtonAsFirstChild =
-    expandButton === "inside" && state.hasChildren;
+  const hasExpandButtonAsFirstChild = expandButton === 'inside' && state.hasChildren
 
   const contentPadding = getContentPadding({
     level,
     hasExpandButton: hasExpandButtonAsFirstChild,
-  });
+  })
 
   const contentWidth = getContentWidth({
     level,
     hasExpandButton: hasExpandButtonAsFirstChild,
     contentPadding,
     expandButton,
-  });
+  })
 
   const { connectors, connectorsColumnWidth } = getConnectorsLayout({
     level,
@@ -357,12 +338,12 @@ export const SpanCard: FC<SpanCardProps> = ({
     isLastChild,
     prevConnectors: prevLevelConnectors,
     expandButton,
-  });
+  })
 
   const gridTemplateColumns = getGridTemplateColumns({
     connectorsColumnWidth,
     expandButton,
-  });
+  })
 
   return (
     <li
@@ -371,23 +352,19 @@ export const SpanCard: FC<SpanCardProps> = ({
       aria-expanded={state.hasChildren ? state.isExpanded : undefined}
       className="list-none"
     >
-      <Collapsible.Root
-        open={state.isExpanded}
-        onOpenChange={handleToggleClick}
-      >
+      <Collapsible.Root open={state.isExpanded} onOpenChange={handleToggleClick}>
         <div
           className={cn(
-            "relative grid w-full",
+            'relative grid w-full',
             state.isSelected &&
-              "before:bg-agentprism-muted/75 before:absolute before:-top-2 before:h-2 before:w-full",
-            state.isSelected &&
-              "from-agentprism-muted/75 to-agentprism-muted/75 bg-gradient-to-b",
+              'before:bg-agentprism-muted/75 before:absolute before:-top-2 before:h-2 before:w-full',
+            state.isSelected && 'from-agentprism-muted/75 to-agentprism-muted/75 bg-gradient-to-b'
           )}
           style={{
             gridTemplateColumns,
-            backgroundSize: "auto calc(100% - 8px)",
-            backgroundPosition: "top",
-            backgroundRepeat: "no-repeat",
+            backgroundSize: 'auto calc(100% - 8px)',
+            backgroundPosition: 'top',
+            backgroundRepeat: 'no-repeat',
           }}
           onClick={eventHandlers.handleCardClick}
           onKeyDown={eventHandlers.handleKeyDown}
@@ -396,7 +373,7 @@ export const SpanCard: FC<SpanCardProps> = ({
           aria-pressed={state.isSelected}
           aria-describedby={`span-card-desc-${data.id}`}
           aria-expanded={state.hasChildren ? state.isExpanded : undefined}
-          aria-label={`${state.isSelected ? "Selected" : "Not selected"} span card for ${data.title} at level ${level}`}
+          aria-label={`${state.isSelected ? 'Selected' : 'Not selected'} span card for ${data.title} at level ${level}`}
         >
           <div className="flex flex-nowrap">
             {connectors.map((connector, idx) => (
@@ -417,12 +394,12 @@ export const SpanCard: FC<SpanCardProps> = ({
           </div>
           <div
             className={cn(
-              "flex flex-wrap items-start gap-x-2 gap-y-1",
-              "mb-3 min-h-5 w-full cursor-pointer",
-              "border-l-2 rounded-l-sm",
+              'flex flex-wrap items-start gap-x-2 gap-y-1',
+              'mb-3 min-h-5 w-full cursor-pointer',
+              'border-l-2 rounded-l-sm',
               getSpanAccentClass(data.type),
-              level !== 0 && !hasExpandButtonAsFirstChild && "pl-2",
-              level !== 0 && hasExpandButtonAsFirstChild && "pl-1",
+              level !== 0 && !hasExpandButtonAsFirstChild && 'pl-2',
+              level !== 0 && hasExpandButtonAsFirstChild && 'pl-1'
             )}
           >
             <div
@@ -445,24 +422,20 @@ export const SpanCard: FC<SpanCardProps> = ({
             </div>
 
             <div className="flex grow flex-wrap items-center justify-end gap-1">
-              {expandButton === "outside" && withStatus && (
+              {expandButton === 'outside' && withStatus && (
                 <div>
                   <SpanStatus status={data.status} />
                 </div>
               )}
 
-              <SpanCardTimeline
-                minStart={minStart}
-                maxEnd={maxEnd}
-                spanCard={data}
-              />
+              <SpanCardTimeline minStart={minStart} maxEnd={maxEnd} spanCard={data} />
 
               <div className="flex items-center gap-2">
                 <span className="text-agentprism-foreground inline-block w-14 flex-1 shrink-0 whitespace-nowrap px-1 text-right text-xs">
                   {formatDuration(durationMs)}
                 </span>
 
-                {expandButton === "inside" && withStatus && (
+                {expandButton === 'inside' && withStatus && (
                   <div>
                     <SpanStatus status={data.status} />
                   </div>
@@ -471,7 +444,7 @@ export const SpanCard: FC<SpanCardProps> = ({
             </div>
           </div>
 
-          {expandButton === "outside" &&
+          {expandButton === 'outside' &&
             (state.hasChildren ? (
               <SpanCardToggle
                 isExpanded={state.isExpanded}
@@ -497,5 +470,5 @@ export const SpanCard: FC<SpanCardProps> = ({
         />
       </Collapsible.Root>
     </li>
-  );
-};
+  )
+}

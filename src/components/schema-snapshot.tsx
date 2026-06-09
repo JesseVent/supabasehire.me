@@ -1,62 +1,30 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { toast } from 'sonner'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
+  AlertTriangle,
+  ArrowRight,
   Camera,
-  Clock,
-  GitCompare,
-  Plus,
-  Trash2,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
-  Database,
-  Shield,
-  ShieldCheck,
-  ShieldAlert,
-  TableIcon,
-  ArrowRight,
-  FileText,
-  AlertTriangle,
-  CheckCircle2,
-  MinusCircle,
-  PlusCircle,
+  Clock,
   Columns3,
+  Database,
+  FileText,
+  GitCompare,
   Link2,
+  MinusCircle,
+  Plus,
+  PlusCircle,
+  Shield,
+  ShieldAlert,
+  ShieldCheck,
+  TableIcon,
+  Trash2,
 } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from '@/components/ui/tabs'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { useCallback, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,9 +35,31 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { useSupabaseStore, type SchemaSnapshot } from '@/store/supabase-store'
-import type { TableSchema, TableRLSInfo, ColumnInfo, ForeignKeyInfo } from '@/lib/supabase-types'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { DEMO_CONNECTION_ID } from '@/lib/demo-data'
+import type { ColumnInfo, ForeignKeyInfo, TableRLSInfo, TableSchema } from '@/lib/supabase-types'
+import { type SchemaSnapshot, useSupabaseStore } from '@/store/supabase-store'
 
 // ─── Diff Types ───
 
@@ -159,7 +149,8 @@ function computeDiff(left: SchemaSnapshot, right: SchemaSnapshot): DiffResult {
       const rlsChanged = (oldRLS?.rlsEnabled ?? false) !== (newRLS?.rlsEnabled ?? false)
       const fkChanges = computeFKChanges(oldTable.foreignKeys, newTable.foreignKeys)
 
-      const hasChanges = columnDiffs.some((d) => d.status !== 'unchanged') || rlsChanged || fkChanges.length > 0
+      const hasChanges =
+        columnDiffs.some((d) => d.status !== 'unchanged') || rlsChanged || fkChanges.length > 0
 
       tables.push({
         tableName,
@@ -176,7 +167,12 @@ function computeDiff(left: SchemaSnapshot, right: SchemaSnapshot): DiffResult {
   }
 
   // Sort: added first, then removed, then modified, then unchanged
-  const statusOrder: Record<DiffStatus, number> = { added: 0, removed: 1, modified: 2, unchanged: 3 }
+  const statusOrder: Record<DiffStatus, number> = {
+    added: 0,
+    removed: 1,
+    modified: 2,
+    unchanged: 3,
+  }
   tables.sort((a, b) => statusOrder[a.status] - statusOrder[b.status])
 
   return {
@@ -207,9 +203,14 @@ function computeColumnDiffs(oldCols: ColumnInfo[], newCols: ColumnInfo[]): Colum
       const newCol = newMap.get(name)!
       const changes: string[] = []
 
-      if (oldCol.data_type !== newCol.data_type) changes.push(`type: ${oldCol.data_type} → ${newCol.data_type}`)
-      if (oldCol.is_nullable !== newCol.is_nullable) changes.push(`nullable: ${oldCol.is_nullable} → ${newCol.is_nullable}`)
-      if (oldCol.column_default !== newCol.column_default) changes.push(`default: ${oldCol.column_default ?? 'none'} → ${newCol.column_default ?? 'none'}`)
+      if (oldCol.data_type !== newCol.data_type)
+        changes.push(`type: ${oldCol.data_type} → ${newCol.data_type}`)
+      if (oldCol.is_nullable !== newCol.is_nullable)
+        changes.push(`nullable: ${oldCol.is_nullable} → ${newCol.is_nullable}`)
+      if (oldCol.column_default !== newCol.column_default)
+        changes.push(
+          `default: ${oldCol.column_default ?? 'none'} → ${newCol.column_default ?? 'none'}`
+        )
 
       diffs.push({
         columnName: name,
@@ -226,8 +227,12 @@ function computeColumnDiffs(oldCols: ColumnInfo[], newCols: ColumnInfo[]): Colum
 
 function computeFKChanges(oldFKs: ForeignKeyInfo[], newFKs: ForeignKeyInfo[]): string[] {
   const changes: string[] = []
-  const oldSet = new Set(oldFKs.map((fk) => `${fk.column_name}->${fk.foreign_table_name}.${fk.foreign_column_name}`))
-  const newSet = new Set(newFKs.map((fk) => `${fk.column_name}->${fk.foreign_table_name}.${fk.foreign_column_name}`))
+  const oldSet = new Set(
+    oldFKs.map((fk) => `${fk.column_name}->${fk.foreign_table_name}.${fk.foreign_column_name}`)
+  )
+  const newSet = new Set(
+    newFKs.map((fk) => `${fk.column_name}->${fk.foreign_table_name}.${fk.foreign_column_name}`)
+  )
 
   for (const fk of newSet) {
     if (!oldSet.has(fk)) changes.push(`FK added: ${fk}`)
@@ -249,13 +254,33 @@ function formatTimestamp(iso: string): string {
 
 function getColumnTypeColor(type: string): string {
   switch (type) {
-    case 'uuid': return 'bg-primary/15 text-primary dark:bg-primary/40 dark:text-primary'
-    case 'text': case 'character varying': case 'varchar': return 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
-    case 'timestamptz': case 'timestamp': case 'date': case 'time': case 'timetz': return 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
-    case 'boolean': case 'bool': return 'bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-400'
-    case 'integer': case 'bigint': case 'numeric': case 'smallint': case 'real': case 'double precision': return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-400'
-    case 'jsonb': case 'json': return 'bg-pink-100 text-pink-700 dark:bg-pink-950/40 dark:text-pink-400'
-    default: return 'bg-muted text-muted-foreground'
+    case 'uuid':
+      return 'bg-primary/15 text-primary dark:bg-primary/40 dark:text-primary'
+    case 'text':
+    case 'character varying':
+    case 'varchar':
+      return 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
+    case 'timestamptz':
+    case 'timestamp':
+    case 'date':
+    case 'time':
+    case 'timetz':
+      return 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
+    case 'boolean':
+    case 'bool':
+      return 'bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-400'
+    case 'integer':
+    case 'bigint':
+    case 'numeric':
+    case 'smallint':
+    case 'real':
+    case 'double precision':
+      return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-400'
+    case 'jsonb':
+    case 'json':
+      return 'bg-pink-100 text-pink-700 dark:bg-pink-950/40 dark:text-pink-400'
+    default:
+      return 'bg-muted text-muted-foreground'
   }
 }
 
@@ -333,7 +358,15 @@ export function SchemaSnapshotPanel() {
     toast.success('Snapshot saved', { description: snapshotName.trim() || autoName })
     setSnapshotName('')
     setShowSnapshotDialog(false)
-  }, [activeConnectionId, activeConnection, tables, rlsStatuses, snapshotName, addSnapshot, addActivityLog])
+  }, [
+    activeConnectionId,
+    activeConnection,
+    tables,
+    rlsStatuses,
+    snapshotName,
+    addSnapshot,
+    addActivityLog,
+  ])
 
   // Delete snapshot
   const handleDeleteSnapshot = useCallback(() => {
@@ -356,7 +389,9 @@ export function SchemaSnapshotPanel() {
   // Expand all modified/added/removed tables when diff changes
   const expandChangedTables = useCallback(() => {
     if (!diffResult) return
-    setExpandedTables(new Set(diffResult.tables.filter((t) => t.status !== 'unchanged').map((t) => t.tableName)))
+    setExpandedTables(
+      new Set(diffResult.tables.filter((t) => t.status !== 'unchanged').map((t) => t.tableName))
+    )
   }, [diffResult])
 
   return (
@@ -369,7 +404,9 @@ export function SchemaSnapshotPanel() {
           </div>
           <div>
             <h2 className="text-lg font-semibold leading-none">Schema Snapshots</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Capture & compare schema states over time</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Capture & compare schema states over time
+            </p>
           </div>
         </div>
         <Button
@@ -393,7 +430,8 @@ export function SchemaSnapshotPanel() {
               <div className="space-y-1.5 max-w-sm">
                 <p className="text-sm font-medium">No snapshots yet</p>
                 <p className="text-xs text-muted-foreground">
-                  Take a snapshot to save the current schema state. You can then compare snapshots to detect changes over time.
+                  Take a snapshot to save the current schema state. You can then compare snapshots
+                  to detect changes over time.
                 </p>
               </div>
               <Button
@@ -410,12 +448,18 @@ export function SchemaSnapshotPanel() {
           </CardContent>
         </Card>
       ) : (
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'snapshots' | 'compare')} className="w-full">
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as 'snapshots' | 'compare')}
+          className="w-full"
+        >
           <TabsList className="grid grid-cols-2 w-full max-w-xs">
             <TabsTrigger value="snapshots" className="gap-1.5">
               <Clock className="size-3.5" />
               Snapshots
-              <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{connectionSnapshots.length}</Badge>
+              <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">
+                {connectionSnapshots.length}
+              </Badge>
             </TabsTrigger>
             <TabsTrigger value="compare" className="gap-1.5">
               <GitCompare className="size-3.5" />
@@ -442,7 +486,9 @@ export function SchemaSnapshotPanel() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <FileText className="size-4 text-primary shrink-0" />
-                                <span className="font-medium text-sm truncate">{snapshot.name}</span>
+                                <span className="font-medium text-sm truncate">
+                                  {snapshot.name}
+                                </span>
                               </div>
                               <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-muted-foreground">
                                 <span className="flex items-center gap-1">
@@ -452,11 +498,13 @@ export function SchemaSnapshotPanel() {
                                 <span className="size-1 rounded-full bg-muted-foreground/30" />
                                 <span className="flex items-center gap-1">
                                   <Database className="size-3" />
-                                  {snapshot.tables.length} table{snapshot.tables.length !== 1 ? 's' : ''}
+                                  {snapshot.tables.length} table
+                                  {snapshot.tables.length !== 1 ? 's' : ''}
                                 </span>
                                 <span className="size-1 rounded-full bg-muted-foreground/30" />
                                 <span className="flex items-center gap-1">
-                                  {snapshot.rlsStatuses.filter((r) => r.rlsEnabled).length} RLS enabled
+                                  {snapshot.rlsStatuses.filter((r) => r.rlsEnabled).length} RLS
+                                  enabled
                                 </span>
                               </div>
                               {isDemoMode && snapshot.connectionId === DEMO_CONNECTION_ID && (
@@ -507,7 +555,9 @@ export function SchemaSnapshotPanel() {
                       size="sm"
                       variant="outline"
                       className="gap-1.5"
-                      onClick={() => { setActiveTab('snapshots') }}
+                      onClick={() => {
+                        setActiveTab('snapshots')
+                      }}
                     >
                       <Plus className="size-3.5" />
                       Take another snapshot
@@ -520,7 +570,9 @@ export function SchemaSnapshotPanel() {
                 {/* Snapshot selectors */}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                   <div className="flex-1">
-                    <Label className="text-xs text-muted-foreground mb-1 block">Earlier snapshot (left)</Label>
+                    <Label className="text-xs text-muted-foreground mb-1 block">
+                      Earlier snapshot (left)
+                    </Label>
                     <Select value={leftSnapshotId} onValueChange={setLeftSnapshotId}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select snapshot..." />
@@ -538,7 +590,9 @@ export function SchemaSnapshotPanel() {
                     <ArrowRight className="size-4 text-muted-foreground" />
                   </div>
                   <div className="flex-1">
-                    <Label className="text-xs text-muted-foreground mb-1 block">Later snapshot (right)</Label>
+                    <Label className="text-xs text-muted-foreground mb-1 block">
+                      Later snapshot (right)
+                    </Label>
                     <Select value={rightSnapshotId} onValueChange={setRightSnapshotId}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select snapshot..." />
@@ -643,8 +697,8 @@ export function SchemaSnapshotPanel() {
               Take Schema Snapshot
             </DialogTitle>
             <DialogDescription>
-              Save a snapshot of the current schema with {tables.length} table{tables.length !== 1 ? 's' : ''}.
-              You can compare snapshots later to detect changes.
+              Save a snapshot of the current schema with {tables.length} table
+              {tables.length !== 1 ? 's' : ''}. You can compare snapshots later to detect changes.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-4">
@@ -689,12 +743,18 @@ export function SchemaSnapshotPanel() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Snapshot</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete &ldquo;{deleteTarget?.name}&rdquo;? This action cannot be undone.
+              Are you sure you want to delete &ldquo;{deleteTarget?.name}&rdquo;? This action cannot
+              be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -716,7 +776,16 @@ export function SchemaSnapshotPanel() {
 
 function EyeIcon({ className }: { className?: string }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
       <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
       <circle cx="12" cy="12" r="3" />
     </svg>
@@ -734,7 +803,10 @@ function DiffTableRow({
   isExpanded: boolean
   onToggle: () => void
 }) {
-  const statusConfig: Record<DiffStatus, { bg: string; border: string; icon: React.ReactNode; label: string }> = {
+  const statusConfig: Record<
+    DiffStatus,
+    { bg: string; border: string; icon: React.ReactNode; label: string }
+  > = {
     added: {
       bg: 'bg-primary/10 dark:bg-primary/20',
       border: 'border-l-primary',
@@ -782,10 +854,21 @@ function DiffTableRow({
         {config.icon}
         <span className="font-mono text-sm font-medium">{diff.tableName}</span>
         <Badge
-          variant={diff.status === 'unchanged' ? 'outline' : diff.status === 'added' ? 'default' : diff.status === 'removed' ? 'destructive' : 'secondary'}
+          variant={
+            diff.status === 'unchanged'
+              ? 'outline'
+              : diff.status === 'added'
+                ? 'default'
+                : diff.status === 'removed'
+                  ? 'destructive'
+                  : 'secondary'
+          }
           className={`text-[9px] px-1.5 py-0 ${
-            diff.status === 'added' ? 'bg-primary hover:bg-primary' :
-            diff.status === 'modified' ? 'bg-amber-500 hover:bg-amber-600 text-white' : ''
+            diff.status === 'added'
+              ? 'bg-primary hover:bg-primary'
+              : diff.status === 'modified'
+                ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                : ''
           }`}
         >
           {config.label}
@@ -837,12 +920,20 @@ function DiffTableRow({
               {diff.rlsChanged && (
                 <div className="flex items-center gap-2 text-xs">
                   <Shield className="size-3.5 text-amber-500" />
-                  <span className="text-amber-700 dark:text-amber-400 font-medium">RLS status changed:</span>
-                  <Badge variant={diff.oldRLS?.rlsEnabled ? 'default' : 'destructive'} className="text-[9px] px-1.5 py-0">
+                  <span className="text-amber-700 dark:text-amber-400 font-medium">
+                    RLS status changed:
+                  </span>
+                  <Badge
+                    variant={diff.oldRLS?.rlsEnabled ? 'default' : 'destructive'}
+                    className="text-[9px] px-1.5 py-0"
+                  >
                     {diff.oldRLS?.rlsEnabled ? 'ON' : 'OFF'}
                   </Badge>
                   <ArrowRight className="size-3 text-muted-foreground" />
-                  <Badge variant={diff.newRLS?.rlsEnabled ? 'default' : 'destructive'} className="text-[9px] px-1.5 py-0">
+                  <Badge
+                    variant={diff.newRLS?.rlsEnabled ? 'default' : 'destructive'}
+                    className="text-[9px] px-1.5 py-0"
+                  >
                     {diff.newRLS?.rlsEnabled ? 'ON' : 'OFF'}
                   </Badge>
                 </div>
@@ -854,7 +945,13 @@ function DiffTableRow({
                   {diff.fkChanges.map((fk, idx) => (
                     <div key={idx} className="flex items-center gap-2 text-xs">
                       <Link2 className="size-3.5 text-amber-500" />
-                      <span className={fk.startsWith('FK added') ? 'text-primary dark:text-primary' : 'text-red-700 dark:text-red-400'}>
+                      <span
+                        className={
+                          fk.startsWith('FK added')
+                            ? 'text-primary dark:text-primary'
+                            : 'text-red-700 dark:text-red-400'
+                        }
+                      >
                         {fk}
                       </span>
                     </div>
@@ -865,7 +962,9 @@ function DiffTableRow({
               {/* Column Diffs */}
               {diff.columnDiffs.filter((c) => c.status !== 'unchanged').length > 0 && (
                 <div className="space-y-1.5">
-                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Column changes</p>
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                    Column changes
+                  </p>
                   {diff.columnDiffs
                     .filter((c) => c.status !== 'unchanged')
                     .map((colDiff) => (
@@ -892,30 +991,49 @@ function ColumnDiffRow({ diff }: { diff: ColumnDiff }) {
   }
 
   return (
-    <div className={`flex items-start gap-2 text-xs py-1 px-2 rounded ${
-      diff.status === 'added' ? 'bg-primary/10 dark:bg-primary/20' :
-      diff.status === 'removed' ? 'bg-red-50 dark:bg-red-950/20' :
-      diff.status === 'modified' ? 'bg-amber-50 dark:bg-amber-950/20' : ''
-    }`}>
+    <div
+      className={`flex items-start gap-2 text-xs py-1 px-2 rounded ${
+        diff.status === 'added'
+          ? 'bg-primary/10 dark:bg-primary/20'
+          : diff.status === 'removed'
+            ? 'bg-red-50 dark:bg-red-950/20'
+            : diff.status === 'modified'
+              ? 'bg-amber-50 dark:bg-amber-950/20'
+              : ''
+      }`}
+    >
       {statusIcon[diff.status]}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="font-mono font-medium">{diff.columnName}</span>
           {diff.status === 'added' && diff.newColumn && (
-            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${getColumnTypeColor(diff.newColumn.data_type)}`}>
+            <span
+              className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${getColumnTypeColor(diff.newColumn.data_type)}`}
+            >
               {diff.newColumn.data_type}
             </span>
           )}
           {diff.status === 'removed' && diff.oldColumn && (
-            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${getColumnTypeColor(diff.oldColumn.data_type)}`}>
+            <span
+              className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${getColumnTypeColor(diff.oldColumn.data_type)}`}
+            >
               {diff.oldColumn.data_type}
             </span>
           )}
           <Badge
-            variant={diff.status === 'added' ? 'default' : diff.status === 'removed' ? 'destructive' : 'secondary'}
+            variant={
+              diff.status === 'added'
+                ? 'default'
+                : diff.status === 'removed'
+                  ? 'destructive'
+                  : 'secondary'
+            }
             className={`text-[8px] px-1 py-0 ${
-              diff.status === 'added' ? 'bg-primary hover:bg-primary' :
-              diff.status === 'modified' ? 'bg-amber-500 hover:bg-amber-600 text-white' : ''
+              diff.status === 'added'
+                ? 'bg-primary hover:bg-primary'
+                : diff.status === 'modified'
+                  ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                  : ''
             }`}
           >
             {diff.status === 'added' ? 'NEW' : diff.status === 'removed' ? 'DEL' : 'MOD'}
@@ -924,7 +1042,9 @@ function ColumnDiffRow({ diff }: { diff: ColumnDiff }) {
         {diff.status === 'modified' && diff.changes && diff.changes.length > 0 && (
           <div className="mt-1 space-y-0.5">
             {diff.changes.map((change, idx) => (
-              <p key={idx} className="text-[10px] text-amber-600 dark:text-amber-400 font-mono">{change}</p>
+              <p key={idx} className="text-[10px] text-amber-600 dark:text-amber-400 font-mono">
+                {change}
+              </p>
             ))}
           </div>
         )}

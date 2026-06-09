@@ -1,134 +1,134 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import type {
-  SupabaseConnection,
-  TableSchema,
-  TableRLSInfo,
-  EdgeFunction,
   ActivePanel,
+  EdgeFunction,
   RLSTestResult,
   SQLQueryResult,
-} from '@/lib/supabase-types';
+  SupabaseConnection,
+  TableRLSInfo,
+  TableSchema,
+} from '@/lib/supabase-types'
 
 // ─── Schema Snapshot Types ───
 
 export interface SchemaSnapshot {
-  id: string;
-  name: string;
-  timestamp: string;
-  tables: TableSchema[];
-  rlsStatuses: TableRLSInfo[];
-  connectionId: string;
-  connectionName: string;
+  id: string
+  name: string
+  timestamp: string
+  tables: TableSchema[]
+  rlsStatuses: TableRLSInfo[]
+  connectionId: string
+  connectionName: string
 }
 
 // ─── Activity Log Types ───
 
-export type ActivityType = 'connection' | 'schema' | 'rls' | 'sql' | 'function';
+export type ActivityType = 'connection' | 'schema' | 'rls' | 'sql' | 'function'
 
 export interface ActivityLogEntry {
-  id: string;
-  type: ActivityType;
-  action: string;
-  timestamp: string;
-  details?: string;
+  id: string
+  type: ActivityType
+  action: string
+  timestamp: string
+  details?: string
 }
 
 // ─── Migration Types ───
 
 export interface MigrationRecord {
-  id: string;
-  name: string;
-  sql: string;
-  status: 'success' | 'failed' | 'pending';
-  appliedAt: string;
-  connectionId: string;
-  error?: string;
+  id: string
+  name: string
+  sql: string
+  status: 'success' | 'failed' | 'pending'
+  appliedAt: string
+  connectionId: string
+  error?: string
 }
 
 // ─── Latency Types ───
 
 export interface LatencyRecord {
-  id: string;
-  timestamp: string;
-  duration: number;
-  status: 'good' | 'warning' | 'critical';
+  id: string
+  timestamp: string
+  duration: number
+  status: 'good' | 'warning' | 'critical'
 }
 
 interface SupabaseStore {
   // Connection state
-  connections: SupabaseConnection[];
-  activeConnectionId: string | null;
+  connections: SupabaseConnection[]
+  activeConnectionId: string | null
 
   // Schema state
-  tables: TableSchema[];
-  rlsStatuses: TableRLSInfo[];
-  edgeFunctions: EdgeFunction[];
+  tables: TableSchema[]
+  rlsStatuses: TableRLSInfo[]
+  edgeFunctions: EdgeFunction[]
 
   // UI state
-  activePanel: ActivePanel;
-  selectedTable: string | null;
-  isLoading: boolean;
-  error: string | null;
+  activePanel: ActivePanel
+  selectedTable: string | null
+  isLoading: boolean
+  error: string | null
 
   // Test results
-  rlsTestResults: RLSTestResult[];
-  sqlResults: SQLQueryResult[];
+  rlsTestResults: RLSTestResult[]
+  sqlResults: SQLQueryResult[]
 
   // SQL Editor content (shared between panels)
-  sqlEditorContent: string;
+  sqlEditorContent: string
 
   // SQL Query History
-  sqlHistory: string[];
+  sqlHistory: string[]
 
   // Keyboard shortcuts dialog
-  showShortcutsDialog: boolean;
+  showShortcutsDialog: boolean
 
   // Activity log
-  activityLog: ActivityLogEntry[];
+  activityLog: ActivityLogEntry[]
 
   // Schema snapshots
-  schemaSnapshots: SchemaSnapshot[];
+  schemaSnapshots: SchemaSnapshot[]
 
   // Migration history
-  migrationHistory: MigrationRecord[];
+  migrationHistory: MigrationRecord[]
 
   // Latency history
-  latencyHistory: LatencyRecord[];
+  latencyHistory: LatencyRecord[]
 
   // Edge function notes (local schema annotations), keyed by "connectionId:functionName"
-  functionNotes: Record<string, string>;
+  functionNotes: Record<string, string>
 
   // Actions
-  setConnections: (connections: SupabaseConnection[]) => void;
-  addConnection: (connection: SupabaseConnection) => void;
-  updateConnection: (id: string, updates: Partial<SupabaseConnection>) => void;
-  removeConnection: (id: string) => void;
-  setActiveConnectionId: (id: string | null) => void;
-  setTables: (tables: TableSchema[]) => void;
-  setRlsStatuses: (statuses: TableRLSInfo[]) => void;
-  setEdgeFunctions: (functions: EdgeFunction[]) => void;
-  setActivePanel: (panel: ActivePanel) => void;
-  setSelectedTable: (table: string | null) => void;
-  setIsLoading: (loading: boolean) => void;
-  setError: (error: string | null) => void;
-  addRlsTestResult: (result: RLSTestResult) => void;
-  clearRlsTestResults: () => void;
-  addSqlResult: (result: SQLQueryResult) => void;
-  clearSqlResults: () => void;
-  setSqlEditorContent: (content: string) => void;
-  addSqlToHistory: (query: string) => void;
-  clearSqlHistory: () => void;
-  setShowShortcutsDialog: (show: boolean) => void;
-  addActivityLog: (entry: Omit<ActivityLogEntry, 'id' | 'timestamp'>) => void;
-  addSnapshot: (snapshot: Omit<SchemaSnapshot, 'id' | 'timestamp'>) => void;
-  deleteSnapshot: (id: string) => void;
-  addMigration: (migration: Omit<MigrationRecord, 'id' | 'appliedAt'>) => void;
-  clearMigrationHistory: () => void;
-  addLatencyRecord: (record: Omit<LatencyRecord, 'id'>) => void;
-  clearLatencyHistory: () => void;
-  setFunctionNotes: (key: string, notes: string) => void;
-  reset: () => void;
+  setConnections: (connections: SupabaseConnection[]) => void
+  addConnection: (connection: SupabaseConnection) => void
+  updateConnection: (id: string, updates: Partial<SupabaseConnection>) => void
+  removeConnection: (id: string) => void
+  setActiveConnectionId: (id: string | null) => void
+  setTables: (tables: TableSchema[]) => void
+  setRlsStatuses: (statuses: TableRLSInfo[]) => void
+  setEdgeFunctions: (functions: EdgeFunction[]) => void
+  setActivePanel: (panel: ActivePanel) => void
+  setSelectedTable: (table: string | null) => void
+  setIsLoading: (loading: boolean) => void
+  setError: (error: string | null) => void
+  addRlsTestResult: (result: RLSTestResult) => void
+  clearRlsTestResults: () => void
+  addSqlResult: (result: SQLQueryResult) => void
+  clearSqlResults: () => void
+  setSqlEditorContent: (content: string) => void
+  addSqlToHistory: (query: string) => void
+  clearSqlHistory: () => void
+  setShowShortcutsDialog: (show: boolean) => void
+  addActivityLog: (entry: Omit<ActivityLogEntry, 'id' | 'timestamp'>) => void
+  addSnapshot: (snapshot: Omit<SchemaSnapshot, 'id' | 'timestamp'>) => void
+  deleteSnapshot: (id: string) => void
+  addMigration: (migration: Omit<MigrationRecord, 'id' | 'appliedAt'>) => void
+  clearMigrationHistory: () => void
+  addLatencyRecord: (record: Omit<LatencyRecord, 'id'>) => void
+  clearLatencyHistory: () => void
+  setFunctionNotes: (key: string, notes: string) => void
+  reset: () => void
 }
 
 const initialState = {
@@ -151,7 +151,7 @@ const initialState = {
   migrationHistory: [] as MigrationRecord[],
   latencyHistory: [] as LatencyRecord[],
   functionNotes: {} as Record<string, string>,
-};
+}
 
 export const useSupabaseStore = create<SupabaseStore>()(
   persist(
@@ -176,8 +176,7 @@ export const useSupabaseStore = create<SupabaseStore>()(
       removeConnection: (id) =>
         set((state) => ({
           connections: state.connections.filter((c) => c.id !== id),
-          activeConnectionId:
-            state.activeConnectionId === id ? null : state.activeConnectionId,
+          activeConnectionId: state.activeConnectionId === id ? null : state.activeConnectionId,
         })),
 
       setActiveConnectionId: (id) => set({ activeConnectionId: id }),
@@ -305,4 +304,4 @@ export const useSupabaseStore = create<SupabaseStore>()(
       }),
     }
   )
-);
+)

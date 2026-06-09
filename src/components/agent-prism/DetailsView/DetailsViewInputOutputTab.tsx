@@ -1,28 +1,26 @@
-import type { TraceSpan } from "@evilmartians/agent-prism-types";
-import type { ReactElement } from "react";
+import type { TraceSpan } from '@evilmartians/agent-prism-types'
+import type { ReactElement } from 'react'
 
-import { useState, useEffect } from "react";
-
-import type { TabItem } from "../Tabs";
-
-import { CollapsibleSection } from "../CollapsibleSection";
-import { TabSelector } from "../TabSelector";
+import { useEffect, useState } from 'react'
+import { CollapsibleSection } from '../CollapsibleSection'
+import { TabSelector } from '../TabSelector'
+import type { TabItem } from '../Tabs'
 import {
   DetailsViewContentViewer,
   type DetailsViewContentViewMode,
-} from "./DetailsViewContentViewer";
+} from './DetailsViewContentViewer'
 
 interface DetailsViewInputOutputTabProps {
-  data: TraceSpan;
+  data: TraceSpan
 }
 
-type IOSection = "Input" | "Output";
+type IOSection = 'Input' | 'Output'
 
 export const DetailsViewInputOutputTab = ({
   data,
 }: DetailsViewInputOutputTabProps): ReactElement => {
-  const hasInput = Boolean(data.input);
-  const hasOutput = Boolean(data.output);
+  const hasInput = Boolean(data.input)
+  const hasOutput = Boolean(data.output)
 
   if (!hasInput && !hasOutput) {
     return (
@@ -31,73 +29,59 @@ export const DetailsViewInputOutputTab = ({
           No input or output data available for this span
         </p>
       </div>
-    );
+    )
   }
 
-  let parsedInput: string | null = null;
-  let parsedOutput: string | null = null;
+  let parsedInput: string | null = null
+  let parsedOutput: string | null = null
 
-  if (typeof data.input === "string") {
+  if (typeof data.input === 'string') {
     try {
-      parsedInput = JSON.parse(data.input);
+      parsedInput = JSON.parse(data.input)
     } catch {
-      parsedInput = null;
+      parsedInput = null
     }
   }
 
-  if (typeof data.output === "string") {
+  if (typeof data.output === 'string') {
     try {
-      parsedOutput = JSON.parse(data.output);
+      parsedOutput = JSON.parse(data.output)
     } catch {
-      parsedOutput = null;
+      parsedOutput = null
     }
   }
 
   return (
     <div className="space-y-4">
-      {typeof data.input === "string" && (
-        <IOSection
-          section="Input"
-          content={data.input}
-          parsedContent={parsedInput}
-        />
+      {typeof data.input === 'string' && (
+        <IOSection section="Input" content={data.input} parsedContent={parsedInput} />
       )}
-      {typeof data.output === "string" && (
-        <IOSection
-          section="Output"
-          content={data.output}
-          parsedContent={parsedOutput}
-        />
+      {typeof data.output === 'string' && (
+        <IOSection section="Output" content={data.output} parsedContent={parsedOutput} />
       )}
     </div>
-  );
-};
-
-interface IOSectionProps {
-  section: IOSection;
-  content: string;
-  parsedContent: string | null;
+  )
 }
 
-const IOSection = ({
-  section,
-  content,
-  parsedContent,
-}: IOSectionProps): ReactElement => {
-  const [tab, setTab] = useState<DetailsViewContentViewMode>(
-    parsedContent ? "json" : "plain",
-  );
+interface IOSectionProps {
+  section: IOSection
+  content: string
+  parsedContent: string | null
+}
+
+const IOSection = ({ section, content, parsedContent }: IOSectionProps): ReactElement => {
+  const [tab, setTab] = useState<DetailsViewContentViewMode>(parsedContent ? 'json' : 'plain')
 
   useEffect(() => {
-    if (tab === "json" && !parsedContent) {
-      setTab("plain");
+    if (tab === 'json' && !parsedContent) {
+      setTab('plain')
     }
-  }, [tab, parsedContent]);
+  }, [tab, parsedContent])
 
   const tabItems: TabItem<DetailsViewContentViewMode>[] = [
-    { value: "json", label: "JSON", disabled: !parsedContent },
-    { value: "plain", label: "Plain" },
-  ];
+    { value: 'json', label: 'JSON', disabled: !parsedContent },
+    { value: 'plain', label: 'Plain' },
+  ]
 
   return (
     <CollapsibleSection
@@ -106,7 +90,7 @@ const IOSection = ({
       rightContent={
         <TabSelector<DetailsViewContentViewMode>
           items={tabItems}
-          defaultValue={parsedContent ? "json" : "plain"}
+          defaultValue={parsedContent ? 'json' : 'plain'}
           value={tab}
           onValueChange={setTab}
           theme="pill"
@@ -122,5 +106,5 @@ const IOSection = ({
         id={section}
       />
     </CollapsibleSection>
-  );
-};
+  )
+}
