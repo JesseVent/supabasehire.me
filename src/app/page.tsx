@@ -122,6 +122,12 @@ import {
   DEMO_TABLES,
 } from '@/lib/demo-data'
 import {
+  fetchWithBackoff,
+  recordAuthFailure,
+  recordSuccess,
+  shouldSkipConnection,
+} from '@/lib/retry-with-backoff'
+import {
   buildAuthorizeUrl,
   exchangeCode,
   generatePKCE,
@@ -493,11 +499,26 @@ export default function Home() {
     if (!activeConnectionId) return
     const activeConn = connections.find((c) => c.id === activeConnectionId)
     if (!activeConn) return
+
+    // Skip connections that have consistently failed auth — stop retry storms
+    if (shouldSkipConnection(activeConnectionId)) {
+      setSchemaError('Connection has repeated auth failures. Check your OAuth token or reconnect.')
+      return
+    }
+
     setIsLoadingSchema(true)
     setSchemaError(null)
     try {
-      // Fetch schema
-      const schemaRes = await apiFetch('/api/schema', activeConn)
+      // Fetch schema with exponential backoff — stops on 401/403/429
+      const schemaRes = await fetchWithBackoff(() => apiFetch('/api/schema', activeConn), {
+        key: `${activeConnectionId}:schema`,
+      })
+      if (schemaRes.status === 401 || schemaRes.status === 403) {
+        recordAuthFailure(activeConnectionId)
+        setSchemaError('Authentication failed. Reconnect this project via OAuth.')
+        return
+      }
+      recordSuccess(activeConnectionId)
       const schemaData = await schemaRes.json()
       if (schemaData.error) {
         setSchemaError(schemaData.error)
@@ -510,11 +531,16 @@ export default function Home() {
         })
       }
 
-      // Fetch RLS info
-      const rlsRes = await apiFetch('/api/rls', activeConn)
+      // Fetch RLS info with exponential backoff
+      const rlsRes = await fetchWithBackoff(() => apiFetch('/api/rls', activeConn), {
+        key: `${activeConnectionId}:rls`,
+      })
+      if (rlsRes.status === 401 || rlsRes.status === 403) {
+        recordAuthFailure(activeConnectionId)
+        return
+      }
       const rlsData = await rlsRes.json()
       if (rlsData.error) {
-        // Don't overwrite schema error, but show RLS error
         if (!schemaData.error) setSchemaError(rlsData.error)
       } else {
         setRlsStatuses(rlsData.tables || [])

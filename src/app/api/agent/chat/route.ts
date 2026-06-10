@@ -8,7 +8,17 @@ import { type NextRequest, NextResponse } from 'next/server'
  * This route injects the key from a server environment variable and forwards
  * the request to the LLM provider, keeping the key off the browser.
  *
- * Env vars used (pick one):
+ * Auth (T-05) — same pattern as the supa-agent extension:
+ *   The client passes its Supabase Management API OAuth access token in
+ *   `x-supabase-access-token` (the same header used by every other route).
+ *   Server-side we validate it by calling api.supabase.com/v1/profile.
+ *   Validated tokens are cached for 5 minutes to avoid hammering the MGMT API.
+ *   If no server LLM key is configured, auth is skipped (local dev only).
+ *
+ * Rate limiting:
+ *   30 requests per IP per minute (in-process, resets on cold start).
+ *
+ * Env vars used for LLM keys (pick one):
  *   LLM_API_KEY       — works for any OpenAI-compatible provider
  *   OPENAI_API_KEY     — alias, specific to OpenAI
  *
@@ -27,7 +37,86 @@ const PROVIDER_BASE_URLS: Record<string, string> = {
   openrouter: 'https://openrouter.ai/api/v1',
 }
 
+// ── Management API token validation cache ───────────────────────────────────
+// Mirrors the extension's approach: the access token the user already holds
+// from the Management API OAuth flow is reused here for auth.
+const TOKEN_TTL_MS = 5 * 60 * 1000 // 5 minutes
+const validTokenCache = new Map<string, number>() // token → expiresAt
+
+// ── Rate limiting (T-05) ───────────────────────────────────────────────────
+const RATE_LIMIT = 30
+const RATE_WINDOW_MS = 60 * 1000
+const rateMap = new Map<string, { count: number; resetAt: number }>()
+
+async function isMgmtTokenValid(token: string): Promise<boolean> {
+  const cached = validTokenCache.get(token)
+  if (cached && cached > Date.now()) return true
+
+  try {
+    const res = await fetch('https://api.supabase.com/v1/profile', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      validTokenCache.set(token, Date.now() + TOKEN_TTL_MS)
+      return true
+    }
+    return false
+  } catch {
+    return false
+  }
+}
+
+function getCallerIp(req: NextRequest): string {
+  return (
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    req.headers.get('x-real-ip') ??
+    'unknown'
+  )
+}
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now()
+  const entry = rateMap.get(ip)
+  if (!entry || entry.resetAt <= now) {
+    rateMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS })
+    return true
+  }
+  if (entry.count >= RATE_LIMIT) return false
+  entry.count++
+  return true
+}
+
 export async function POST(request: NextRequest) {
+  // ── Auth check (Supabase Management API OAuth token) ─────────────────────
+  // Only enforce when a server LLM key is configured — without one the panel
+  // already requires the user to enter their own key (client-side only).
+  const serverLlmKeyPresent = !!(process.env.LLM_API_KEY || process.env.OPENAI_API_KEY)
+  if (serverLlmKeyPresent) {
+    const mgmtToken = request.headers.get('x-supabase-access-token')
+    if (!mgmtToken) {
+      return NextResponse.json(
+        { error: 'Unauthorized: Supabase Management API access token required.' },
+        { status: 401 }
+      )
+    }
+    const valid = await isMgmtTokenValid(mgmtToken)
+    if (!valid) {
+      return NextResponse.json(
+        { error: 'Unauthorized: Invalid or expired Supabase access token.' },
+        { status: 401 }
+      )
+    }
+  }
+
+  // ── Rate limit ────────────────────────────────────────────────────────────
+  const callerIp = getCallerIp(request)
+  if (!checkRateLimit(callerIp)) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded. Please wait before sending more requests.' },
+      { status: 429, headers: { 'Retry-After': '60' } }
+    )
+  }
+
   try {
     const { provider, model, body } = await request.json()
 

@@ -38,8 +38,16 @@ declare global {
 /**
  * Create a custom fetch that routes LLM requests through our server-side proxy.
  * The proxy injects the real API key from an env var — the key never reaches the browser.
+ *
+ * The Supabase Management API OAuth access token (`oauthToken`) is forwarded as
+ * `x-supabase-access-token` so the server can authenticate the caller — mirroring
+ * the same pattern used by every other API route in the devtool (and the extension).
  */
-export function createProxyFetch(provider: string, model: string): typeof globalThis.fetch {
+export function createProxyFetch(
+  provider: string,
+  model: string,
+  oauthToken: string | null = null
+): typeof globalThis.fetch {
   return async (input: RequestInfo | URL, init?: RequestInit) => {
     // Only intercept requests to the LLM provider
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
@@ -52,9 +60,12 @@ export function createProxyFetch(provider: string, model: string): typeof global
     // Forward to our server proxy — baseURL is resolved server-side from the provider name
     const body = init?.body ? JSON.parse(String(init.body)) : {}
 
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (oauthToken) headers['x-supabase-access-token'] = oauthToken
+
     return fetch('/api/agent/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ provider, model, body }),
       signal: init?.signal,
     })

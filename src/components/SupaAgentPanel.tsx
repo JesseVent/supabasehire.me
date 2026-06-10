@@ -118,7 +118,11 @@ export function SupaAgentPanel() {
       }
 
       if (useServerProxy) {
-        config.customFetch = createProxyFetch(llmConfig.provider, llmConfig.model)
+        config.customFetch = createProxyFetch(
+          llmConfig.provider,
+          llmConfig.model,
+          activeConn?.accessToken ?? null
+        )
         config.apiKey = 'proxy' // placeholder so the agent doesn't complain
       } else {
         config.apiKey = llmConfig.apiKey
