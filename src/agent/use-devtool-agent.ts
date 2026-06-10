@@ -72,6 +72,7 @@ export function useDevtoolAgent(): UseDevtoolAgentReturn {
 
   const agentRef = useRef<PageAgentCore | null>(null)
   const questionResolveRef = useRef<((answer: string) => void) | null>(null)
+  const hasAttemptedImport = useRef(false)
 
   const [isReady, setIsReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -84,11 +85,17 @@ export function useDevtoolAgent(): UseDevtoolAgentReturn {
       return
     }
 
+    // Only attempt dynamic import once per session to avoid spamming the console
+    if (hasAttemptedImport.current) {
+      return
+    }
+
     let cancelled = false
 
     async function init() {
       try {
         // Dynamic import to avoid SSR issues — supa-agent is browser-only
+        hasAttemptedImport.current = true
         const { PageAgentCore, tool } = await import('supa-agent')
 
         if (cancelled) return

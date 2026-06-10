@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { ThemeProvider } from 'next-themes'
+import { SupaAgentPanel } from '@/components/SupaAgentPanel'
 import { Toaster } from '@/components/ui/sonner'
 
 export const metadata: Metadata = {
@@ -52,6 +53,11 @@ export default function RootLayout({
         >
           {children}
           <Toaster />
+          <SupaAgentPanel
+            apiKey={process.env.OPENAI_API_KEY || ''}
+            baseURL="https://api.openai.com/v1"
+            model="gpt-4o-mini"
+          />
           <footer className="border-t bg-muted/30 py-2 px-4 text-center text-[11px] text-muted-foreground">
             This site is not affiliated with or endorsed by Supabase. It is an independent
             engineering project built as part of a job application.

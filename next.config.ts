@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+  devIndicators: {
+    buildActivity: false,
+    appIsrStatus: false,
+  },
   // Silence the "webpack config with Turbopack" warning in dev; build uses --webpack
   turbopack: {},
   webpack: (config, { isServer }) => {

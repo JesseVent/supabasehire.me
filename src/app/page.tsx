@@ -2159,7 +2159,10 @@ function TableDetailPanel({
               const isNullable = col.is_nullable === 'YES'
 
               return (
-                <div key={col.column_name} className="flex flex-col gap-0.5 text-xs py-1">
+                <div
+                  key={`${tableName}-${col.column_name}`}
+                  className="flex flex-col gap-0.5 text-xs py-1"
+                >
                   <div className="flex items-center gap-1.5">
                     {/* PK / FK icon */}
                     <span className="w-4 h-4 flex items-center justify-center shrink-0">

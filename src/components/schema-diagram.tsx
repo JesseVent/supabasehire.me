@@ -386,7 +386,7 @@ function TableNode({ data }: { data: TableNodeData }) {
 
           return (
             <div
-              key={col.column_name}
+              key={`${tableName}-${col.column_name}`}
               className={cn(
                 'flex items-center gap-1.5 text-xs leading-7 text-foreground/80 border-b border-border/20 last:border-0',
                 index % 2 === 1 && 'bg-black/[0.02] -mx-3 px-3'
