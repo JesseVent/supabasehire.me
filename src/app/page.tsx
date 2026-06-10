@@ -851,11 +851,29 @@ export default function Home() {
                   <SelectValue placeholder="Select connection" />
                 </SelectTrigger>
                 <SelectContent>
-                  {connections.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
+                  {connections.map((c) => {
+                    const status = connectionHealthMap[c.id] ?? 'checking'
+                    return (
+                      <SelectItem key={c.id} value={c.id}>
+                        <span className="flex items-center justify-between w-full gap-2">
+                          <span>{c.name}</span>
+                          <span
+                            className={`text-[9px] uppercase font-mono px-1 rounded ${
+                              status === 'healthy'
+                                ? 'text-emerald-500 bg-emerald-500/10'
+                                : status === 'degraded'
+                                  ? 'text-amber-500 bg-amber-500/10'
+                                  : status === 'unhealthy'
+                                    ? 'text-rose-500 bg-rose-500/10'
+                                    : 'text-zinc-500 bg-zinc-500/10'
+                            }`}
+                          >
+                            {status}
+                          </span>
+                        </span>
+                      </SelectItem>
+                    )
+                  })}
                 </SelectContent>
               </Select>
             ) : null}
@@ -1158,40 +1176,101 @@ export default function Home() {
                 transition={{ delay: 0.45, duration: 0.3 }}
                 className="w-full max-w-lg"
               >
-                <p className="text-sm font-semibold mb-3 text-foreground">Your connections</p>
-                <div className="flex flex-wrap gap-3 justify-center mb-6">
-                  {connections.map((c, i) => (
-                    /* biome-ignore lint/a11y/useSemanticElements: entity-card is a complex styled interactive block element */
-                    <div
-                      key={c.id}
-                      className="entity-card"
-                      style={
-                        {
-                          '--card-accent': `var(--accent-${['cyan', 'blue', 'purple', 'green', 'orange', 'coral'][i % 6]})`,
-                          position: 'relative',
-                        } as React.CSSProperties
-                      }
-                      onClick={() => setActiveConnectionId(c.id)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && setActiveConnectionId(c.id)}
+                <div className="flex items-center justify-between mb-3 w-full">
+                  <p className="text-sm font-semibold text-foreground">Your connections</p>
+                  {connections.some((c) => connectionHealthMap[c.id] === 'unhealthy') && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const unhealthyConns = connections.filter(
+                          (c) => connectionHealthMap[c.id] === 'unhealthy'
+                        )
+                        if (unhealthyConns.length === 0) return
+                        if (
+                          window.confirm(
+                            `Are you sure you want to delete all ${unhealthyConns.length} broken/unauthorized connections?`
+                          )
+                        ) {
+                          unhealthyConns.forEach((c) => {
+                            deleteConnection(c.id)
+                          })
+                        }
+                      }}
+                      className="h-7 px-2 text-xs text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 gap-1 animate-fade-in"
                     >
-                      {getHealthDot(c.id)}
-                      <div className="entity-card__tags">
-                        <span className="tag--solid">{c.name}</span>
-                        <span className="tag--translucent">Supabase</span>
-                      </div>
-                      <div className="entity-card__icon">
-                        <Database size={28} />
-                      </div>
-                      <div className="entity-card__details">
-                        <div className="entity-card__title">{c.name}</div>
-                        <div className="entity-card__meta">
-                          <span className="host">{c.supabaseUrl.replace('https://', '')}</span>
+                      <Trash2 className="size-3" />
+                      Prune broken connections
+                    </Button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-3 justify-center mb-6">
+                  {connections.map((c, i) => {
+                    const status = connectionHealthMap[c.id] ?? 'checking'
+                    return (
+                      /* biome-ignore lint/a11y/useSemanticElements: entity-card is a complex styled interactive block element */
+                      <div
+                        key={c.id}
+                        className="entity-card"
+                        style={
+                          {
+                            '--card-accent': `var(--accent-${['cyan', 'blue', 'purple', 'green', 'orange', 'coral'][i % 6]})`,
+                            position: 'relative',
+                          } as React.CSSProperties
+                        }
+                        onClick={() => setActiveConnectionId(c.id)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === 'Enter' && setActiveConnectionId(c.id)}
+                      >
+                        {getHealthDot(c.id)}
+                        <div className="entity-card__tags">
+                          <span className="tag--solid">{c.name}</span>
+                          <span
+                            className={`tag--solid uppercase text-[9px] px-1.5 py-0.5 rounded ${
+                              status === 'healthy'
+                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                : status === 'degraded'
+                                  ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                  : status === 'unhealthy'
+                                    ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                    : 'bg-zinc-500/10 text-zinc-400'
+                            }`}
+                          >
+                            {status}
+                          </span>
                         </div>
+                        <div className="entity-card__icon">
+                          <Database size={28} />
+                        </div>
+                        <div className="entity-card__details">
+                          <div className="entity-card__title">{c.name}</div>
+                          <div className="entity-card__meta">
+                            <span className="host">{c.supabaseUrl.replace('https://', '')}</span>
+                          </div>
+                        </div>
+                        {c.id !== DEMO_CONNECTION_ID && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (
+                                window.confirm(
+                                  `Are you sure you want to delete connection "${c.name}"?`
+                                )
+                              ) {
+                                deleteConnection(c.id)
+                              }
+                            }}
+                            className="absolute bottom-3 right-3 p-1 rounded hover:bg-white/10 text-muted-foreground hover:text-rose-400 transition-colors z-10"
+                            title="Delete connection"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
                 <div className="flex items-center justify-center gap-3">
                   <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
