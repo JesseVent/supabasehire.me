@@ -1,4 +1,34 @@
 /**
+ * Run a SQL query against a Supabase project via the Management API.
+ * Works with both sbp_... personal access tokens and OAuth JWTs.
+ * Returns rows as plain objects (no MCP wrapper layer).
+ */
+export async function managementSql(
+  accessToken: string,
+  projectRef: string,
+  query: string,
+  readOnly = true
+): Promise<Record<string, unknown>[]> {
+  const res = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ query, read_only: readOnly }),
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Management API SQL (${res.status}): ${text}`)
+  }
+  const data = await res.json()
+  if (Array.isArray(data)) return data as Record<string, unknown>[]
+  if (Array.isArray(data?.rows)) return data.rows as Record<string, unknown>[]
+  if (Array.isArray(data?.data)) return data.data as Record<string, unknown>[]
+  return []
+}
+
+/**
  * Execute a Supabase RPC function via the PostgREST REST API.
  */
 export async function executeSupabaseRPC(

@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   ArrowUpRight,
   BookOpen,
+  Bot,
   Camera,
   CheckCircle2,
   ChevronDown,
@@ -145,6 +146,7 @@ import type {
   SupabaseConnection,
   TableRLSInfo,
 } from '@/lib/supabase-types'
+import { useAgentStore } from '@/store/agent-store'
 import { useSupabaseStore } from '@/store/supabase-store'
 
 // import { SupabaseMcpClient } from '@/lib/supabase-mcp-client'
@@ -185,6 +187,8 @@ export default function Home() {
     functionNotes,
     setFunctionNotes,
   } = useSupabaseStore()
+
+  const { sidebarOpen, toggleSidebar } = useAgentStore()
 
   const isDemoMode = activeConnectionId === DEMO_CONNECTION_ID
 
@@ -394,9 +398,14 @@ export default function Home() {
     localStorage.setItem('supabase-debug-tip-dismissed', 'true')
   }, [])
 
+  // Key on connection IDs, not the array reference: apiFetch's 401 auto-refresh
+  // writes new tokens back to the store, and re-running health checks on every
+  // token write would loop (check → 401 → refresh → store write → re-check …).
+  const connectionIdsKey = connections.map((c) => c.id).join(',')
+  // biome-ignore lint/correctness/useExhaustiveDependencies: connectionIdsKey is an intentional re-run key; the hook reads fresh connections via getState()
   useEffect(() => {
-    if (connections.length === 0) return
-    const realConnections = connections.filter((c) => c.id !== DEMO_CONNECTION_ID)
+    const conns = useSupabaseStore.getState().connections
+    const realConnections = conns.filter((c) => c.id !== DEMO_CONNECTION_ID)
     if (realConnections.length === 0) return
     const checking: Record<string, 'checking'> = {}
     realConnections.forEach((c) => {
@@ -419,7 +428,7 @@ export default function Home() {
         setConnectionHealthMap((prev) => ({ ...prev, [c.id]: 'unhealthy' }))
       }
     })
-  }, [connections])
+  }, [connectionIdsKey])
 
   const createConnection = useCallback(async () => {
     if (!newName.trim() || !newUrl.trim() || !newAnonKey.trim()) return
@@ -613,15 +622,12 @@ export default function Home() {
     }
   }, [
     activeConnectionId,
-    tables.length,
     setTables,
     setSelectedTable,
     setEdgeFunctions,
     setRlsStatuses,
     setActivePanel,
-    connections.find,
     setFunctionNotes,
-    functionNotes,
     fetchSchemaAndRLS,
     addConnection,
   ])
@@ -788,6 +794,15 @@ export default function Home() {
             </DropdownMenu>
 
             <ThemeToggle />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleSidebar}
+              className={`h-8 w-8 p-0 hover:text-foreground ${sidebarOpen ? 'text-foreground bg-accent' : 'text-muted-foreground'}`}
+              title="AI Agent"
+            >
+              <Bot className="size-3.5" />
+            </Button>
             <Button
               variant="ghost"
               size="sm"

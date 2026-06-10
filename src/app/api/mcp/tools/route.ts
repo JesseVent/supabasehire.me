@@ -20,8 +20,9 @@ export async function POST(request: NextRequest) {
     const tools = await client.listTools()
     return NextResponse.json({ tools })
   } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Failed to list MCP tools'
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Failed to list MCP tools' },
+      { error: msg.replace(/eyJ[A-Za-z0-9._-]{20,}/g, '[token]') },
       { status: 502 }
     )
   } finally {

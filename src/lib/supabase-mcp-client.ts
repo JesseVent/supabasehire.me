@@ -3,6 +3,10 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 
 const MCP_BASE_URL = 'https://mcp.supabase.com/mcp'
 
+function sanitizeTokens(text: string): string {
+  return text.replace(/eyJ[A-Za-z0-9._-]{20,}/g, '[token]')
+}
+
 export class SupabaseMcpClient {
   private projectRef: string
   private readOnly?: boolean
@@ -128,10 +132,12 @@ export class SupabaseMcpClient {
     const content = result.content as { type: string; text?: string }[]
 
     if (result.isError) {
-      const text = content
-        .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
-        .map((c) => c.text)
-        .join('\n')
+      const text = sanitizeTokens(
+        content
+          .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
+          .map((c) => c.text)
+          .join('\n')
+      )
       throw new Error(text || `Tool "${name}" returned an error`)
     }
 

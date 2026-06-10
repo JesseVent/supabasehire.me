@@ -113,10 +113,21 @@ async function tryRefresh(
 ): Promise<{ accessToken: string; refreshToken: string } | null> {
   if (!conn.refreshToken) return null
   try {
-    const refreshRes = await fetch('/api/oauth/refresh', {
+    const clientId = localStorage.getItem('supabase_dcr_client_id')
+    const clientSecret = localStorage.getItem('supabase_dcr_client_secret')
+    if (!clientId) return null
+
+    const params = new URLSearchParams({
+      grant_type: 'refresh_token',
+      client_id: clientId,
+      refresh_token: conn.refreshToken,
+    })
+    if (clientSecret) params.set('client_secret', clientSecret)
+
+    const refreshRes = await fetch('/api/oauth/token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: conn.refreshToken }),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params,
     })
     if (!refreshRes.ok) return null
     const tokens = await refreshRes.json()

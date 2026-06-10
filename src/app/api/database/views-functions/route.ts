@@ -61,9 +61,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ views, columns, functions })
   } catch (err) {
-    return NextResponse.json(
-      { error: `Database fetch failed: ${err instanceof Error ? err.message : String(err)}` },
-      { status: 500 }
-    )
+    const msg = err instanceof Error ? err.message : String(err)
+    const status = /unauthorized|jwt/i.test(msg) ? 401 : 500
+    return NextResponse.json({ error: `Database fetch failed: ${msg}` }, { status })
   }
 }

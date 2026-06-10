@@ -123,11 +123,11 @@ export async function adaptMcpToolsViaApi(connection: {
   accessToken: string | null
   [key: string]: unknown
 }): Promise<Record<string, McpAdaptedTool>> {
-  const { connectionHeaders } = await import('@/lib/api-auth')
+  const { apiFetch } = await import('@/lib/api-auth')
 
   const conn = {
-    id: '',
-    name: '',
+    id: (connection.id as string) ?? '',
+    name: (connection.name as string) ?? '',
     supabaseUrl: connection.supabaseUrl,
     anonKey: connection.anonKey,
     serviceRoleKey: connection.serviceRoleKey,
@@ -140,12 +140,7 @@ export async function adaptMcpToolsViaApi(connection: {
     updatedAt: '',
   }
 
-  const headers = {
-    'Content-Type': 'application/json',
-    ...connectionHeaders(conn),
-  }
-
-  const res = await fetch('/api/mcp/tools', { method: 'POST', headers })
+  const res = await apiFetch('/api/mcp/tools', conn)
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
     throw new Error(data.error ?? `MCP tools fetch failed (${res.status})`)
@@ -164,11 +159,7 @@ export async function adaptMcpToolsViaApi(connection: {
       description: tool.description ?? '',
       inputSchema,
       execute: async (args: unknown): Promise<string> => {
-        const execRes = await fetch('/api/mcp/tool', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ name, args }),
-        })
+        const execRes = await apiFetch('/api/mcp/tool', conn, { name, args })
         const data = await execRes.json().catch(() => ({ error: 'Invalid response' }))
         if (!execRes.ok) throw new Error(data.error ?? `Tool "${name}" failed`)
         return typeof data.result === 'string' ? data.result : JSON.stringify(data.result)

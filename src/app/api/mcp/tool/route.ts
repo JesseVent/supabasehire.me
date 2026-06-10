@@ -32,8 +32,9 @@ export async function POST(request: NextRequest) {
     const result = await client.callTool(name, args)
     return NextResponse.json({ result })
   } catch (err) {
+    const msg = err instanceof Error ? err.message : `MCP tool "${name}" failed`
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : `MCP tool "${name}" failed` },
+      { error: msg.replace(/eyJ[A-Za-z0-9._-]{20,}/g, '[token]') },
       { status: 502 }
     )
   } finally {
