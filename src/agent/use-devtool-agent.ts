@@ -256,67 +256,78 @@ export function useDevtoolAgent(): UseDevtoolAgentReturn {
     skillRouterConfig.key,
     skillRouterConfig.skill,
     activeConnectionId,
+    setAgentStatus,
+    setActivityText,
+    connections.find,
+    addMessage,
   ])
 
-  const execute = useCallback(async (task: string) => {
-    const agent = agentRef.current
-    if (!agent) {
-      setError('Agent not initialized')
-      return
-    }
-
-    // Clear previous messages and add user message
-    clearMessages()
-    addMessage({ role: 'user', content: task })
-
-    try {
-      const result = await agent.execute(task)
-
-      // Process history into chat messages
-      const historyMsgs = agent.history
-        .filter((e) => e.type === 'step')
-        .map((e) => {
-          const step = e as Extract<HistoricalEvent, { type: 'step' }>
-          const msg: Omit<AgentChatMessage, 'id' | 'timestamp'> = {
-            role: 'assistant',
-            content: step.action.output || 'No output',
-            stepIndex: step.stepIndex,
-            reflection: {
-              evaluation: step.reflection.evaluation_previous_goal,
-              memory: step.reflection.memory,
-              nextGoal: step.reflection.next_goal,
-            },
-            toolCall:
-              step.action.name !== 'done'
-                ? {
-                    name: step.action.name,
-                    input: step.action.input,
-                    output: step.action.output,
-                    duration: 0,
-                  }
-                : undefined,
-            usage: step.usage,
-          }
-          return msg
-        })
-
-      for (const msg of historyMsgs) {
-        addMessage(msg)
+  const execute = useCallback(
+    async (task: string) => {
+      const agent = agentRef.current
+      if (!agent) {
+        setError('Agent not initialized')
+        return
       }
 
-      // Final result message
-      addMessage({
-        role: 'assistant',
-        content: result.data,
-      })
-    } catch (err) {
-      addMessage({
-        role: 'system',
-        content: `Error: ${err instanceof Error ? err.message : String(err)}`,
-      })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+      // Clear previous messages and add user message
+      clearMessages()
+      addMessage({ role: 'user', content: task })
+
+      try {
+        const result = await agent.execute(task)
+
+        // Process history into chat messages
+        const historyMsgs = agent.history
+          .filter((e) => e.type === 'step')
+          .map((e) => {
+            const step = e as Extract<HistoricalEvent, { type: 'step' }>
+            const msg: Omit<AgentChatMessage, 'id' | 'timestamp'> = {
+              role: 'assistant',
+              content: step.action.output || 'No output',
+              stepIndex: step.stepIndex,
+              reflection: {
+                evaluation: step.reflection.evaluation_previous_goal,
+                memory: step.reflection.memory,
+                nextGoal: step.reflection.next_goal,
+              },
+              toolCall:
+                step.action.name !== 'done'
+                  ? {
+                      name: step.action.name,
+                      input: step.action.input,
+                      output: step.action.output,
+                      duration: 0,
+                    }
+                  : undefined,
+              usage: step.usage,
+            }
+            return msg
+          })
+
+        for (const msg of historyMsgs) {
+          addMessage(msg)
+        }
+
+        // Final result message
+        addMessage({
+          role: 'assistant',
+          content: result.data,
+        })
+      } catch (err) {
+        addMessage({
+          role: 'system',
+          content: `Error: ${err instanceof Error ? err.message : String(err)}`,
+        })
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [
+      // Clear previous messages and add user message
+      clearMessages,
+      addMessage,
+    ]
+  )
 
   const stop = useCallback(() => {
     agentRef.current?.stop()

@@ -39,7 +39,6 @@ import {
   TableIcon,
   Terminal,
   Trash2,
-  Unlock,
   X,
   XCircle,
   Zap,
@@ -79,7 +78,6 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
   Dialog,
   DialogContent,
@@ -127,7 +125,6 @@ import {
 } from '@/lib/demo-data'
 import {
   buildAuthorizeUrl,
-  type DcrClient,
   exchangeCode,
   generatePKCE,
   getCallbackUrl,
@@ -172,7 +169,6 @@ export default function Home() {
     rlsStatuses,
     setActiveConnectionId,
     setActivePanel,
-    setConnections,
     addConnection,
     removeConnection,
     setTables,
@@ -180,8 +176,6 @@ export default function Home() {
     setEdgeFunctions,
     selectedTable,
     setSelectedTable,
-    setIsLoading,
-    setError,
     setShowShortcutsDialog,
     addActivityLog,
     reset,
@@ -213,65 +207,6 @@ export default function Home() {
   const [oauthProjects, setOauthProjects] = useState<OAuthProject[] | null>(null)
   const [oauthAccessToken, setOauthAccessToken] = useState<string | null>(null)
   const [oauthRefreshToken, setOauthRefreshToken] = useState<string | null>(null)
-
-  const connectWithOAuth = useCallback(async () => {
-    setIsOAuthConnecting(true)
-    setCreateError(null)
-    try {
-      const redirectUri = getCallbackUrl()
-      const { clientId, clientSecret } = await getOrRegisterDcrClient(redirectUri)
-
-      const { codeVerifier, codeChallenge } = await generatePKCE()
-      const state = crypto.randomUUID()
-      const authorizeUrl = buildAuthorizeUrl(clientId, redirectUri, codeChallenge, state)
-
-      const popup = openOAuthPopup(authorizeUrl)
-      if (!popup) throw new Error('Popup blocked — allow popups for this site and try again.')
-
-      const code = await waitForOAuthCallback(state, popup)
-      const { accessToken, refreshToken } = await exchangeCode(
-        clientId,
-        code,
-        codeVerifier,
-        redirectUri,
-        clientSecret
-      )
-
-      // List projects via MCP (account-level, no project_ref) — proxied server-side to avoid CORS
-      const projectsRes = await fetch('/api/mcp/account-call', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accessToken, name: 'list_projects', args: {} }),
-      })
-      if (!projectsRes.ok) {
-        const err = await projectsRes.json().catch(() => ({}))
-        throw new Error(err.error ?? `Project list failed (${projectsRes.status})`)
-      }
-      const projectsData = await projectsRes.json()
-      let projects: OAuthProject[] = []
-      try {
-        const parsed = JSON.parse(projectsData.result ?? '[]')
-        projects = Array.isArray(parsed) ? parsed : (parsed.projects ?? [])
-      } catch {
-        projects = []
-      }
-      if (projects.length === 0) throw new Error('No Supabase projects found in this account.')
-
-      if (projects.length === 1) {
-        // Auto-select the only project
-        await applyOAuthProject(projects[0], accessToken, refreshToken)
-      } else {
-        // Let the user pick
-        setOauthAccessToken(accessToken)
-        setOauthRefreshToken(refreshToken ?? null)
-        setOauthProjects(projects)
-      }
-    } catch (err) {
-      setCreateError(err instanceof Error ? err.message : 'OAuth connection failed')
-    } finally {
-      setIsOAuthConnecting(false)
-    }
-  }, [])
 
   const applyOAuthProject = useCallback(
     async (project: OAuthProject, accessToken: string, refreshToken?: string) => {
@@ -356,6 +291,65 @@ export default function Home() {
     },
     [addConnection, setActiveConnectionId, addActivityLog]
   )
+
+  const connectWithOAuth = useCallback(async () => {
+    setIsOAuthConnecting(true)
+    setCreateError(null)
+    try {
+      const redirectUri = getCallbackUrl()
+      const { clientId, clientSecret } = await getOrRegisterDcrClient(redirectUri)
+
+      const { codeVerifier, codeChallenge } = await generatePKCE()
+      const state = crypto.randomUUID()
+      const authorizeUrl = buildAuthorizeUrl(clientId, redirectUri, codeChallenge, state)
+
+      const popup = openOAuthPopup(authorizeUrl)
+      if (!popup) throw new Error('Popup blocked — allow popups for this site and try again.')
+
+      const code = await waitForOAuthCallback(state, popup)
+      const { accessToken, refreshToken } = await exchangeCode(
+        clientId,
+        code,
+        codeVerifier,
+        redirectUri,
+        clientSecret
+      )
+
+      // List projects via MCP (account-level, no project_ref) — proxied server-side to avoid CORS
+      const projectsRes = await fetch('/api/mcp/account-call', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessToken, name: 'list_projects', args: {} }),
+      })
+      if (!projectsRes.ok) {
+        const err = await projectsRes.json().catch(() => ({}))
+        throw new Error(err.error ?? `Project list failed (${projectsRes.status})`)
+      }
+      const projectsData = await projectsRes.json()
+      let projects: OAuthProject[] = []
+      try {
+        const parsed = JSON.parse(projectsData.result ?? '[]')
+        projects = Array.isArray(parsed) ? parsed : (parsed.projects ?? [])
+      } catch {
+        projects = []
+      }
+      if (projects.length === 0) throw new Error('No Supabase projects found in this account.')
+
+      if (projects.length === 1) {
+        // Auto-select the only project
+        await applyOAuthProject(projects[0], accessToken, refreshToken)
+      } else {
+        // Let the user pick
+        setOauthAccessToken(accessToken)
+        setOauthRefreshToken(refreshToken ?? null)
+        setOauthProjects(projects)
+      }
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'OAuth connection failed')
+    } finally {
+      setIsOAuthConnecting(false)
+    }
+  }, [applyOAuthProject])
 
   const prefillFromEnv = useCallback(async () => {
     setIsPrefilling(true)
@@ -594,7 +588,20 @@ export default function Home() {
       setActivePanel('schema')
       fetchSchemaAndRLS()
     }
-  }, [activeConnectionId])
+  }, [
+    activeConnectionId,
+    tables.length,
+    setTables,
+    setSelectedTable,
+    setEdgeFunctions,
+    setRlsStatuses,
+    setActivePanel,
+    connections.find,
+    setFunctionNotes,
+    functionNotes,
+    fetchSchemaAndRLS,
+    addConnection,
+  ])
 
   const activeConnection = connections.find((c) => c.id === activeConnectionId)
 
@@ -783,6 +790,7 @@ export default function Home() {
               className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               title="GitHub"
             >
+              <span className="sr-only">GitHub</span>
               <svg viewBox="0 0 24 24" className="size-3.5" fill="currentColor" aria-hidden="true">
                 <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
               </svg>
@@ -794,6 +802,7 @@ export default function Home() {
               className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               title="LinkedIn"
             >
+              <span className="sr-only">LinkedIn</span>
               <svg viewBox="0 0 24 24" className="size-3.5" fill="currentColor" aria-hidden="true">
                 <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
               </svg>
@@ -888,7 +897,11 @@ export default function Home() {
                           className="justify-start gap-2 h-auto py-2.5"
                           disabled={isOAuthConnecting}
                           onClick={() =>
-                            applyOAuthProject(p, oauthAccessToken!, oauthRefreshToken ?? undefined)
+                            applyOAuthProject(
+                              p,
+                              oauthAccessToken ?? '',
+                              oauthRefreshToken ?? undefined
+                            )
                           }
                         >
                           {isOAuthConnecting ? (
@@ -1125,72 +1138,71 @@ export default function Home() {
             </motion.p>
 
             {connections.length > 0 ? (
-              <>
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.45, duration: 0.3 }}
-                  className="w-full max-w-lg"
-                >
-                  <p className="text-sm font-semibold mb-3 text-foreground">Your connections</p>
-                  <div className="flex flex-wrap gap-3 justify-center mb-6">
-                    {connections.map((c, i) => (
-                      <div
-                        key={c.id}
-                        className="entity-card"
-                        style={
-                          {
-                            '--card-accent': `var(--accent-${['cyan', 'blue', 'purple', 'green', 'orange', 'coral'][i % 6]})`,
-                            position: 'relative',
-                          } as React.CSSProperties
-                        }
-                        onClick={() => setActiveConnectionId(c.id)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => e.key === 'Enter' && setActiveConnectionId(c.id)}
-                      >
-                        {getHealthDot(c.id)}
-                        <div className="entity-card__tags">
-                          <span className="tag--solid">{c.name}</span>
-                          <span className="tag--translucent">Supabase</span>
-                        </div>
-                        <div className="entity-card__icon">
-                          <Database size={28} />
-                        </div>
-                        <div className="entity-card__details">
-                          <div className="entity-card__title">{c.name}</div>
-                          <div className="entity-card__meta">
-                            <span className="host">{c.supabaseUrl.replace('https://', '')}</span>
-                          </div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.45, duration: 0.3 }}
+                className="w-full max-w-lg"
+              >
+                <p className="text-sm font-semibold mb-3 text-foreground">Your connections</p>
+                <div className="flex flex-wrap gap-3 justify-center mb-6">
+                  {connections.map((c, i) => (
+                    /* biome-ignore lint/a11y/useSemanticElements: entity-card is a complex styled interactive block element */
+                    <div
+                      key={c.id}
+                      className="entity-card"
+                      style={
+                        {
+                          '--card-accent': `var(--accent-${['cyan', 'blue', 'purple', 'green', 'orange', 'coral'][i % 6]})`,
+                          position: 'relative',
+                        } as React.CSSProperties
+                      }
+                      onClick={() => setActiveConnectionId(c.id)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && setActiveConnectionId(c.id)}
+                    >
+                      {getHealthDot(c.id)}
+                      <div className="entity-card__tags">
+                        <span className="tag--solid">{c.name}</span>
+                        <span className="tag--translucent">Supabase</span>
+                      </div>
+                      <div className="entity-card__icon">
+                        <Database size={28} />
+                      </div>
+                      <div className="entity-card__details">
+                        <div className="entity-card__title">{c.name}</div>
+                        <div className="entity-card__meta">
+                          <span className="host">{c.supabaseUrl.replace('https://', '')}</span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                  <div className="flex items-center justify-center gap-3">
-                    <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
-                      <DialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="gap-1.5 text-muted-foreground hover:text-foreground"
-                        >
-                          <Plus className="size-4" />
-                          Add new connection
-                        </Button>
-                      </DialogTrigger>
-                    </Dialog>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={loadDemoData}
-                      className="gap-1.5 text-muted-foreground hover:text-foreground"
-                    >
-                      <Eye className="size-4" />
-                      Try Demo
-                    </Button>
-                  </div>
-                </motion.div>
-              </>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-center gap-3">
+                  <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1.5 text-muted-foreground hover:text-foreground"
+                      >
+                        <Plus className="size-4" />
+                        Add new connection
+                      </Button>
+                    </DialogTrigger>
+                  </Dialog>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={loadDemoData}
+                    className="gap-1.5 text-muted-foreground hover:text-foreground"
+                  >
+                    <Eye className="size-4" />
+                    Try Demo
+                  </Button>
+                </div>
+              </motion.div>
             ) : (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -2101,6 +2113,7 @@ function TableDetailPanel({
           </Badge>
         </div>
         <button
+          type="button"
           onClick={onClose}
           className="text-muted-foreground hover:text-foreground text-lg leading-none"
         >
@@ -2197,6 +2210,7 @@ function TableDetailPanel({
                     {/* FK target link */}
                     {fkForCol && (
                       <button
+                        type="button"
                         onClick={() => onNavigateToTable(fkForCol.foreign_table_name)}
                         className="flex items-center gap-0.5 text-blue-600 dark:text-blue-400 hover:underline text-[10px] ml-auto shrink-0"
                       >
@@ -2286,6 +2300,7 @@ function TableDetailPanel({
           <div className="flex flex-col gap-1.5">
             {schema.foreignKeys.map((fk) => (
               <button
+                type="button"
                 key={`${fk.column_name}-${fk.foreign_table_name}`}
                 onClick={() => onNavigateToTable(fk.foreign_table_name)}
                 className="flex items-center gap-1.5 text-xs rounded border p-1.5 hover:bg-accent transition-colors text-left w-full"
@@ -2341,7 +2356,7 @@ function SettingsPanel({
   const [supabaseUrl, setSupabaseUrl] = useState(connection?.supabaseUrl || '')
   const [publishableKey, setPublishableKey] = useState(connection?.anonKey || '')
   const [secretKey, setSecretKey] = useState(connection?.serviceRoleKey || '')
-  const [accessToken, setAccessToken] = useState(connection?.accessToken || '')
+  const [accessToken, _setAccessToken] = useState(connection?.accessToken || '')
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
