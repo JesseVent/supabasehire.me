@@ -1,46 +1,39 @@
 import { type NextRequest, NextResponse } from 'next/server'
-import { getConnectionFromHeaders } from '@/lib/api-auth'
-import { extractProjectRef } from '@/lib/supabase-types'
-import { managementSql } from '@/lib/supabase-helpers'
+import { parseMcpSqlRows } from '@/lib/mcp-response-parser'
+import { mcpClientFromRequest } from '@/lib/mcp-server-client'
 
-// POST /api/sql — Execute a raw SQL query via the Management API
+// POST /api/sql — Execute a raw SQL query via the hosted Supabase MCP server.
+// DCR-issued OAuth tokens are only valid for mcp.supabase.com, not the
+// Management API, so SQL must go through the MCP execute_sql tool.
 export async function POST(request: NextRequest) {
+  const client = mcpClientFromRequest(request)
+  if (!client) {
+    return NextResponse.json(
+      { success: false, error: 'OAuth access token required to execute SQL. Reconnect via OAuth.' },
+      { status: 401 }
+    )
+  }
+
+  let query: string | undefined
   try {
-    const connection = getConnectionFromHeaders(request)
-    if (!connection) {
-      return NextResponse.json({ error: 'Connection required' }, { status: 400 })
-    }
+    const body = await request.json()
+    query = body.query
+  } catch {
+    query = undefined
+  }
+  if (!query) {
+    return NextResponse.json({ success: false, error: 'Query is required' }, { status: 400 })
+  }
 
-    const { query } = await request.json()
-    if (!query) {
-      return NextResponse.json({ error: 'Query is required' }, { status: 400 })
-    }
-
-    const accessToken = connection.accessToken
-    if (!accessToken) {
-      return NextResponse.json(
-        { error: 'Access token is required to execute SQL queries. Please update your connection.' },
-        { status: 400 }
-      )
-    }
-
-    const projectRef = extractProjectRef(connection.supabaseUrl)
-    if (!projectRef) {
-      return NextResponse.json({ error: 'Could not determine project ref from URL' }, { status: 400 })
-    }
-
-    // Run SQL query (not read-only because users execute migrations/DDL statements here)
-    const data = await managementSql(accessToken, projectRef, query, false)
-
-    return NextResponse.json({
-      success: true,
-      data,
-    })
+  try {
+    const raw = await client.callTool('execute_sql', { query })
+    const data = parseMcpSqlRows<Record<string, unknown>>(raw)
+    return NextResponse.json({ success: true, data })
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to execute SQL'
-    return NextResponse.json(
-      { success: false, error: msg },
-      { status: 500 }
-    )
+    const status = /unauthorized|jwt|token.*(expired|invalid)/i.test(msg) ? 401 : 500
+    return NextResponse.json({ success: false, error: msg }, { status })
+  } finally {
+    client.disconnect().catch(() => {})
   }
 }

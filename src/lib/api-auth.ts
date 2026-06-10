@@ -76,20 +76,22 @@ export function connectionHeaders(conn: SupabaseConnection): Record<string, stri
  * The connection data goes into `X-Supabase-*` headers.
  * The `data` parameter is the rest of the request body (without connection).
  */
-const STORAGE_KEY = 'supabase-debug-storage'
-
-function updateStoredConnection(connectionId: string, updates: Partial<SupabaseConnection>): void {
+async function updateStoredConnection(
+  connectionId: string,
+  updates: Partial<SupabaseConnection>
+): Promise<void> {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed.state?.connections)) return
-    parsed.state.connections = parsed.state.connections.map((c: SupabaseConnection) =>
-      c.id === connectionId ? { ...c, ...updates, updatedAt: new Date().toISOString() } : c
-    )
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed))
+    // Update through the Zustand store so both the in-memory state and the
+    // persisted localStorage copy get the refreshed tokens. Patching
+    // localStorage directly would leave components holding the old token,
+    // and the next store write would clobber the refreshed (rotated)
+    // refresh token — permanently breaking the OAuth session.
+    // Dynamic import keeps the store out of server bundles (this module is
+    // also imported by API routes for getConnectionFromHeaders).
+    const { useSupabaseStore } = await import('@/store/supabase-store')
+    useSupabaseStore.getState().updateConnection(connectionId, updates)
   } catch {
-    // silent fail — localStorage is best-effort
+    // silent fail — persistence is best-effort
   }
 }
 
@@ -158,7 +160,7 @@ export async function apiFetch(
   if (res.status === 401 && conn.refreshToken) {
     const tokens = await tryRefresh(conn)
     if (tokens) {
-      updateStoredConnection(conn.id, tokens)
+      await updateStoredConnection(conn.id, tokens)
       return fetch(path, {
         method: 'POST',
         headers: {
@@ -179,7 +181,7 @@ export async function apiFetch(
     if (isAuthError(body) && conn.refreshToken) {
       const tokens = await tryRefresh(conn)
       if (tokens) {
-        updateStoredConnection(conn.id, tokens)
+        await updateStoredConnection(conn.id, tokens)
         return fetch(path, {
           method: 'POST',
           headers: {

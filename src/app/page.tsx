@@ -240,8 +240,22 @@ export default function Home() {
             try {
               const parsed = JSON.parse(keyRaw)
               if (Array.isArray(parsed?.keys)) {
-                const anon = parsed.keys.find((k: any) => k.name === 'anon' || k.type === 'legacy')
-                anonKey = anon?.api_key ?? ''
+                // Prefer the new sb_publishable_ key — legacy JWT anon keys may
+                // be disabled on the project, and PostgREST then rejects them
+                // with "Unregistered API key".
+                const keys = parsed.keys as {
+                  name?: string
+                  type?: string
+                  api_key?: string
+                  disabled?: boolean
+                }[]
+                const pick =
+                  keys.find(
+                    (k) => !k.disabled && (k.api_key?.startsWith('sb_publishable_') ?? false)
+                  ) ??
+                  keys.find((k) => !k.disabled && k.type === 'publishable') ??
+                  keys.find((k) => !k.disabled && (k.name === 'anon' || k.type === 'legacy'))
+                anonKey = pick?.api_key ?? ''
               } else if (typeof parsed === 'string') {
                 anonKey = parsed
               } else {
@@ -2485,12 +2499,13 @@ function SettingsPanel({
         setIsSaving(false)
         return
       }
+      // accessToken is intentionally not written here — it is managed by the
+      // OAuth flow (and auto-refresh) and the dialog's snapshot may be stale.
       updateConnection(connection.id, {
         name: name.trim(),
         supabaseUrl: supabaseUrl.trim(),
         anonKey: publishableKey.trim(),
         serviceRoleKey: secretKey.trim() || null,
-        accessToken: accessToken.trim() || null,
       })
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
