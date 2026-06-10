@@ -53,11 +53,7 @@ export default function RootLayout({
         >
           {children}
           <Toaster />
-          <SupaAgentPanel
-            apiKey={process.env.OPENAI_API_KEY || ''}
-            baseURL="https://api.openai.com/v1"
-            model="gpt-4o-mini"
-          />
+          <SupaAgentPanel />
           <footer className="border-t bg-muted/30 py-2 px-4 text-center text-[11px] text-muted-foreground">
             This site is not affiliated with or endorsed by Supabase. It is an independent
             engineering project built as part of a job application.

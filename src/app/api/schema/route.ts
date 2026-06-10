@@ -17,7 +17,7 @@ FROM information_schema.tables t
 JOIN information_schema.columns c
   ON t.table_name = c.table_name AND c.table_schema = 'public'
 LEFT JOIN pg_class ON pg_class.relname = t.table_name
-LEFT JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace AND pg_namespace.nspname = 'public'
+  AND pg_class.relnamespace = 'public'::regnamespace
 WHERE t.table_schema = 'public'
   AND t.table_type IN ('BASE TABLE', 'VIEW')
 ORDER BY t.table_name, c.ordinal_position;

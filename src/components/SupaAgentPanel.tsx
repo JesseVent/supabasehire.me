@@ -1,42 +1,159 @@
 'use client'
 
 import { useEffect } from 'react'
+import { SkillRouterClient } from '@/agent/skill-router-client'
+import {
+  buildSystemPrompt,
+  createProxyFetch,
+  type SupaAgentTool,
+  tool,
+  transformRequestBody,
+} from '@/agent/supa-agent-config'
+import { adaptMcpToolsViaApi } from '@/lib/mcp-tool-adapter'
+import type { SupabaseConnection } from '@/lib/supabase-types'
+import { useAgentStore } from '@/store/agent-store'
+import { useSupabaseStore } from '@/store/supabase-store'
 
-interface SupaAgentPanelProps {
-  apiKey: string
-  baseURL?: string
-  model?: string
+const SCRIPT_ID = 'supa-agent-iife'
+
+/** Load the prebuilt IIFE once with autoInit disabled; resolves when window.SupaAgent exists. */
+function loadIifeScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (window.SupaAgent) {
+      resolve()
+      return
+    }
+    const onError = () => reject(new Error('Failed to load /supa-agent.iife.js'))
+    const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null
+    if (existing) {
+      existing.addEventListener('load', () => resolve(), { once: true })
+      existing.addEventListener('error', onError, { once: true })
+      return
+    }
+    const script = document.createElement('script')
+    script.id = SCRIPT_ID
+    script.src = '/supa-agent.iife.js?autoInit=false'
+    script.async = true
+    script.onload = () => resolve()
+    script.onerror = onError
+    document.body.appendChild(script)
+  })
 }
 
-export function SupaAgentPanel({
-  apiKey,
-  baseURL = 'https://api.openai.com/v1',
-  model = 'gpt-4o-mini',
-}: SupaAgentPanelProps) {
+/**
+ * Floating supa-agent panel.
+ *
+ * Loads the IIFE bundle with autoInit=false, then constructs the agent itself:
+ * Supabase MCP tools from the active connection, server-side LLM proxy when no
+ * client API key is set, skill router, model request patches, and a grounded
+ * system prompt. Config comes from the Zustand stores — no props, so no
+ * server secrets can leak into the client payload.
+ */
+export function SupaAgentPanel() {
+  const { llmConfig, skillRouterConfig, maxSteps } = useAgentStore()
+  const { connections, activeConnectionId } = useSupabaseStore()
+
   useEffect(() => {
-    // Avoid double-injecting if HMR re-runs the effect
-    if (document.getElementById('supa-agent-iife')) return
+    if (!llmConfig.baseURL && !llmConfig.provider) return
 
-    const script = document.createElement('script')
-    script.id = 'supa-agent-iife'
-    script.src = `/supa-agent.iife.js?apiKey=${encodeURIComponent(apiKey)}&baseURL=${encodeURIComponent(baseURL)}&model=${encodeURIComponent(model)}&showPanel=true&autoInit=true`
-    script.async = true
+    let cancelled = false
 
-    document.body.appendChild(script)
+    async function init() {
+      await loadIifeScript()
+      if (cancelled || !window.SupaAgent) return
+
+      // Load Supabase MCP tools via the server-side proxy for the active connection.
+      const customTools: Record<string, SupaAgentTool> = {}
+      const activeConn = connections.find((c: SupabaseConnection) => c.id === activeConnectionId)
+      if (activeConn?.accessToken) {
+        try {
+          const mcpAdapted = await adaptMcpToolsViaApi(
+            activeConn as unknown as Parameters<typeof adaptMcpToolsViaApi>[0]
+          )
+          for (const [name, mcpTool] of Object.entries(mcpAdapted)) {
+            customTools[name] = tool({
+              description: mcpTool.description,
+              inputSchema: mcpTool.inputSchema,
+              execute: async (input: unknown) => {
+                try {
+                  return await mcpTool.execute(input)
+                } catch (err) {
+                  return `MCP tool error: ${err instanceof Error ? err.message : String(err)}`
+                }
+              },
+            })
+          }
+          console.debug(`[SupaAgentPanel] MCP: loaded ${Object.keys(mcpAdapted).length} tools`)
+        } catch (err) {
+          console.warn('[SupaAgentPanel] MCP tools unavailable:', err)
+        }
+      }
+
+      if (cancelled) return
+
+      // Replace any previous instance (config change, HMR, bookmarklet leftovers)
+      if (window.supaAgent && !window.supaAgent.disposed) {
+        window.supaAgent.dispose()
+      }
+
+      const skillRouter =
+        skillRouterConfig.url && skillRouterConfig.key && skillRouterConfig.skill
+          ? new SkillRouterClient(skillRouterConfig.url, skillRouterConfig.key).asAdapter(
+              skillRouterConfig.skill
+            )
+          : undefined
+
+      // Server-side key via /api/agent/chat unless the user entered their own key
+      const useServerProxy = !llmConfig.apiKey
+
+      const config: Record<string, unknown> = {
+        baseURL: llmConfig.baseURL,
+        model: llmConfig.model,
+        maxSteps,
+        enableMask: false,
+        customSystemPrompt: buildSystemPrompt(Object.keys(customTools)),
+        customTools,
+        skillRouter,
+        transformRequestBody,
+      }
+
+      if (useServerProxy) {
+        config.customFetch = createProxyFetch(llmConfig.provider, llmConfig.model)
+        config.apiKey = 'proxy' // placeholder so the agent doesn't complain
+      } else {
+        config.apiKey = llmConfig.apiKey
+      }
+
+      const agent = new window.SupaAgent(config)
+      window.supaAgent = agent
+      agent.panel.show()
+    }
+
+    init().catch((err) => {
+      console.error('[SupaAgentPanel] Init failed:', err)
+    })
 
     return () => {
-      const existing = document.getElementById('supa-agent-iife')
-      if (existing) existing.remove()
-      // Dispose global agent instance if it exists
-      if (
-        typeof window !== 'undefined' &&
-        (window as unknown as Record<string, unknown>).supaAgent
-      ) {
-        const agent = (window as unknown as Record<string, { dispose?: () => void }>).supaAgent
-        agent?.dispose?.()
+      cancelled = true
+      if (window.supaAgent && !window.supaAgent.disposed) {
+        window.supaAgent.dispose()
       }
+      window.supaAgent = undefined
     }
-  }, [apiKey, baseURL, model])
+    // Re-init when LLM config, maxSteps, skill router config, or active connection changes
+    // so MCP tools are reloaded for the new project.
+  }, [
+    llmConfig.baseURL,
+    llmConfig.model,
+    llmConfig.apiKey,
+    llmConfig.provider,
+    maxSteps,
+    skillRouterConfig.url,
+    skillRouterConfig.key,
+    skillRouterConfig.skill,
+    activeConnectionId,
+    connections,
+  ])
 
   return null
 }

@@ -35,7 +35,6 @@ import {
   Shield,
   ShieldAlert,
   ShieldCheck,
-  Sparkles,
   TableIcon,
   Terminal,
   Trash2,
@@ -46,7 +45,6 @@ import {
 import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { AgentChatPanel } from '@/components/agent-chat-panel'
 import { AnalyticsPanel } from '@/components/analytics-panel'
 import { CommandPalette } from '@/components/command-palette'
 import { DataCatalogPanel } from '@/components/data-catalog-panel'
@@ -141,7 +139,6 @@ import type {
   SupabaseConnection,
   TableRLSInfo,
 } from '@/lib/supabase-types'
-import { useAgentStore } from '@/store/agent-store'
 import { useSupabaseStore } from '@/store/supabase-store'
 
 // import { SupabaseMcpClient } from '@/lib/supabase-mcp-client'
@@ -765,15 +762,6 @@ export default function Home() {
             </DropdownMenu>
 
             <ThemeToggle />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => useAgentStore.getState().toggleSidebar()}
-              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-              title="AI Agent"
-            >
-              <Sparkles className="size-3.5" />
-            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -1928,9 +1916,6 @@ export default function Home() {
       {/* Keyboard Shortcuts Dialog */}
       <KeyboardShortcuts />
       <CommandPalette />
-
-      {/* AI Agent Sidebar Panel */}
-      <AgentChatPanel />
 
       {/* Footer */}
       <footer className="footer-gradient-border mt-auto">
