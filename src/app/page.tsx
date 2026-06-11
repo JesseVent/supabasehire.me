@@ -349,24 +349,20 @@ export default function Home() {
 
       const { accessToken, refreshToken } = tokens
 
-      // List projects via MCP (account-level, no project_ref) — proxied server-side to avoid CORS
-      const projectsRes = await fetch('/api/mcp/account-call', {
+      // List projects via Management API REST — faster and more reliable than MCP on Vercel
+      const projectsRes = await fetch('/api/oauth/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accessToken, name: 'list_projects', args: {} }),
+        body: JSON.stringify({ accessToken }),
       })
       if (!projectsRes.ok) {
         const err = await projectsRes.json().catch(() => ({}))
         throw new Error(err.error ?? `Project list failed (${projectsRes.status})`)
       }
       const projectsData = await projectsRes.json()
-      let projects: OAuthProject[] = []
-      try {
-        const parsed = JSON.parse(projectsData.result ?? '[]')
-        projects = Array.isArray(parsed) ? parsed : (parsed.projects ?? [])
-      } catch {
-        projects = []
-      }
+      const projects: OAuthProject[] = Array.isArray(projectsData.projects)
+        ? projectsData.projects
+        : []
       if (projects.length === 0) throw new Error('No Supabase projects found in this account.')
 
       if (projects.length === 1) {
