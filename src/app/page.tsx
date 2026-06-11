@@ -411,10 +411,12 @@ export default function Home() {
   const [dataViewerTable, setDataViewerTable] = useState<string | null>(null)
 
   // Onboarding tip banner
-  const [showTipBanner, setShowTipBanner] = useState(() => {
-    if (typeof window === 'undefined') return true
-    return !localStorage.getItem('supabase-debug-tip-dismissed')
-  })
+  const [showTipBanner, setShowTipBanner] = useState(false)
+
+  useEffect(() => {
+    const dismissed = localStorage.getItem('supabase-debug-tip-dismissed')
+    setShowTipBanner(!dismissed)
+  }, [])
 
   const dismissTipBanner = useCallback(() => {
     setShowTipBanner(false)

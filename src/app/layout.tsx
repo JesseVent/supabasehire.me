@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Script from 'next/script'
 import './globals.css'
 import { ThemeProvider } from 'next-themes'
 import { AgentSidebar } from '@/components/AgentSidebar'
@@ -36,24 +37,24 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@75..112.5,100..800&family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap"
           rel="stylesheet"
         />
-        <script
-          defer
-          src="https://umami.rankuse.com/stats"
-          data-website-id="03bb816f-2dbb-4375-8f9e-e437f4a5e270"
-          integrity="sha384-LTPPwaLbU0osA3KlbZu0gbKM+OX2/iNJYVcdtY6ZFUJfsuj7LJ+40McwiPCPpKad"
-          crossOrigin="anonymous"
-        ></script>
       </head>
-      <body className={`antialiased bg-background text-foreground`}>
+      <body className="antialiased bg-background text-foreground flex flex-col min-h-screen">
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
           enableSystem={false}
           disableTransitionOnChange
         >
-          {children}
+          <div className="flex-1 flex flex-col">{children}</div>
           <Toaster />
           <AgentSidebar />
+          <Script
+            src="https://umami.rankuse.com/stats"
+            data-website-id="03bb816f-2dbb-4375-8f9e-e437f4a5e270"
+            integrity="sha384-LTPPwaLbU0osA3KlbZu0gbKM+OX2/iNJYVcdtY6ZFUJfsuj7LJ+40McwiPCPpKad"
+            crossOrigin="anonymous"
+            strategy="lazyOnload"
+          />
           <footer className="border-t border-border/40 px-6 py-1.5 flex items-center justify-center gap-5 text-[10px]">
             <span className="font-mono text-muted-foreground">supabasehire.me</span>
             <span className="text-border">·</span>

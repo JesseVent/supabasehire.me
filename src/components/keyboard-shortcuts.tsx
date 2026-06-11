@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
@@ -29,10 +29,6 @@ function isMac() {
   return navigator.platform.toUpperCase().indexOf('MAC') >= 0
 }
 
-function modKey() {
-  return isMac() ? '⌘' : 'Ctrl'
-}
-
 export function KeyboardShortcuts() {
   const {
     showShortcutsDialog,
@@ -45,37 +41,42 @@ export function KeyboardShortcuts() {
 
   const isDemoMode = activeConnectionId === DEMO_CONNECTION_ID
 
+  const [modKey, setModKey] = useState('Ctrl')
+  useEffect(() => {
+    setModKey(navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘' : 'Ctrl')
+  }, [])
+
   const shortcutGroups: ShortcutGroup[] = [
     {
       category: 'Navigation',
       shortcuts: [
         {
-          keys: [`${modKey()}`, '0'],
+          keys: [modKey, '0'],
           description: 'Switch to Dashboard tab',
           action: () => setActivePanel('dashboard' as ActivePanel),
         },
         {
-          keys: [`${modKey()}`, '1'],
+          keys: [modKey, '1'],
           description: 'Switch to Schema tab',
           action: () => setActivePanel('schema'),
         },
         {
-          keys: [`${modKey()}`, '2'],
+          keys: [modKey, '2'],
           description: 'Switch to RLS tab',
           action: () => setActivePanel('rls'),
         },
         {
-          keys: [`${modKey()}`, '3'],
+          keys: [modKey, '3'],
           description: 'Switch to Functions tab',
           action: () => setActivePanel('edge-functions'),
         },
         {
-          keys: [`${modKey()}`, '4'],
+          keys: [modKey, '4'],
           description: 'Switch to SQL tab',
           action: () => setActivePanel('sql'),
         },
         {
-          keys: [`${modKey()}`, '5'],
+          keys: [modKey, '5'],
           description: 'Switch to Settings tab',
           action: () => setActivePanel('settings'),
         },
@@ -85,14 +86,14 @@ export function KeyboardShortcuts() {
       category: 'Actions',
       shortcuts: [
         {
-          keys: [`${modKey()}`, 'K'],
+          keys: [modKey, 'K'],
           description: 'Open command palette',
           action: () => {
             // Command palette handles Ctrl+K itself
           },
         },
         {
-          keys: [`${modKey()}`, 'D'],
+          keys: [modKey, 'D'],
           description: 'Toggle demo mode',
           action: () => {
             if (isDemoMode) {
@@ -112,7 +113,7 @@ export function KeyboardShortcuts() {
       category: 'General',
       shortcuts: [
         {
-          keys: [`${modKey()}`, '/'],
+          keys: [modKey, '/'],
           description: 'Show keyboard shortcuts',
           action: () => setShowShortcutsDialog(true),
         },
@@ -122,7 +123,7 @@ export function KeyboardShortcuts() {
           action: () => setShowShortcutsDialog(false),
         },
         {
-          keys: [`${modKey()}`, 'J'],
+          keys: [modKey, 'J'],
           description: 'Toggle AI Agent sidebar',
           action: () => useAgentStore.getState().toggleSidebar(),
         },
