@@ -31,8 +31,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, data })
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to execute SQL'
-    const status = /unauthorized|jwt|token.*(expired|invalid)/i.test(msg) ? 401 : 500
-    return NextResponse.json({ success: false, error: msg }, { status })
+    if (/unauthorized|jwt|token.*(expired|invalid)/i.test(msg)) {
+      return NextResponse.json({ success: false, error: msg }, { status: 401 })
+    }
+    // SQL execution errors (bad query, permission denied, etc.) return 200 so the
+    // browser doesn't log them as server errors — the client reads data.error.
+    return NextResponse.json({ success: false, error: msg })
   } finally {
     client.disconnect().catch(() => {})
   }

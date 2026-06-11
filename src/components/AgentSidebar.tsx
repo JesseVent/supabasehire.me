@@ -1,16 +1,34 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Bot, Send, Settings2, Square, Trash2, X } from 'lucide-react'
+import { Bot, Cpu, Send, Settings2, Square, Trash2, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { AgentConfigPanel } from '@/components/agent-config-panel'
 import { buildSystemPrompt } from '@/agent/supa-agent-config'
+import { getAgentTraceBridge } from '@/lib/agent-trace-bridge'
 import { cn } from '@/lib/utils'
 import type { AgentChatMessage } from '@/store/agent-store'
 import { useAgentStore } from '@/store/agent-store'
 import { useSupabaseStore } from '@/store/supabase-store'
+
+// Typed handle for window.PAGE_AGENT_EXT exposed by the supa-agent extension
+interface PageAgentExt {
+  execute: (task: string, config: {
+    baseURL: string
+    model: string
+    apiKey?: string
+    systemInstruction?: string
+  }) => Promise<unknown>
+  stop: () => void
+}
+
+declare global {
+  interface Window {
+    PAGE_AGENT_EXT?: PageAgentExt
+  }
+}
 
 export function AgentSidebar() {
   const [mounted, setMounted] = useState(false)
@@ -24,23 +42,56 @@ export function AgentSidebar() {
   const [input, setInput] = useState('')
   const [showConfig, setShowConfig] = useState(false)
   const [streamingContent, setStreamingContent] = useState<string | null>(null)
+  const [extensionAvailable, setExtensionAvailable] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+
+  // Extension injects main-world.js slightly after DOMContentLoaded; poll briefly
+  useEffect(() => {
+    const check = () => setExtensionAvailable(!!window.PAGE_AGENT_EXT)
+    check()
+    const t = setTimeout(check, 1500)
+    return () => clearTimeout(t)
+  }, [])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, streamingContent])
 
-  async function send() {
-    const text = input.trim()
-    if (!text || agentStatus === 'running') return
+  async function sendViaExtension(text: string) {
+    if (!window.PAGE_AGENT_EXT) return
 
-    setInput('')
-    addMessage({ role: 'user', content: text })
-    setAgentStatus('running')
-    setStreamingContent('')
+    const bridge = getAgentTraceBridge()
+    bridge.reset()
+    bridge.startListening()
 
+    try {
+      const result = await window.PAGE_AGENT_EXT.execute(text, {
+        baseURL: llmConfig.baseURL || 'https://api.openai.com/v1',
+        model: llmConfig.model,
+        apiKey: llmConfig.apiKey,
+        systemInstruction: buildSystemPrompt([]),
+      })
+
+      const summary = typeof result === 'object' && result !== null && 'summary' in result
+        ? String((result as { summary: unknown }).summary)
+        : 'Task completed.'
+      addMessage({ role: 'assistant', content: summary })
+      setAgentStatus('completed')
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        addMessage({ role: 'assistant', content: `Error: ${(err as Error).message}` })
+        setAgentStatus('error')
+      }
+    } finally {
+      bridge.stopListening()
+      setStreamingContent(null)
+      abortRef.current = null
+    }
+  }
+
+  async function sendViaChat(text: string) {
     const history = [
       { role: 'system', content: buildSystemPrompt([]) },
       ...messages.map((m) => ({ role: m.role, content: m.content })),
@@ -109,8 +160,29 @@ export function AgentSidebar() {
     }
   }
 
+  async function send() {
+    const text = input.trim()
+    if (!text || agentStatus === 'running') return
+
+    setInput('')
+    addMessage({ role: 'user', content: text })
+    setAgentStatus('running')
+    setStreamingContent('')
+
+    if (extensionAvailable && window.PAGE_AGENT_EXT) {
+      await sendViaExtension(text)
+    } else {
+      await sendViaChat(text)
+    }
+  }
+
   function stop() {
-    abortRef.current?.abort()
+    if (extensionAvailable && window.PAGE_AGENT_EXT) {
+      window.PAGE_AGENT_EXT.stop()
+      getAgentTraceBridge().stopListening()
+    } else {
+      abortRef.current?.abort()
+    }
     setStreamingContent(null)
     setAgentStatus('idle')
   }
@@ -132,6 +204,16 @@ export function AgentSidebar() {
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0">
         <Bot className="size-4 text-primary" />
         <span className="font-semibold text-sm flex-1">AI Assistant</span>
+        {extensionAvailable && (
+          <Badge
+            variant="secondary"
+            className="text-[10px] gap-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
+            title="Supa Agent extension detected — tasks will run via the browser agent"
+          >
+            <Cpu className="size-2.5" />
+            extension
+          </Badge>
+        )}
         {activeConn && (
           <Badge variant="secondary" className="text-[10px] font-mono max-w-[120px] truncate">
             {activeConn.name ?? activeConn.projectRef ?? 'connected'}

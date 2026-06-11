@@ -56,11 +56,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ code, metadata })
   } catch (err) {
-    return NextResponse.json(
-      {
-        error: `Failed to fetch edge function code: ${err instanceof Error ? err.message : String(err)}`,
-      },
-      { status: 500 }
-    )
+    const msg = err instanceof Error ? err.message : String(err)
+    if (/unauthorized|jwt|token.*(expired|invalid)/i.test(msg)) {
+      return NextResponse.json({ error: msg }, { status: 401 })
+    }
+    return NextResponse.json({ error: `Failed to fetch edge function code: ${msg}` })
   }
 }

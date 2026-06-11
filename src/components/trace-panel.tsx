@@ -147,17 +147,10 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
 
     const bridge = getAgentTraceBridge()
     bridge.reset()
-
-    // Poll for agent instance and attach when available
-    const attachInterval = setInterval(() => {
-      if (window.supaAgent && !window.supaAgent.disposed) {
-        bridge.attach(window.supaAgent as unknown as EventTarget)
-      }
-    }, 500)
+    bridge.startListening()
 
     const unsubscribe = bridge.subscribe((trace) => {
       setLiveTrace(trace)
-      // Auto-scroll activity log
       if (liveLogRef.current) {
         liveLogRef.current.scrollTop = liveLogRef.current.scrollHeight
       }
@@ -179,9 +172,8 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
     }
 
     return () => {
-      clearInterval(attachInterval)
+      bridge.stopListening()
       unsubscribe()
-      bridge.detach()
       es.close()
     }
   }, [isLive])
@@ -309,13 +301,20 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
             )}
 
             {/* Live mode instructions */}
-            {isLive && !window.supaAgent && (
+            {isLive && liveTrace?.status === 'idle' && (
               <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground space-y-1 bg-muted/30">
                 <p className="font-medium text-foreground">Waiting for agent…</p>
-                <p>
-                  Open the agent sidebar (Bot button in the header) and start a task. The trace
-                  will stream here automatically.
-                </p>
+                {(window as any).PAGE_AGENT_EXT ? (
+                  <p>
+                    Extension detected. Open the agent sidebar and start a task — trace events will
+                    stream here automatically.
+                  </p>
+                ) : (
+                  <p>
+                    Install the Supa Agent browser extension, open the agent sidebar (Bot button),
+                    and start a task on this page.
+                  </p>
+                )}
               </div>
             )}
 

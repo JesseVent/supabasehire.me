@@ -1,6 +1,5 @@
-import type { TraceSpan, TraceSpanCategory, TraceSpanStatus } from '@evilmartians/agent-prism-types'
+import type { TraceSpan } from '@evilmartians/agent-prism-types'
 
-// IIFE event payload types (kept for the extension bridge postMessage protocol)
 interface AgentActivity {
   type: 'thinking' | 'executing' | 'executed' | 'retrying' | 'error'
   tool?: string
@@ -35,39 +34,29 @@ export interface LiveTrace {
 export type TraceListener = (trace: LiveTrace) => void
 
 /**
- * Bridge that listens to supa-agent events and converts them to AgentPrism-compatible spans.
+ * Bridge that intercepts window.PAGE_AGENT_EXT_RESPONSE postMessage events emitted
+ * by the supa-agent content script and converts them into AgentPrism-compatible spans.
  *
- * The supa-agent IIFE emits three event types on its EventTarget:
- *   - `statuschange`  → agent status transitions
- *   - `activity`      → transient real-time feedback (thinking, executing, executed, retrying, error)
- *   - `historychange` → persistent history events (step, observation, retry, error)
+ * When a caller invokes window.PAGE_AGENT_EXT.execute(task, config) the content
+ * script broadcasts three event types back via window.postMessage:
+ *   - status_change_event  → 'running' | 'completed' | 'error' | 'idle'
+ *   - activity_event       → thinking / executing / executed / retrying / error
+ *   - history_change_event → full HistoricalEvent[] array
+ *   - execute_result       → final result (marks trace complete)
  *
- * This bridge subscribes to all three, builds OTLP-style spans incrementally,
- * and notifies listeners so the UI can render a live AgentPrism trace.
- *
- * Usage:
- *   const bridge = getAgentTraceBridge()
- *   bridge.subscribe((trace) => setLiveTrace(trace))
- *   bridge.attach(window.supaAgent)
+ * Call startListening() to begin capturing and stopListening() to clean up.
  */
 export class AgentTraceBridge {
   private listeners: Set<TraceListener> = new Set()
   private trace: LiveTrace = this.makeEmptyTrace()
   private pendingSpans: Map<string, TraceSpan> = new Map()
-  private attachedAgent: EventTarget | null = null
-  private boundHandlers = {
-    status: this.onStatusChange.bind(this),
-    activity: this.onActivity.bind(this),
-    history: this.onHistoryChange.bind(this),
-  }
+  private isListening = false
 
-  /** Return the singleton bridge instance */
   static getInstance(): AgentTraceBridge {
     if (!bridgeInstance) bridgeInstance = new AgentTraceBridge()
     return bridgeInstance
   }
 
-  /** Destroy the singleton (mainly for tests/HMR) */
   static reset(): void {
     bridgeInstance?.dispose()
     bridgeInstance = null
@@ -85,7 +74,6 @@ export class AgentTraceBridge {
 
   subscribe(listener: TraceListener): () => void {
     this.listeners.add(listener)
-    // Immediately emit current state so subscriber doesn't miss anything
     listener(this.trace)
     return () => {
       this.listeners.delete(listener)
@@ -97,41 +85,31 @@ export class AgentTraceBridge {
       try {
         listener(this.trace)
       } catch {
-        // isolated per-listener so one bad UI component can't kill the stream
+        // isolated per listener
       }
     }
   }
 
-  /** Attach to a running supa-agent instance */
-  attach(agent: EventTarget | null | undefined): void {
-    if (!agent || this.attachedAgent === agent) return
-    this.detach()
-    this.attachedAgent = agent
-    agent.addEventListener('statuschange', this.boundHandlers.status)
-    agent.addEventListener('activity', this.boundHandlers.activity)
-    agent.addEventListener('historychange', this.boundHandlers.history)
+  startListening(): void {
+    if (this.isListening) return
+    this.isListening = true
+    window.addEventListener('message', this.handleMessage)
   }
 
-  /** Detach from the current agent */
-  detach(): void {
-    if (!this.attachedAgent) return
-    this.attachedAgent.removeEventListener('statuschange', this.boundHandlers.status)
-    this.attachedAgent.removeEventListener('activity', this.boundHandlers.activity)
-    this.attachedAgent.removeEventListener('historychange', this.boundHandlers.history)
-    this.attachedAgent = null
+  stopListening(): void {
+    if (!this.isListening) return
+    this.isListening = false
+    window.removeEventListener('message', this.handleMessage)
   }
 
-  /** Reset the trace to empty (call when a new task starts) */
   reset(): void {
     this.trace = this.makeEmptyTrace()
     this.pendingSpans.clear()
     this.emit()
   }
 
-  /** Mark the trace as completed and finalize any pending spans */
   complete(): void {
     this.trace.status = 'completed'
-    // Close out any spans still marked pending
     const now = Date.now()
     for (const span of this.trace.spans) {
       if (span.status === 'pending') {
@@ -144,23 +122,52 @@ export class AgentTraceBridge {
   }
 
   dispose(): void {
-    this.detach()
+    this.stopListening()
     this.listeners.clear()
     this.pendingSpans.clear()
   }
 
-  // ── Event handlers ──────────────────────────────────────────────────────
+  // ── postMessage handler ──────────────────────────────────────────────────
 
-  private onStatusChange(_event: Event): void {
-    // The event itself doesn't carry data; read from agent if needed.
-    // We mainly use this as a heartbeat.
+  private handleMessage = (event: MessageEvent): void => {
+    if (event.source !== window) return
+    const data = event.data
+    if (!data || typeof data !== 'object') return
+    if (data.channel !== 'PAGE_AGENT_EXT_RESPONSE') return
+
+    const { action, payload } = data as { action: string; payload: unknown }
+
+    switch (action) {
+      case 'status_change_event':
+        this.onStatusChange(payload as string)
+        break
+      case 'activity_event':
+        this.onActivity(payload as AgentActivity)
+        break
+      case 'history_change_event':
+        this.onHistoryChange(payload as HistoricalEvent[])
+        break
+      case 'execute_result':
+        this.complete()
+        break
+    }
+  }
+
+  // ── Span builders ────────────────────────────────────────────────────────
+
+  private onStatusChange(status: string): void {
+    if (status === 'running') {
+      this.trace.status = 'running'
+    } else if (status === 'completed') {
+      this.complete()
+    } else if (status === 'error') {
+      this.trace.status = 'error'
+    }
     this.emit()
   }
 
-  private onActivity(event: Event): void {
-    const activity = (event as CustomEvent<AgentActivity>).detail
+  private onActivity(activity: AgentActivity): void {
     if (!activity) return
-
     const now = Date.now()
 
     switch (activity.type) {
@@ -178,9 +185,7 @@ export class AgentTraceBridge {
       }
 
       case 'executing': {
-        // Close previous thinking span if still open
         this.closePending('thinking', now)
-
         const span = this.makeSpan({
           id: `exec-${activity.tool}-${now}`,
           title: `Execute: ${activity.tool}`,
@@ -204,14 +209,13 @@ export class AgentTraceBridge {
           existing.output = activity.output
           this.pendingSpans.delete(key)
         } else {
-          // Late event — append as closed span
           this.trace.spans.push(
             this.makeSpan({
               id: `exec-${activity.tool}-${now}`,
               title: `Executed: ${activity.tool}`,
               type: 'tool_execution',
               status: 'success',
-              startTime: now - activity.duration,
+              startTime: now - (activity.duration ?? 0),
               endTime: now,
               duration: activity.duration,
               input: JSON.stringify(activity.input, null, 2),
@@ -258,31 +262,21 @@ export class AgentTraceBridge {
     this.emit()
   }
 
-  private onHistoryChange(event: Event): void {
-    const history = (event as CustomEvent<HistoricalEvent[]>).detail
+  private onHistoryChange(history: HistoricalEvent[]): void {
     if (!Array.isArray(history) || history.length === 0) return
-
     const lastEvent = history[history.length - 1]
     if (lastEvent.type !== 'step') return
 
     const step = lastEvent as AgentStepEvent
     const now = Date.now()
-
-    // Build a parent span for the whole step with reflection + action as children
     const children: TraceSpan[] = []
 
     if (step.reflection) {
-      const reflectionParts: string[] = []
-      if (step.reflection.evaluation_previous_goal) {
-        reflectionParts.push(`Evaluation: ${step.reflection.evaluation_previous_goal}`)
-      }
-      if (step.reflection.memory) {
-        reflectionParts.push(`Memory: ${step.reflection.memory}`)
-      }
-      if (step.reflection.next_goal) {
-        reflectionParts.push(`Next Goal: ${step.reflection.next_goal}`)
-      }
-      if (reflectionParts.length > 0) {
+      const parts: string[] = []
+      if (step.reflection.evaluation_previous_goal) parts.push(`Evaluation: ${step.reflection.evaluation_previous_goal}`)
+      if (step.reflection.memory) parts.push(`Memory: ${step.reflection.memory}`)
+      if (step.reflection.next_goal) parts.push(`Next Goal: ${step.reflection.next_goal}`)
+      if (parts.length > 0) {
         children.push(
           this.makeSpan({
             id: `reflection-${step.stepIndex}`,
@@ -292,7 +286,7 @@ export class AgentTraceBridge {
             startTime: now,
             endTime: now,
             duration: 0,
-            output: reflectionParts.join('\n'),
+            output: parts.join('\n'),
           })
         )
       }
@@ -341,7 +335,9 @@ export class AgentTraceBridge {
     }
   }
 
-  private makeSpan(partial: Omit<TraceSpan, 'raw'> & Partial<Pick<TraceSpan, 'raw'>>): TraceSpan {
+  private makeSpan(
+    partial: Omit<TraceSpan, 'raw' | 'attributes'> & Partial<Pick<TraceSpan, 'raw' | 'attributes'>>
+  ): TraceSpan {
     const raw = partial.output ?? partial.input ?? ''
     return {
       raw,
@@ -351,8 +347,6 @@ export class AgentTraceBridge {
   }
 }
 
-/** Convenience singleton accessor */
 export function getAgentTraceBridge(): AgentTraceBridge {
   return AgentTraceBridge.getInstance()
 }
-
