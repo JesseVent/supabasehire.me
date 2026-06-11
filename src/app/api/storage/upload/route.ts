@@ -2,14 +2,12 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { getConnectionFromHeaders } from '@/lib/api-auth'
 import { parseMcpSqlRows } from '@/lib/mcp-response-parser'
 import { projectRefFromUrl, SupabaseMcpClient } from '@/lib/supabase-mcp-client'
-import type { SupabaseConnection } from '@/lib/supabase-types'
 
-const DEMO_CONNECTION_ID = '__demo__'
 const VAULT_SECRET_NAME = 'devtool-edge-fn-key'
 const vaultCache = new Map<string, { secret: string; expires: number }>()
 const VAULT_TTL_MS = 5 * 60 * 1000
 
-async function getVaultSecretForStorage(
+async function getVaultSecret(
   supabaseUrl: string,
   accessToken: string
 ): Promise<string | null> {
@@ -36,67 +34,66 @@ async function getVaultSecretForStorage(
   }
 }
 
-// POST /api/storage/download — proxy-fetch a private storage file using service role key
-// body: { connection, bucket, path }
+// POST /api/storage/upload — Upload a file to Supabase Storage
+// Body: { bucket: string, fileName: string, mimeType: string, data: base64-string }
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { bucket, path } = body as {
+    const { bucket, fileName, mimeType, data } = body as {
       bucket: string
-      path: string
+      fileName: string
+      mimeType: string
+      data: string
     }
     const connection = getConnectionFromHeaders(request)
 
-    if (!connection || !bucket || !path) {
+    if (!connection || !bucket || !fileName || !data) {
       return NextResponse.json(
-        { error: 'connection, bucket, and path are required' },
+        { error: 'connection, bucket, fileName, and data are required' },
         { status: 400 }
       )
-    }
-
-    // Demo mode — redirect to the static public asset (works across all environments)
-    if (connection.id === DEMO_CONNECTION_ID) {
-      return NextResponse.redirect(new URL('/sample-analytics.parquet', request.url), 302)
     }
 
     let serviceRoleKey = connection.serviceRoleKey || connection.anonKey
     if (!connection.serviceRoleKey && connection.accessToken) {
-      const vaultKey = await getVaultSecretForStorage(connection.supabaseUrl, connection.accessToken)
+      const vaultKey = await getVaultSecret(connection.supabaseUrl, connection.accessToken)
       if (vaultKey) serviceRoleKey = vaultKey
     }
     if (!serviceRoleKey) {
       return NextResponse.json(
-        { error: 'Service role key required to download private files' },
+        { error: 'Service role key required to upload files' },
         { status: 400 }
       )
     }
 
-    const url = `${connection.supabaseUrl.replace(/\/$/, '')}/storage/v1/object/${bucket}/${path}`
+    // Decode base64 and upload to Supabase Storage
+    const buffer = Buffer.from(data, 'base64')
+    const url = `${connection.supabaseUrl.replace(/\/$/, '')}/storage/v1/object/${bucket}/${fileName}`
+
     const res = await fetch(url, {
+      method: 'POST',
       headers: {
         Authorization: `Bearer ${serviceRoleKey}`,
         apikey: serviceRoleKey,
+        'Content-Type': mimeType || 'application/octet-stream',
+        'x-upsert': 'true',
       },
+      body: buffer,
     })
 
     if (!res.ok) {
       const text = await res.text()
       return NextResponse.json(
-        { error: `Storage error (${res.status}): ${text}` },
+        { error: `Storage upload error (${res.status}): ${text}` },
         { status: res.status >= 400 ? res.status : 502 }
       )
     }
 
-    const buffer = await res.arrayBuffer()
-    return new NextResponse(buffer, {
-      status: 200,
-      headers: {
-        'Content-Type': res.headers.get('content-type') || 'application/octet-stream',
-        'Content-Length': buffer.byteLength.toString(),
-        'Cache-Control': 'private, max-age=300',
-      },
-    })
+    return NextResponse.json({ success: true, path: `${bucket}/${fileName}` })
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to download file' }, { status: 500 })
+    return NextResponse.json(
+      { error: `Failed to upload file: ${error instanceof Error ? error.message : String(error)}` },
+      { status: 500 }
+    )
   }
 }

@@ -4,6 +4,7 @@ import {
   Check,
   CheckCircle2,
   Clock,
+  Code,
   Copy,
   Globe,
   Info,
@@ -34,6 +35,14 @@ import {
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { BUILT_IN_FUNCTION_SCHEMAS } from '@/config/function-schemas'
 import { apiFetch } from '@/lib/api-auth'
 import { DEMO_CONNECTION_ID, DEMO_FUNCTION_NOTES } from '@/lib/demo-data'
@@ -78,6 +87,12 @@ export function EdgeFunctionsPanel() {
 
   // Schema / notes state
   const [isEditingNotes, setIsEditingNotes] = useState(false)
+  const [isViewingCode, setIsViewingCode] = useState(false)
+  const [functionCode, setFunctionCode] = useState<string | null>(null)
+  const [isLoadingCode, setIsLoadingCode] = useState(false)
+  const [codeError, setCodeError] = useState<string | null>(null)
+  const [isSchemaFormOpen, setIsSchemaFormOpen] = useState(false)
+  const [schemaFormValues, setSchemaFormValues] = useState<Record<string, string>>({})
   const [draftNotes, setDraftNotes] = useState('')
 
   const notesKey =
@@ -177,6 +192,7 @@ export function EdgeFunctionsPanel() {
         method: httpMethod,
         body,
         headers: Object.keys(headersObj).length > 0 ? headersObj : undefined,
+        verifyJwt: selectedFunction.verify_jwt,
       })
 
       const data = await res.json()
@@ -210,6 +226,31 @@ export function EdgeFunctionsPanel() {
       setIsInvoking(false)
     }
   }, [activeConnectionId, selectedFunction, httpMethod, requestBody, customHeaders, addActivityLog])
+
+  const fetchFunctionCode = useCallback(async () => {
+    if (!activeConnectionId || !selectedFunction) return
+    setIsLoadingCode(true)
+    setCodeError(null)
+    setFunctionCode(null)
+    try {
+      const res = await apiFetch('/api/edge-functions/code', activeConnection, {
+        functionSlug: selectedFunction.name,
+      })
+      const data = await res.json()
+      if (data.error) {
+        setCodeError(data.error)
+        toast.error('Failed to load code', { description: data.error })
+      } else {
+        setFunctionCode(data.code)
+        setIsViewingCode(true)
+      }
+    } catch {
+      setCodeError('Network error while fetching code')
+      toast.error('Failed to load code')
+    } finally {
+      setIsLoadingCode(false)
+    }
+  }, [activeConnectionId, selectedFunction])
 
   // Reset invoke state and prefill template whenever the selected function changes
   useEffect(() => {
@@ -374,6 +415,20 @@ export function EdgeFunctionsPanel() {
                 </CardTitle>
               </div>
               <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={fetchFunctionCode}
+                  disabled={isLoadingCode}
+                  className="h-7 px-2 text-xs"
+                >
+                  {isLoadingCode ? (
+                    <Loader2 className="size-3 mr-1 animate-spin" />
+                  ) : (
+                    <Code className="size-3 mr-1" />
+                  )}
+                  View code
+                </Button>
                 {!isEditingNotes ? (
                   <Button
                     variant="ghost"
@@ -528,12 +583,15 @@ export function EdgeFunctionsPanel() {
                       size="sm"
                       className="self-start"
                       onClick={() => {
-                        const body = generateBodyFromSchema(parsedSchema.params)
-                        if (body) {
-                          setRequestBody(body)
-                          setHttpMethod('POST')
-                          toast.success('Request body generated from schema')
+                        const defaults: Record<string, string> = {}
+                        for (const p of parsedSchema.params) {
+                          defaults[p.name] =
+                            p.type.toLowerCase() === 'boolean' || p.type.toLowerCase() === 'bool'
+                              ? 'false'
+                              : ''
                         }
+                        setSchemaFormValues(defaults)
+                        setIsSchemaFormOpen(true)
                       }}
                     >
                       <Wand2 className="size-3 mr-1.5" />
@@ -551,6 +609,161 @@ export function EdgeFunctionsPanel() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Code Viewer Dialog */}
+      {selectedFunction && (
+        <Dialog open={isViewingCode} onOpenChange={setIsViewingCode}>
+          <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="font-mono text-base">
+                {selectedFunction.name}
+              </DialogTitle>
+              <DialogDescription>Edge function source code</DialogDescription>
+            </DialogHeader>
+            {codeError ? (
+              <Alert variant="destructive">
+                <AlertDescription>{codeError}</AlertDescription>
+              </Alert>
+            ) : functionCode ? (
+              <div className="flex flex-col gap-2 min-h-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">
+                    Retrieved via MCP
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyToClipboard(functionCode)}
+                    className="h-7 px-2 text-xs"
+                  >
+                    {copied ? (
+                      <Check className="size-3 mr-1" />
+                    ) : (
+                      <Copy className="size-3 mr-1" />
+                    )}
+                    {copied ? 'Copied!' : 'Copy'}
+                  </Button>
+                </div>
+                <ScrollArea className="flex-1 border rounded-md bg-muted/30">
+                  <pre className="p-4 text-xs font-mono whitespace-pre">
+                    <code>{functionCode}</code>
+                  </pre>
+                </ScrollArea>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="size-6 animate-spin text-muted-foreground" />
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Schema Form Dialog */}
+      {selectedFunction && parsedSchema.params.length > 0 && (
+        <Dialog open={isSchemaFormOpen} onOpenChange={setIsSchemaFormOpen}>
+          <DialogContent className="max-w-2xl max-h-none overflow-visible">
+            <DialogHeader>
+              <DialogTitle>Fill Parameters</DialogTitle>
+              <DialogDescription>
+                Provide values for <span className="font-mono">{selectedFunction.name}</span>
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-2 py-1">
+              {parsedSchema.params.map((p) => (
+                <div key={p.name} className="flex flex-col gap-0.5">
+                  <Label className="text-[11px] leading-4 flex items-center gap-1 truncate">
+                    <span className="font-mono font-medium">{p.name}</span>
+                    <span className="text-muted-foreground">({p.type})</span>
+                    {p.required && (
+                      <span className="text-amber-600 dark:text-amber-400">*</span>
+                    )}
+                  </Label>
+                  {p.type.toLowerCase() === 'boolean' || p.type.toLowerCase() === 'bool' ? (
+                    <Select
+                      value={schemaFormValues[p.name] || 'false'}
+                      onValueChange={(val) =>
+                        setSchemaFormValues((prev) => ({ ...prev, [p.name]: val }))
+                      }
+                    >
+                      <SelectTrigger className="h-7 text-xs py-0">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="true">true</SelectItem>
+                        <SelectItem value="false">false</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : p.type.toLowerCase() === 'number' ||
+                    p.type.toLowerCase() === 'integer' ||
+                    p.type.toLowerCase() === 'int' ||
+                    p.type.toLowerCase() === 'float' ? (
+                    <Input
+                      type="number"
+                      className="h-7 text-xs py-0 px-2"
+                      placeholder={p.description || '0'}
+                      value={schemaFormValues[p.name] || ''}
+                      onChange={(e) =>
+                        setSchemaFormValues((prev) => ({ ...prev, [p.name]: e.target.value }))
+                      }
+                    />
+                  ) : (
+                    <Input
+                      type="text"
+                      className="h-7 text-xs py-0 px-2"
+                      placeholder={p.description || p.name}
+                      value={schemaFormValues[p.name] || ''}
+                      onChange={(e) =>
+                        setSchemaFormValues((prev) => ({ ...prev, [p.name]: e.target.value }))
+                      }
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2 mt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsSchemaFormOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  const obj: Record<string, unknown> = {}
+                  for (const p of parsedSchema.params) {
+                    const val = schemaFormValues[p.name] ?? ''
+                    if (p.type.toLowerCase() === 'boolean' || p.type.toLowerCase() === 'bool') {
+                      obj[p.name] = val === 'true' || val === '1'
+                    } else if (
+                      p.type.toLowerCase() === 'number' ||
+                      p.type.toLowerCase() === 'integer' ||
+                      p.type.toLowerCase() === 'int' ||
+                      p.type.toLowerCase() === 'float'
+                    ) {
+                      obj[p.name] = val === '' ? 0 : Number(val)
+                    } else if (p.type.toLowerCase() === 'array') {
+                      try { obj[p.name] = JSON.parse(val || '[]') } catch { obj[p.name] = [] }
+                    } else if (p.type.toLowerCase() === 'object') {
+                      try { obj[p.name] = JSON.parse(val || '{}') } catch { obj[p.name] = {} }
+                    } else {
+                      obj[p.name] = val
+                    }
+                  }
+                  setRequestBody(JSON.stringify(obj, null, 2))
+                  setHttpMethod('POST')
+                  setIsSchemaFormOpen(false)
+                  toast.success('Request body populated from schema')
+                }}
+              >
+                Apply
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Invoke Section */}

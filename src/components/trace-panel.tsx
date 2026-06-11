@@ -4,15 +4,29 @@ import '@/components/agent-prism/theme/theme.css'
 
 import { openTelemetrySpanAdapter } from '@evilmartians/agent-prism-data'
 import type { OpenTelemetryDocument, TraceRecord, TraceSpan } from '@evilmartians/agent-prism-types'
-import { Activity, AlertCircle, CheckCircle2, Clock, Grid3x3, Play } from 'lucide-react'
-import { useState } from 'react'
+import {
+  Activity,
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  Grid3x3,
+  Play,
+  Radio,
+  Square,
+  Zap,
+} from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { TraceViewer } from '@/components/agent-prism/TraceViewer/TraceViewer'
 import { SkillCoverageMatrix } from '@/components/skill-coverage-matrix'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { apiFetch } from '@/lib/api-auth'
 import { DEMO_CONNECTION_ID, DEMO_OTLP_TRACE, DEMO_TRACE_STEPS } from '@/lib/demo-data'
+import { getAgentTraceBridge, type LiveTrace } from '@/lib/agent-trace-bridge'
+import type { TraceEvent } from '@/lib/server-trace-bus'
 import type { SupabaseConnection } from '@/lib/supabase-types'
 import { useSupabaseStore } from '@/store/supabase-store'
 
@@ -25,6 +39,35 @@ interface Step {
 interface AgentQueryResponse {
   steps: Step[]
   otlpTrace: OpenTelemetryDocument
+}
+
+function backendEventToSpan(event: TraceEvent): TraceSpan {
+  const startTime = new Date(event.timestamp)
+  const endTime = event.duration
+    ? new Date(event.timestamp + event.duration)
+    : startTime
+  const status: TraceSpan['status'] =
+    event.type === 'error'
+      ? 'error'
+      : event.type === 'retry'
+        ? 'warning'
+        : event.duration
+          ? 'success'
+          : 'pending'
+
+  return {
+    id: `srv-${event.timestamp}`,
+    title: event.title,
+    startTime,
+    endTime,
+    duration: event.duration ?? 0,
+    type: event.type === 'llm_call' ? 'llm_call' : event.type === 'tool_execution' ? 'tool_execution' : event.type === 'error' ? 'event' : 'span',
+    raw: event.output ?? event.error ?? event.input ?? '',
+    status,
+    attributes: [],
+    metadata: event.metadata,
+    children: [],
+  }
 }
 
 function buildTraceData(otlpTrace: OpenTelemetryDocument, steps: Step[]) {
@@ -58,6 +101,11 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
     isDemoMode ? buildTraceData(DEMO_OTLP_TRACE as OpenTelemetryDocument, DEMO_TRACE_STEPS) : null
   )
 
+  // ── Live trace state ────────────────────────────────────────────────────
+  const [isLive, setIsLive] = useState(false)
+  const [liveTrace, setLiveTrace] = useState<LiveTrace | null>(null)
+  const liveLogRef = useRef<HTMLDivElement>(null)
+
   async function runAgent() {
     if (!connection) return
     setRunning(true)
@@ -85,6 +133,79 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
   }
 
   const canRun = (isDemoMode || !!connection) && !running
+
+  // ── Backend trace spans (from SSE) ──────────────────────────────────────
+  const [backendSpans, setBackendSpans] = useState<TraceSpan[]>([])
+
+  // ── Live trace bridge ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isLive) {
+      setLiveTrace(null)
+      setBackendSpans([])
+      return
+    }
+
+    const bridge = getAgentTraceBridge()
+    bridge.reset()
+
+    // Poll for agent instance and attach when available
+    const attachInterval = setInterval(() => {
+      if (window.supaAgent && !window.supaAgent.disposed) {
+        bridge.attach(window.supaAgent as unknown as EventTarget)
+      }
+    }, 500)
+
+    const unsubscribe = bridge.subscribe((trace) => {
+      setLiveTrace(trace)
+      // Auto-scroll activity log
+      if (liveLogRef.current) {
+        liveLogRef.current.scrollTop = liveLogRef.current.scrollHeight
+      }
+    })
+
+    // ── Backend SSE connection ────────────────────────────────────────────
+    const es = new EventSource('/api/agent/trace')
+    es.onmessage = (e) => {
+      try {
+        const event = JSON.parse(e.data) as TraceEvent
+        const span = backendEventToSpan(event)
+        setBackendSpans((prev) => [...prev, span])
+      } catch {
+        // ignore malformed events
+      }
+    }
+    es.onerror = () => {
+      // SSE will auto-reconnect; no action needed
+    }
+
+    return () => {
+      clearInterval(attachInterval)
+      unsubscribe()
+      bridge.detach()
+      es.close()
+    }
+  }, [isLive])
+
+  const mergedSpans = useMemo(() => {
+    if (!liveTrace) return backendSpans
+    return [...liveTrace.spans, ...backendSpans]
+  }, [liveTrace, backendSpans])
+
+  const liveTraceData = useCallback(() => {
+    const spans = mergedSpans
+    if (spans.length === 0) return null
+    const totalMs = spans.reduce((sum, s) => sum + (s.duration || 0), 0)
+    const traceRecord: TraceRecord = {
+      id: liveTrace?.id ?? 'live-trace',
+      name: liveTrace?.name ?? 'Live Agent Execution',
+      spansCount: spans.length,
+      durationMs: totalMs,
+      agentDescription: 'live-agent',
+    }
+    return { traceRecord, spans }
+  }, [mergedSpans, liveTrace?.id, liveTrace?.name])
+
+  const activeTraceData = isLive ? liveTraceData() : traceData
 
   return (
     <div className="p-4">
@@ -115,41 +236,86 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
                   <Badge variant="secondary" className="text-xs">
                     AgentPrism
                   </Badge>
+                  {isLive && (
+                    <Badge
+                      variant="default"
+                      className="text-xs gap-1 bg-red-500/10 text-red-500 border-red-500/20 animate-pulse"
+                    >
+                      <Radio className="size-3" />
+                      LIVE
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-sm text-muted-foreground max-w-xl">
-                  Runs an agentic edge function instrumented with OpenTelemetry — three chained SQL
-                  queries, each wrapped in an OTLP span — then visualizes the trace with{' '}
-                  <a
-                    href="https://github.com/evilmartians/agent-prism"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="underline underline-offset-2 hover:text-foreground"
-                  >
-                    AgentPrism
-                  </a>
-                  .
+                  {isLive
+                    ? 'Real-time trace stream from the running supa-agent. Every tool call, reflection, and LLM invocation is captured as it happens.'
+                    : 'Runs an agentic edge function instrumented with OpenTelemetry — three chained SQL queries, each wrapped in an OTLP span — then visualizes the trace with '}
+                  {!isLive && (
+                    <a
+                      href="https://github.com/evilmartians/agent-prism"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline underline-offset-2 hover:text-foreground"
+                    >
+                      AgentPrism
+                    </a>
+                  )}
                 </p>
               </div>
 
-              <Button
-                onClick={isDemoMode ? () => {} : runAgent}
-                disabled={!canRun || isDemoMode}
-                size="sm"
-                className="gap-2 shrink-0"
-              >
-                <Play className="size-3.5" />
-                {running ? 'Running…' : isDemoMode ? 'Demo trace' : 'Run agent'}
-              </Button>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  variant={isLive ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setIsLive((prev) => !prev)}
+                  className="gap-2"
+                >
+                  {isLive ? (
+                    <>
+                      <Square className="size-3.5" />
+                      Stop Live
+                    </>
+                  ) : (
+                    <>
+                      <Radio className="size-3.5" />
+                      Live Trace
+                    </>
+                  )}
+                </Button>
+
+                {!isLive && (
+                  <Button
+                    onClick={isDemoMode ? () => {} : runAgent}
+                    disabled={!canRun || isDemoMode}
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <Play className="size-3.5" />
+                    {running ? 'Running…' : isDemoMode ? 'Demo trace' : 'Run agent'}
+                  </Button>
+                )}
+              </div>
             </div>
 
-            {/* Deploy notice */}
-            {!isDemoMode && (
+            {/* Deploy notice (static mode only) */}
+            {!isDemoMode && !isLive && (
               <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground space-y-1 bg-muted/30">
                 <p className="font-medium text-foreground">Before running:</p>
                 <p>Deploy the edge function to your project first:</p>
                 <code className="block mt-1 bg-muted rounded px-2 py-1 text-xs font-mono">
                   supabase functions deploy agent-query --no-verify-jwt
                 </code>
+              </div>
+            )}
+
+            {/* Live mode instructions */}
+            {isLive && !window.supaAgent && (
+              <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground space-y-1 bg-muted/30">
+                <p className="font-medium text-foreground">Waiting for agent…</p>
+                <p>
+                  Open the agent sidebar (Bot button in the header) and start a task. The trace
+                  will stream here automatically.
+                </p>
               </div>
             )}
 
@@ -161,8 +327,8 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
               </div>
             )}
 
-            {/* Steps summary */}
-            {steps && (
+            {/* Steps summary (static mode) */}
+            {!isLive && steps && (
               <div className="space-y-2">
                 <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide text-[11px]">
                   Agent steps
@@ -190,13 +356,65 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
               </div>
             )}
 
-            {/* AgentPrism TraceViewer */}
-            {traceData && (
+            {/* Live activity feed */}
+            {isLive && mergedSpans.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide text-[11px]">
-                  OTLP trace — visualized with AgentPrism
+                  Activity Log
                 </p>
-                {/* Standard panel background — AgentPrism adapts via its own theme.css tokens. */}
+                <ScrollArea
+                  ref={liveLogRef}
+                  className="h-48 rounded-lg border border-border bg-card"
+                >
+                  <div className="flex flex-col gap-1 p-2">
+                    {mergedSpans.map((span) => (
+                      <div
+                        key={span.id}
+                        className="flex items-center gap-2 text-xs py-1 px-2 rounded hover:bg-accent/50"
+                      >
+                        <span
+                          className={`size-2 rounded-full shrink-0 ${
+                            span.status === 'pending'
+                              ? 'bg-amber-400 animate-pulse'
+                              : span.status === 'error'
+                                ? 'bg-red-500'
+                                : span.status === 'warning'
+                                  ? 'bg-orange-400'
+                                  : 'bg-emerald-500'
+                          }`}
+                        />
+                        <span className="font-mono text-muted-foreground shrink-0">
+                          {span.startTime.toLocaleTimeString([], {
+                            hour12: false,
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                          })}
+                        </span>
+                        <span className="font-medium truncate">{span.title}</span>
+                        {span.duration > 0 && (
+                          <span className="text-muted-foreground ml-auto shrink-0">
+                            {span.duration}ms
+                          </span>
+                        )}
+                        {span.tokensCount && (
+                          <span className="text-muted-foreground shrink-0">
+                            {span.tokensCount} tok
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
+
+            {/* AgentPrism TraceViewer */}
+            {activeTraceData && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide text-[11px]">
+                  {isLive ? 'Live trace stream' : 'OTLP trace — visualized with AgentPrism'}
+                </p>
                 <div
                   className="w-full rounded-xl border border-border shadow-sm overflow-hidden bg-card"
                   style={
@@ -213,18 +431,20 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
                     } as React.CSSProperties
                   }
                 >
-                  <TraceViewer data={[traceData]} />
+                  <TraceViewer data={[activeTraceData]} />
                 </div>
               </div>
             )}
 
             {/* Empty state */}
-            {!steps && !error && !isDemoMode && (
+            {!activeTraceData && !error && !isDemoMode && (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center space-y-3">
                 <Activity className="size-10 text-muted-foreground/40" />
                 <p className="text-sm font-medium">No trace yet</p>
                 <p className="text-xs text-muted-foreground max-w-xs">
-                  Deploy the edge function, then click "Run agent" to generate a live OTLP trace.
+                  {isLive
+                    ? 'Start the agent from the sidebar to see a live trace stream.'
+                    : 'Deploy the edge function, then click "Run agent" to generate a live OTLP trace.'}
                 </p>
               </div>
             )}

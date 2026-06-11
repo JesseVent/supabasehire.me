@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
+import { serverTraceBus } from '@/lib/server-trace-bus'
 
 /**
  * POST /api/agent/chat
@@ -27,6 +28,10 @@ import { type NextRequest, NextResponse } from 'next/server'
  * where `body` is the full OpenAI chat/completions request payload.
  * baseURL is intentionally NOT accepted from the client — it is resolved
  * server-side from the provider allowlist to prevent SSRF.
+ *
+ * Trace events:
+ *   Every LLM call is published to the server-side trace bus so that
+ *   /api/agent/trace SSE subscribers can visualize backend agent activity.
  */
 
 // Hardcoded allowlist — the client cannot override these URLs.
@@ -173,6 +178,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ── Publish trace: LLM call start ─────────────────────────────────────────
+    const callStart = Date.now()
+    const modelName = (body.model ?? model ?? 'unknown') as string
+    const msgCount = Array.isArray(body.messages) ? body.messages.length : 0
+    serverTraceBus.publish({
+      type: 'llm_call',
+      title: `LLM → ${provider}/${modelName}`,
+      metadata: { provider, model: modelName, messageCount: msgCount, streaming: body.stream === true },
+      input: JSON.stringify({ model: modelName, messages: body.messages, tools: body.tools }),
+    })
+
     // Forward to the provider
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -191,6 +207,12 @@ export async function POST(request: NextRequest) {
       // Stream the response back
       const reader = response.body?.getReader()
       if (!reader) {
+        serverTraceBus.publish({
+          type: 'error',
+          title: 'LLM stream failed',
+          duration: Date.now() - callStart,
+          error: 'No response body from provider',
+        })
         return NextResponse.json({ error: 'No response body from provider' }, { status: 502 })
       }
 
@@ -203,8 +225,21 @@ export async function POST(request: NextRequest) {
                 if (done) break
                 controller.enqueue(value)
               }
+              // Publish completion when stream ends
+              serverTraceBus.publish({
+                type: 'llm_call',
+                title: `LLM ← ${provider}/${modelName} (stream)`,
+                duration: Date.now() - callStart,
+                metadata: { provider, model: modelName, streaming: true },
+              })
               controller.close()
             } catch (err) {
+              serverTraceBus.publish({
+                type: 'error',
+                title: 'LLM stream error',
+                duration: Date.now() - callStart,
+                error: err instanceof Error ? err.message : String(err),
+              })
               controller.error(err)
             }
           },
@@ -222,14 +257,43 @@ export async function POST(request: NextRequest) {
 
     // Non-streaming: pass through JSON
     const data = await response.json()
+    const duration = Date.now() - callStart
 
     if (!response.ok) {
+      serverTraceBus.publish({
+        type: 'error',
+        title: `LLM error (${response.status})`,
+        duration,
+        metadata: { provider, model: modelName },
+        error: JSON.stringify(data),
+      })
       return NextResponse.json(data, { status: response.status })
     }
+
+    // Publish successful completion with usage if available
+    const usage = data.usage as { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | undefined
+    serverTraceBus.publish({
+      type: 'llm_call',
+      title: `LLM ← ${provider}/${modelName}`,
+      duration,
+      metadata: {
+        provider,
+        model: modelName,
+        promptTokens: usage?.prompt_tokens,
+        completionTokens: usage?.completion_tokens,
+        totalTokens: usage?.total_tokens,
+      },
+      output: JSON.stringify(data.choices?.[0]?.message ?? data),
+    })
 
     return NextResponse.json(data)
   } catch (err) {
     console.error('[/api/agent/chat] Error:', err)
+    serverTraceBus.publish({
+      type: 'error',
+      title: 'LLM proxy error',
+      error: err instanceof Error ? err.message : 'Internal proxy error',
+    })
     return NextResponse.json(
       {
         error: err instanceof Error ? err.message : 'Internal proxy error',

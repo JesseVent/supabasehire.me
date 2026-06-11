@@ -15,16 +15,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Could not determine project ref from URL' }, { status: 400 })
   }
 
-  const client = new SupabaseMcpClient({ projectRef, accessToken: connection.accessToken })
+  const client = new SupabaseMcpClient({ projectRef, accessToken: connection.accessToken, features: ['storage'] })
   try {
     const tools = await client.listTools()
     return NextResponse.json({ tools })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Failed to list MCP tools'
-    return NextResponse.json(
-      { error: msg.replace(/eyJ[A-Za-z0-9._-]{20,}/g, '[token]') },
-      { status: 502 }
-    )
+    const sanitized = msg.replace(/eyJ[A-Za-z0-9._-]{20,}/g, '[token]')
+    const isAuthError = /unauthorized|jwt|token.*(expired|invalid)/i.test(msg)
+    const error = isAuthError
+      ? `OAuth token expired or invalid. Reconnect via OAuth in the Settings panel. (${sanitized})`
+      : sanitized
+    return NextResponse.json({ error }, { status: isAuthError ? 401 : 502 })
   } finally {
     client.disconnect().catch(() => {})
   }

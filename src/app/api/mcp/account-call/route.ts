@@ -25,16 +25,18 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const client = new SupabaseMcpClient({ projectRef, accessToken })
+  const client = new SupabaseMcpClient({ projectRef, accessToken, features: ['storage'] })
   try {
     const result = await client.callTool(name, args)
     return NextResponse.json({ result })
   } catch (err) {
     const msg = err instanceof Error ? err.message : `MCP tool "${name}" failed`
-    return NextResponse.json(
-      { error: msg.replace(/eyJ[A-Za-z0-9._-]{20,}/g, '[token]') },
-      { status: 502 }
-    )
+    const sanitized = msg.replace(/eyJ[A-Za-z0-9._-]{20,}/g, '[token]')
+    const isAuthError = /unauthorized|jwt|token.*(expired|invalid)/i.test(msg)
+    const error = isAuthError
+      ? `OAuth token expired or invalid. Reconnect via OAuth. (${sanitized})`
+      : sanitized
+    return NextResponse.json({ error }, { status: isAuthError ? 401 : 502 })
   } finally {
     client.disconnect().catch(() => {})
   }
