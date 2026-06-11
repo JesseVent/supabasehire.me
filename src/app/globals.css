@@ -609,6 +609,19 @@ a,
   border-radius: var(--r-xs);
 }
 
+/* ─── React Flow controls — themed for light and dark ─── */
+.react-flow__controls-button {
+  background: hsl(var(--card));
+  border-color: hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+.react-flow__controls-button:hover {
+  background: hsl(var(--accent));
+}
+.react-flow__controls-button svg {
+  fill: hsl(var(--foreground));
+}
+
 /* ─── Dark mode enhanced contrast for ReactFlow nodes ─── */
 .dark .react-flow__node {
   /* Lighter backgrounds so nodes stand out better */
@@ -2116,31 +2129,6 @@ a,
   animation: gradientBgShift 20s ease-in-out infinite;
 }
 
-/* ─── Footer gradient border ─── */
-.footer-gradient-border {
-  border-top: 2px solid transparent;
-  border-image: linear-gradient(
-      to right,
-      transparent,
-      oklch(0.55 0.15 250),
-      oklch(0.55 0.2 300),
-      oklch(0.55 0.15 142),
-      transparent
-    )
-    1;
-}
-
-.dark .footer-gradient-border {
-  border-image: linear-gradient(
-      to right,
-      transparent,
-      oklch(0.75 0.15 250),
-      oklch(0.75 0.2 300),
-      oklch(0.75 0.15 142),
-      transparent
-    )
-    1;
-}
 
 /* ─── Number count bounce micro-interaction ─── */
 @keyframes numberBounce {

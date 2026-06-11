@@ -7,7 +7,6 @@ import {
   type Edge,
   Handle,
   MarkerType,
-  MiniMap,
   type Node,
   Panel,
   Position,
@@ -731,19 +730,6 @@ function SchemaDiagramInner({
           </Panel>
         )}
 
-        <MiniMap
-          position="bottom-right"
-          nodeColor={(node) => {
-            const data = node.data as TableNodeData | undefined
-            if ((data as Record<string, unknown> & { rlsUnknown?: boolean })?.rlsUnknown)
-              return '#f59e0b'
-            if (data?.rlsEnabled && data?.rlsPoliciesCount === 0) return '#f59e0b'
-            if (data?.rlsEnabled) return '#3ECF8E'
-            return '#ef4444'
-          }}
-          maskColor="rgba(0,0,0,0.1)"
-          style={{ borderRadius: 8 }}
-        />
       </ReactFlow>
     </div>
   )

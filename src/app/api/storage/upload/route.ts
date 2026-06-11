@@ -11,7 +11,7 @@ async function getVaultSecret(
   supabaseUrl: string,
   accessToken: string
 ): Promise<string | null> {
-  const cacheKey = `${supabaseUrl}:${accessToken.slice(0, 8)}`
+  const cacheKey = `${supabaseUrl}:${accessToken}`
   const cached = vaultCache.get(cacheKey)
   if (cached && cached.expires > Date.now()) return cached.secret
 

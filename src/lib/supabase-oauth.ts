@@ -54,7 +54,7 @@ export async function getOrRegisterDcrClient(redirectUri: string): Promise<DcrCl
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      client_name: 'Supabase Devtool',
+      client_name: 'supabasehire.me',
       redirect_uris: [redirectUri],
       token_endpoint_auth_method: 'none',
       grant_types: ['authorization_code', 'refresh_token'],

@@ -2052,68 +2052,6 @@ export default function Home() {
       <CommandPalette />
 
       {/* Footer */}
-      <footer className="footer-gradient-border mt-auto">
-        <div className="container mx-auto px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Database className="size-3" />
-            <span>supabasehire.me</span>
-          </div>
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground/60">
-              Built with
-            </span>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1 font-normal">
-                <span className="size-2 rounded-full bg-black dark:bg-white" />
-                Next.js
-              </Badge>
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1 font-normal">
-                <span className="size-2 rounded-full bg-blue-500" />
-                TypeScript
-              </Badge>
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1 font-normal">
-                <span className="size-2 rounded-full bg-yellow-400" />
-                DuckDB WASM
-              </Badge>
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1 font-normal">
-                <span className="size-2 rounded-full bg-red-500" />
-                React Flow
-              </Badge>
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1 font-normal">
-                <span className="size-2 rounded-full bg-orange-500" />
-                Zustand
-              </Badge>
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1 font-normal">
-                <span className="size-2 rounded-full bg-violet-500" />
-                shadcn/ui
-              </Badge>
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1 font-normal">
-                <span className="size-2 rounded-full bg-emerald-500" />
-                Tailwind
-              </Badge>
-            </div>
-            <span className="size-1 rounded-full bg-muted-foreground/40 hidden sm:block" />
-            <a
-              href="https://github.com/JesseVent/supabase-devtool"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors hover:underline"
-            >
-              <ExternalLink className="size-3" />
-              GitHub
-            </a>
-            <a
-              href="https://www.linkedin.com/in/jessevent/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors hover:underline"
-            >
-              <ExternalLink className="size-3" />
-              LinkedIn
-            </a>
-          </div>
-        </div>
-      </footer>
     </div>
   )
 }

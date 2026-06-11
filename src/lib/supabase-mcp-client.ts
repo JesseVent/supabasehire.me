@@ -94,7 +94,7 @@ export class SupabaseMcpClient {
       },
     })
 
-    this.client = new Client({ name: 'supabase-devtool', version: '1.0.0' })
+    this.client = new Client({ name: 'supabasehire.me', version: '1.0.0' })
     await this.client.connect(this.transport)
   }
 

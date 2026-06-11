@@ -5,7 +5,7 @@ import { AgentSidebar } from '@/components/AgentSidebar'
 import { Toaster } from '@/components/ui/sonner'
 
 export const metadata: Metadata = {
-  title: '🇦🇺 AI Agent Engineer',
+  title: 'AI Tooling Engineer',
   description:
     'Debug and inspect your Supabase RLS policies, edge functions, and database schema with interactive visualizations. Red-line highlighting for tables without row-level security.',
   keywords: [
@@ -54,9 +54,14 @@ export default function RootLayout({
           {children}
           <Toaster />
           <AgentSidebar />
-          <footer className="border-t bg-muted/30 py-2 px-4 text-center text-[11px] text-muted-foreground">
-            This site is not affiliated with or endorsed by Supabase. It is an independent
-            engineering project built as part of a job application.
+          <footer className="border-t border-border/40 px-6 py-1.5 flex items-center justify-center gap-5 text-[10px]">
+            <span className="font-mono text-muted-foreground">supabasehire.me</span>
+            <span className="text-border">·</span>
+            <span className="text-muted-foreground/70">Not affiliated with Supabase</span>
+            <span className="text-border">·</span>
+            <a href="https://github.com/JesseVent/supabase-devtool" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground font-medium transition-colors">GitHub</a>
+            <span className="text-border">·</span>
+            <a href="https://www.linkedin.com/in/jessevent/" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground font-medium transition-colors">LinkedIn</a>
           </footer>
         </ThemeProvider>
       </body>

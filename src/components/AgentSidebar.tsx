@@ -13,6 +13,9 @@ import { useAgentStore } from '@/store/agent-store'
 import { useSupabaseStore } from '@/store/supabase-store'
 
 export function AgentSidebar() {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
   const { sidebarOpen, toggleSidebar, llmConfig, messages, addMessage, clearMessages, agentStatus, setAgentStatus } =
     useAgentStore()
   const { connections, activeConnectionId } = useSupabaseStore()
@@ -113,6 +116,8 @@ export function AgentSidebar() {
   }
 
   const visibleMessages = messages.filter((m) => m.role !== 'system')
+
+  if (!mounted) return null
 
   return (
     <div
