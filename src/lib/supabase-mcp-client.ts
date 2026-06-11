@@ -155,7 +155,7 @@ export class SupabaseMcpClient {
 export function projectRefFromUrl(supabaseUrl: string): string | null {
   try {
     const hostname = new URL(supabaseUrl).hostname
-    const ref = hostname.split('.')[0]
+    const ref = hostname.split('.')[0].replace(/-all$/, '')
     return ref && ref !== 'localhost' ? ref : null
   } catch {
     return null

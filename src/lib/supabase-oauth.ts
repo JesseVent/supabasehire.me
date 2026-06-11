@@ -44,10 +44,17 @@ export interface DcrClient {
  * Register a public OAuth client via DCR. The client_id and client_secret are
  * cached in localStorage so we only register once.
  */
-export async function getOrRegisterDcrClient(redirectUri: string): Promise<DcrClient> {
-  const cachedId = localStorage.getItem(DCR_CACHE_KEY)
-  const cachedSecret = localStorage.getItem(DCR_SECRET_CACHE_KEY)
-  if (cachedId && cachedSecret) return { clientId: cachedId, clientSecret: cachedSecret }
+export function clearDcrCache(): void {
+  localStorage.removeItem(DCR_CACHE_KEY)
+  localStorage.removeItem(DCR_SECRET_CACHE_KEY)
+}
+
+export async function getOrRegisterDcrClient(redirectUri: string, force = false): Promise<DcrClient> {
+  if (!force) {
+    const cachedId = localStorage.getItem(DCR_CACHE_KEY)
+    const cachedSecret = localStorage.getItem(DCR_SECRET_CACHE_KEY)
+    if (cachedId && cachedSecret) return { clientId: cachedId, clientSecret: cachedSecret }
+  }
 
   // DCR endpoint doesn't send CORS headers — proxy through our server route.
   const res = await fetch('/api/oauth/register', {

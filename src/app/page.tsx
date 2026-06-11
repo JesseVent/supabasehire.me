@@ -130,6 +130,7 @@ import {
 } from '@/lib/retry-with-backoff'
 import {
   buildAuthorizeUrl,
+  clearDcrCache,
   exchangeCode,
   generatePKCE,
   getCallbackUrl,
@@ -318,23 +319,35 @@ export default function Home() {
     setCreateError(null)
     try {
       const redirectUri = getCallbackUrl()
-      const { clientId, clientSecret } = await getOrRegisterDcrClient(redirectUri)
 
-      const { codeVerifier, codeChallenge } = await generatePKCE()
-      const state = crypto.randomUUID()
-      const authorizeUrl = buildAuthorizeUrl(clientId, redirectUri, codeChallenge, state)
+      const runFlow = async (force = false) => {
+        const { clientId, clientSecret } = await getOrRegisterDcrClient(redirectUri, force)
 
-      const popup = openOAuthPopup(authorizeUrl)
-      if (!popup) throw new Error('Popup blocked — allow popups for this site and try again.')
+        const { codeVerifier, codeChallenge } = await generatePKCE()
+        const state = crypto.randomUUID()
+        const authorizeUrl = buildAuthorizeUrl(clientId, redirectUri, codeChallenge, state)
 
-      const code = await waitForOAuthCallback(state, popup)
-      const { accessToken, refreshToken } = await exchangeCode(
-        clientId,
-        code,
-        codeVerifier,
-        redirectUri,
-        clientSecret
-      )
+        const popup = openOAuthPopup(authorizeUrl)
+        if (!popup) throw new Error('Popup blocked — allow popups for this site and try again.')
+
+        const code = await waitForOAuthCallback(state, popup)
+        return exchangeCode(clientId, code, codeVerifier, redirectUri, clientSecret)
+      }
+
+      let tokens: { accessToken: string; refreshToken?: string }
+      try {
+        tokens = await runFlow()
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        if (/unrecognized.client/i.test(msg)) {
+          clearDcrCache()
+          tokens = await runFlow(true)
+        } else {
+          throw err
+        }
+      }
+
+      const { accessToken, refreshToken } = tokens
 
       // List projects via MCP (account-level, no project_ref) — proxied server-side to avoid CORS
       const projectsRes = await fetch('/api/mcp/account-call', {

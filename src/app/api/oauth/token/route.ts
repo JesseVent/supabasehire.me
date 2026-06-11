@@ -16,8 +16,9 @@ export async function POST(request: NextRequest) {
     const data = await res.json().catch(() => ({}))
 
     if (!res.ok) {
+      const d = data as Record<string, string>
       return NextResponse.json(
-        { error: (data as Record<string, string>).error ?? `Token request failed (${res.status})` },
+        { error: d.error ?? d.message ?? `Token request failed (${res.status})` },
         { status: res.status }
       )
     }

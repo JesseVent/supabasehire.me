@@ -131,7 +131,14 @@ async function tryRefresh(
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: params,
     })
-    if (!refreshRes.ok) return null
+    if (!refreshRes.ok) {
+      const errData = await refreshRes.json().catch(() => ({})) as Record<string, string>
+      if (/unrecognized.client/i.test(errData.error ?? '')) {
+        localStorage.removeItem('supabase_dcr_client_id')
+        localStorage.removeItem('supabase_dcr_client_secret')
+      }
+      return null
+    }
     const tokens = await refreshRes.json()
     return {
       accessToken: tokens.access_token as string,
