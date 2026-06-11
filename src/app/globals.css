@@ -732,21 +732,6 @@ a,
   }
 }
 
-/* ─── RLS OFF badge pulsing animation ─── */
-@keyframes badgePulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}
-
-.rls-badge-pulse {
-  animation: badgePulse 1.5s ease-in-out infinite;
-}
-
 /* ─── Dark mode ReactFlow table nodes — lighter backgrounds ─── */
 .dark .react-flow__node .bg-emerald-900\/30 {
   background-color: oklch(0.24 0.03 160 / 70%);
@@ -1410,20 +1395,6 @@ a,
 .dark .grid-pattern {
   background-image: radial-gradient(circle, oklch(1 0 0 / 6%) 1px, transparent 1px);
   background-size: 24px 24px;
-}
-
-/* ─── Evil Martians pulse amber (RLS on, no policies) ─── */
-@keyframes pulse-amber {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 color-mix(in oklch, var(--status-warn) 40%, transparent);
-  }
-  50% {
-    box-shadow: 0 0 0 8px color-mix(in oklch, var(--status-warn) 0%, transparent);
-  }
-}
-.rls-pulse-amber {
-  animation: pulse-amber 2s ease-in-out infinite;
 }
 
 /* ─── EM panel — solid card surface ─── */

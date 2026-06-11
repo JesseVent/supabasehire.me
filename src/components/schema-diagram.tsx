@@ -265,15 +265,6 @@ function TableNode({ data }: { data: TableNodeData }) {
         : rlsEnabled
           ? 'bg-background'
           : 'bg-red-50/40 dark:bg-red-950/10'
-  const pulseClass = isView
-    ? isSecureView
-      ? ''
-      : 'rls-pulse-red'
-    : rlsNoPolicies
-      ? 'rls-pulse-amber'
-      : !rlsEnabled && !rlsUnknown
-        ? 'rls-pulse-red'
-        : ''
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: ReactFlow custom nodes are interactive graph elements
@@ -284,7 +275,6 @@ function TableNode({ data }: { data: TableNodeData }) {
         borderColor,
         shadowColor,
         bgColor,
-        pulseClass,
         isSelected && 'ring-2 ring-primary ring-offset-2 ring-offset-background'
       )}
       onClick={handleClick}
@@ -334,7 +324,7 @@ function TableNode({ data }: { data: TableNodeData }) {
                 INVOKER
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 rounded-full bg-red-500 text-black px-2 py-0.5 text-[10px] font-semibold rls-badge-pulse animate-pulse">
+              <span className="inline-flex items-center gap-1 rounded-full bg-red-500 text-black px-2 py-0.5 text-[10px] font-semibold">
                 <ShieldAlert className="w-3 h-3" />
                 DEFINER
               </span>
@@ -355,7 +345,7 @@ function TableNode({ data }: { data: TableNodeData }) {
               RLS ON
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 rounded-full bg-red-500 text-black px-2.5 py-0.5 text-[10px] font-semibold rls-badge-pulse">
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-500 text-black px-2.5 py-0.5 text-[10px] font-semibold">
               <ShieldAlert className="w-3 h-3" />
               RLS OFF
             </span>
@@ -517,7 +507,7 @@ function buildNodesAndEdges(
         source: table.tableName,
         target: fk.foreign_table_name,
         type: 'smoothstep',
-        animated: !rlsEnabled || rlsNoPolicies,
+        animated: false,
         style: {
           stroke: edgeColor,
           strokeWidth: 2,
