@@ -448,8 +448,6 @@ function TableNode({ data }: { data: TableNodeData }) {
   )
 }
 
-const nodeTypes = { tableNode: TableNode }
-
 // ─── Build Nodes & Edges ───
 
 function buildNodesAndEdges(
@@ -561,6 +559,7 @@ function SchemaDiagramInner({
   const hasAnimated = useRef(false)
   const [layoutMode, setLayoutMode] = useState<'TB' | 'LR' | 'Force'>('TB')
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null)
+  const nodeTypes = useMemo(() => ({ tableNode: TableNode }), [])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: onSelectTable is deliberately excluded — selection is applied separately
   const { nodes: initialNodes, edges: initialEdges } = useMemo(

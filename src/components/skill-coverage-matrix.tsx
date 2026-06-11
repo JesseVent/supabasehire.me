@@ -1082,7 +1082,7 @@ export function SkillCoverageMatrix() {
             Average references cited per prompt, by category
           </p>
           <div style={{ height: 300 }}>
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" debounce={100}>
               <BarChart data={catChartData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
                 <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />

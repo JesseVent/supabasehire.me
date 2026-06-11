@@ -719,8 +719,7 @@ export function IndexViewer() {
               <CardContent>
                 <ChartContainer
                   config={chartConfig}
-                  className="min-h-[320px] min-w-[300px] w-full"
-                  style={{ aspectRatio: undefined }}
+                  className="h-[320px] min-w-[300px] w-full [aspect-ratio:unset]"
                 >
                   <BarChart
                     data={chartData}
