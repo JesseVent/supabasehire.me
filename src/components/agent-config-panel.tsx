@@ -1,6 +1,8 @@
 'use client'
 
-import { ArrowRightLeft, Cpu, Globe, Key, Settings2, ShieldCheck, Zap } from 'lucide-react'
+import { ArrowRightLeft, Check, Cpu, Globe, Key, Settings2, ShieldCheck, Zap } from 'lucide-react'
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -54,7 +56,7 @@ const PROVIDER_MODELS: Record<LLMProvider, string[]> = {
   custom: [],
 }
 
-export function AgentConfigPanel() {
+export function AgentConfigPanel({ onSave }: { onSave?: () => void }) {
   const {
     llmConfig,
     setLLMConfig,
@@ -63,6 +65,13 @@ export function AgentConfigPanel() {
     maxSteps,
     setMaxSteps,
   } = useAgentStore()
+  const [saved, setSaved] = useState(false)
+
+  function handleSave() {
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+    onSave?.()
+  }
 
   const handleProviderChange = (provider: LLMProvider) => {
     const preset = PROVIDER_PRESETS[provider]
@@ -196,6 +205,17 @@ export function AgentConfigPanel() {
           Configure an API key and base URL to enable the agent.
         </div>
       )}
+
+      <Button size="sm" className="w-full gap-1.5 h-8" onClick={handleSave}>
+        {saved ? (
+          <>
+            <Check className="size-3.5" />
+            Saved
+          </>
+        ) : (
+          'Save'
+        )}
+      </Button>
 
       <Separator />
 

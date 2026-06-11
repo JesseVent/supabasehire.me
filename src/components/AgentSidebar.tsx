@@ -251,7 +251,7 @@ export function AgentSidebar() {
       {/* Inline config panel (collapsible) */}
       {showConfig && (
         <div className="border-b border-border shrink-0 overflow-y-auto max-h-[45%]">
-          <AgentConfigPanel />
+          <AgentConfigPanel onSave={() => setShowConfig(false)} />
         </div>
       )}
 
