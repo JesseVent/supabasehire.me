@@ -149,7 +149,6 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
     }
 
     const bridge = getAgentTraceBridge()
-    bridge.reset()
     bridge.startListening()
 
     const unsubscribe = bridge.subscribe((trace) => {

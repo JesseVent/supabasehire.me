@@ -105,8 +105,13 @@ export class RealtimeTraceSource {
         this.setStatus('disconnected')
       }
     } catch (err) {
-      this.lastError = err instanceof Error ? err.message : String(err)
-      this.setStatus('error')
+      const msg = err instanceof Error ? err.message : String(err)
+      this.lastError = msg
+      if (/expired|invalid|unauthorized/i.test(msg)) {
+        this.setStatus('disconnected')
+      } else {
+        this.setStatus('error')
+      }
     }
   }
 
@@ -136,6 +141,9 @@ export class RealtimeTraceSource {
       auth: { persistSession: false, autoRefreshToken: false },
       accessToken: async () => (await this.refreshTokenIfNeeded(opts)).token,
     })
+    
+    // Explicitly set the auth token on the realtime client
+    this.client.realtime.setAuth(minted.token)
 
     const topic = await getChannelName(minted.userId)
     this.subscribeChannel(topic, /* isPrivate */ true, /* withBackfill */ true)
@@ -250,6 +258,8 @@ export class RealtimeTraceSource {
     const now = Math.floor(Date.now() / 1000)
     if (this.minted && this.minted.expiresAt - now > TOKEN_SLACK_SECONDS) return this.minted
     this.minted = await this.mintToken(opts)
+    // Sync refreshed token to Realtime client
+    this.client?.realtime.setAuth(this.minted.token)
     return this.minted
   }
 
@@ -265,9 +275,11 @@ export class RealtimeTraceSource {
     if (!res.ok) {
       const body = await res.text().catch(() => '')
       throw new Error(
-        res.status === 404
-          ? 'agent-trace-token function not found — install supa_agent_trace on this project first.'
-          : `agent-trace-token failed (${res.status}): ${body.replace(/eyJ[A-Za-z0-9._-]{20,}/g, '[token]').slice(0, 200)}`
+        res.status === 401
+          ? 'agent-trace-token: access token expired or invalid — re-authenticate with Supabase.'
+          : res.status === 404
+            ? 'agent-trace-token function not found — install supa_agent_trace on this project first.'
+            : `agent-trace-token failed (${res.status}): ${body.replace(/eyJ[A-Za-z0-9._-]{20,}/g, '[token]').slice(0, 200)}`
       )
     }
     const minted = (await res.json()) as MintedToken

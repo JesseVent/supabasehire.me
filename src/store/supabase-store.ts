@@ -8,6 +8,7 @@ import type {
   SupabaseConnection,
   TableRLSInfo,
   TableSchema,
+  UserSession,
 } from '@/lib/supabase-types'
 
 // ─── Schema Snapshot Types ───
@@ -99,6 +100,9 @@ interface SupabaseStore {
   // Edge function notes (local schema annotations), keyed by "connectionId:functionName"
   functionNotes: Record<string, string>
 
+  // Auth sessions — keyed by connectionId; transient (not persisted)
+  sessions: Record<string, UserSession | null>
+
   // Actions
   setConnections: (connections: SupabaseConnection[]) => void
   addConnection: (connection: SupabaseConnection) => void
@@ -128,6 +132,7 @@ interface SupabaseStore {
   addLatencyRecord: (record: Omit<LatencyRecord, 'id'>) => void
   clearLatencyHistory: () => void
   setFunctionNotes: (key: string, notes: string) => void
+  setSession: (connectionId: string, session: UserSession | null) => void
   reset: () => void
 }
 
@@ -151,6 +156,7 @@ const initialState = {
   migrationHistory: [] as MigrationRecord[],
   latencyHistory: [] as LatencyRecord[],
   functionNotes: {} as Record<string, string>,
+  sessions: {} as Record<string, UserSession | null>,
 }
 
 export const useSupabaseStore = create<SupabaseStore>()(
@@ -283,6 +289,12 @@ export const useSupabaseStore = create<SupabaseStore>()(
       setFunctionNotes: (key, notes) =>
         set((state) => ({
           functionNotes: { ...state.functionNotes, [key]: notes },
+        })),
+
+      // Auth sessions (transient)
+      setSession: (connectionId, session) =>
+        set((state) => ({
+          sessions: { ...state.sessions, [connectionId]: session },
         })),
 
       // Reset

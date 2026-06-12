@@ -33,6 +33,13 @@ export interface UpdateConnectionInput {
   accessToken?: string
 }
 
+// ─── Auth Session Types ───
+
+export interface UserSession {
+  user: Record<string, unknown>
+  access_token: string
+}
+
 // ─── Schema Types ───
 
 export interface ColumnInfo {

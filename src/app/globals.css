@@ -609,7 +609,7 @@ a,
   border-radius: var(--r-xs);
 }
 
-/* ─── React Flow controls — themed for light and dark ─── */
+/* ─── React Flow — themed for light and dark ─── */
 .react-flow__controls-button {
   background: hsl(var(--card));
   border-color: hsl(var(--border));
@@ -620,6 +620,14 @@ a,
 }
 .react-flow__controls-button svg {
   fill: hsl(var(--foreground));
+}
+
+/* Minimap node color — light mode uses theme-aware muted tone, dark mode lighter */
+.react-flow {
+  --xy-minimap-node-background-color-default: hsl(var(--muted-foreground) / 0.3);
+}
+.dark .react-flow {
+  --xy-minimap-node-background-color-default: oklch(0.35 0 0 / 0.6);
 }
 
 /* ─── Dark mode enhanced contrast for ReactFlow nodes ─── */
