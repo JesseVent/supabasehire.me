@@ -340,10 +340,15 @@ export class AgentTraceBridge {
     partial: Omit<TraceSpan, 'raw' | 'attributes'> & Partial<Pick<TraceSpan, 'raw' | 'attributes'>>
   ): TraceSpan {
     const raw = partial.output ?? partial.input ?? ''
+    // Normalize startTime/endTime to Date so the UI can call .toLocaleTimeString()
+    const startTime = partial.startTime instanceof Date ? partial.startTime : new Date(partial.startTime as number)
+    const endTime = partial.endTime instanceof Date ? partial.endTime : partial.endTime != null ? new Date(partial.endTime as number) : undefined
     return {
       raw,
       attributes: [],
       ...partial,
+      startTime,
+      endTime,
     } as TraceSpan
   }
 }

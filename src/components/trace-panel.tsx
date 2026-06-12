@@ -383,7 +383,10 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
                           }`}
                         />
                         <span className="font-mono text-muted-foreground shrink-0">
-                          {span.startTime.toLocaleTimeString([], {
+                          {(typeof span.startTime === 'number'
+                            ? new Date(span.startTime)
+                            : span.startTime
+                          ).toLocaleTimeString([], {
                             hour12: false,
                             hour: '2-digit',
                             minute: '2-digit',
