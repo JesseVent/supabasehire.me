@@ -330,7 +330,8 @@ export class AgentTraceBridge {
     if (span && span.status === 'pending') {
       span.status = 'success'
       span.endTime = new Date(now)
-      span.duration = now - span.startTime.getTime()
+      const startMs = typeof span.startTime === 'number' ? span.startTime : span.startTime.getTime()
+      span.duration = now - startMs
       this.pendingSpans.delete(key)
     }
   }
