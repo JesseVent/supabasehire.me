@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowRightLeft, Check, Cpu, Globe, Key, Settings2, ShieldCheck, Zap } from 'lucide-react'
+import { ArrowRightLeft, Check, Cpu, Globe, Key, Radio, Settings2, ShieldCheck, Zap } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -64,6 +64,8 @@ export function AgentConfigPanel({ onSave }: { onSave?: () => void }) {
     setSkillRouterConfig,
     maxSteps,
     setMaxSteps,
+    traceFallbackToken,
+    setTraceFallbackToken,
   } = useAgentStore()
   const [saved, setSaved] = useState(false)
 
@@ -259,6 +261,31 @@ export function AgentConfigPanel({ onSave }: { onSave?: () => void }) {
             Skill router active — chunks injected per task.
           </p>
         )}
+      </div>
+
+      <Separator />
+
+      {/* Realtime trace pairing fallback */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <Radio className="size-3" />
+          Realtime Trace Pairing
+        </div>
+        <p className="text-[10px] text-muted-foreground leading-relaxed">
+          Live traces auto-pair via your Supabase sign-in. If the active connection has no
+          OAuth token, paste the extension&apos;s User Auth Token (extension Settings) to pair
+          over a public channel instead — live events only, no replay.
+        </p>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Extension Auth Token (fallback)</Label>
+          <Input
+            type="password"
+            value={traceFallbackToken}
+            onChange={(e) => setTraceFallbackToken(e.target.value)}
+            placeholder="Paste from extension Settings → User Auth Token"
+            className="h-8 text-xs font-mono"
+          />
+        </div>
       </div>
     </div>
   )

@@ -96,6 +96,13 @@ interface AgentStore {
   agentStatus: 'idle' | 'running' | 'completed' | 'error'
   activityText: string | null
 
+  /**
+   * Pasted extension auth token (extension Settings → User Auth Token).
+   * Fallback pairing for the realtime trace bridge when not signed in with
+   * Supabase — hashed into the channel topic, never sent anywhere raw.
+   */
+  traceFallbackToken: string
+
   // Actions
   setAgentEnabled: (enabled: boolean) => void
   setLLMConfig: (config: Partial<LLMProviderConfig>) => void
@@ -109,6 +116,7 @@ interface AgentStore {
   setCurrentTask: (task: string) => void
   setAgentStatus: (status: 'idle' | 'running' | 'completed' | 'error') => void
   setActivityText: (text: string | null) => void
+  setTraceFallbackToken: (token: string) => void
 
   reset: () => void
 }
@@ -130,6 +138,7 @@ const initialState = {
   currentTask: '' as string,
   agentStatus: 'idle' as const,
   activityText: null as string | null,
+  traceFallbackToken: '' as string,
 }
 
 export const useAgentStore = create<AgentStore>()(
@@ -165,6 +174,7 @@ export const useAgentStore = create<AgentStore>()(
       setCurrentTask: (task) => set({ currentTask: task }),
       setAgentStatus: (status) => set({ agentStatus: status }),
       setActivityText: (text) => set({ activityText: text }),
+      setTraceFallbackToken: (token) => set({ traceFallbackToken: token }),
 
       reset: () => set(initialState),
     }),
@@ -175,6 +185,7 @@ export const useAgentStore = create<AgentStore>()(
         llmConfig: state.llmConfig,
         skillRouterConfig: state.skillRouterConfig,
         maxSteps: state.maxSteps,
+        traceFallbackToken: state.traceFallbackToken,
       }),
     }
   )

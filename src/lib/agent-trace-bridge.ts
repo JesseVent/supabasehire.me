@@ -1,4 +1,5 @@
 import type { TraceSpan } from '@evilmartians/agent-prism-types'
+import { type BridgeAction, PAGE_AGENT_EXT_RESPONSE_CHANNEL } from '@/lib/bridge-events'
 
 interface AgentActivity {
   type: 'thinking' | 'executing' | 'executed' | 'retrying' | 'error'
@@ -127,16 +128,13 @@ export class AgentTraceBridge {
     this.pendingSpans.clear()
   }
 
-  // ── postMessage handler ──────────────────────────────────────────────────
+  // ── Transport-agnostic ingestion ─────────────────────────────────────────
 
-  private handleMessage = (event: MessageEvent): void => {
-    if (event.source !== window) return
-    const data = event.data
-    if (!data || typeof data !== 'object') return
-    if (data.channel !== 'PAGE_AGENT_EXT_RESPONSE') return
-
-    const { action, payload } = data as { action: string; payload: unknown }
-
+  /**
+   * Feed one bridge event into the trace, regardless of transport
+   * (window.postMessage, Supabase Realtime broadcast, or backfill replay).
+   */
+  ingest(action: BridgeAction | string, payload: unknown): void {
     switch (action) {
       case 'status_change_event':
         this.onStatusChange(payload as string)
@@ -151,6 +149,18 @@ export class AgentTraceBridge {
         this.complete()
         break
     }
+  }
+
+  // ── postMessage handler (tab-local transport) ────────────────────────────
+
+  private handleMessage = (event: MessageEvent): void => {
+    if (event.source !== window) return
+    const data = event.data
+    if (!data || typeof data !== 'object') return
+    if (data.channel !== PAGE_AGENT_EXT_RESPONSE_CHANNEL) return
+
+    const { action, payload } = data as { action: string; payload: unknown }
+    this.ingest(action, payload)
   }
 
   // ── Span builders ────────────────────────────────────────────────────────

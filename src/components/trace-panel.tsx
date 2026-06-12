@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useRealtimeTrace } from '@/hooks/use-realtime-trace'
 import { apiFetch } from '@/lib/api-auth'
 import { DEMO_CONNECTION_ID, DEMO_OTLP_TRACE, DEMO_TRACE_STEPS } from '@/lib/demo-data'
 import { getAgentTraceBridge, type LiveTrace } from '@/lib/agent-trace-bridge'
@@ -105,6 +106,8 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
   const [isLive, setIsLive] = useState(false)
   const [liveTrace, setLiveTrace] = useState<LiveTrace | null>(null)
   const liveLogRef = useRef<HTMLDivElement>(null)
+  // Remote pairing over Supabase Realtime (in addition to tab-local postMessage)
+  const { status: realtimeStatus, agentOnline } = useRealtimeTrace()
 
   async function runAgent() {
     if (!connection) return
@@ -235,6 +238,20 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
                     >
                       <Radio className="size-3" />
                       LIVE
+                    </Badge>
+                  )}
+                  {isLive && realtimeStatus === 'connected' && (
+                    <Badge
+                      variant="secondary"
+                      className="text-xs gap-1 text-sky-600 dark:text-sky-400 border-sky-500/30 bg-sky-500/10"
+                      title={
+                        agentOnline
+                          ? 'Paired over Supabase Realtime — agent currently running'
+                          : 'Paired over Supabase Realtime — waiting for an agent run'
+                      }
+                    >
+                      <Radio className={agentOnline ? 'size-3 animate-pulse' : 'size-3'} />
+                      {agentOnline ? 'agent online' : 'realtime'}
                     </Badge>
                   )}
                 </div>

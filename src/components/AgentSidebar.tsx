@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Bot, Cpu, Send, Settings2, Square, Trash2, X } from 'lucide-react'
+import { Bot, Cpu, Radio, Send, Settings2, Square, Trash2, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { AgentConfigPanel } from '@/components/agent-config-panel'
 import { buildSystemPrompt } from '@/agent/supa-agent-config'
+import { useRealtimeTrace } from '@/hooks/use-realtime-trace'
 import { getAgentTraceBridge } from '@/lib/agent-trace-bridge'
 import { cn } from '@/lib/utils'
 import type { AgentChatMessage } from '@/store/agent-store'
@@ -43,6 +44,7 @@ export function AgentSidebar() {
   const [showConfig, setShowConfig] = useState(false)
   const [streamingContent, setStreamingContent] = useState<string | null>(null)
   const [extensionAvailable, setExtensionAvailable] = useState(false)
+  const { status: realtimeStatus, agentOnline } = useRealtimeTrace()
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -213,6 +215,30 @@ export function AgentSidebar() {
             <Cpu className="size-2.5" />
             extension
           </Badge>
+        )}
+        {realtimeStatus === 'connected' ? (
+          <Badge
+            variant="secondary"
+            className="text-[10px] gap-1 text-sky-600 dark:text-sky-400 border-sky-500/30 bg-sky-500/10"
+            title={
+              agentOnline
+                ? 'Live trace over Supabase Realtime — agent currently running'
+                : 'Live trace over Supabase Realtime — waiting for an agent run'
+            }
+          >
+            <Radio className={cn('size-2.5', agentOnline && 'animate-pulse')} />
+            realtime
+          </Badge>
+        ) : (
+          !extensionAvailable && (
+            <Badge
+              variant="secondary"
+              className="text-[10px] gap-1 text-muted-foreground"
+              title="No trace transport — install the extension or pair via Supabase Realtime"
+            >
+              disconnected
+            </Badge>
+          )
         )}
         {activeConn && (
           <Badge variant="secondary" className="text-[10px] font-mono max-w-[120px] truncate">
