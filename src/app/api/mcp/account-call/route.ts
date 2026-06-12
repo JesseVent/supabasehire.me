@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const client = new SupabaseMcpClient({ projectRef, accessToken, features: ['storage'] })
+  const client = new SupabaseMcpClient({ projectRef, accessToken })
   try {
     const result = await client.callTool(name, args)
     return NextResponse.json({ result })

@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Could not determine project ref from URL' }, { status: 400 })
   }
 
-  const client = new SupabaseMcpClient({ projectRef, accessToken: connection.accessToken, features: ['storage'] })
+  const client = new SupabaseMcpClient({ projectRef, accessToken: connection.accessToken })
   try {
     const tools = await client.listTools()
     return NextResponse.json({ tools })

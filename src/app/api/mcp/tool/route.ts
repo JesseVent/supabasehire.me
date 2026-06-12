@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Body must be { name, args }' }, { status: 400 })
   }
 
-  const client = new SupabaseMcpClient({ projectRef, accessToken: connection.accessToken, features: ['storage'] })
+  const client = new SupabaseMcpClient({ projectRef, accessToken: connection.accessToken })
   try {
     const result = await client.callTool(name, args)
     return NextResponse.json({ result })
