@@ -433,19 +433,25 @@ export default function Home() {
   const [dbPausedPhase, setDbPausedPhase] = useState<'video' | 'picker'>('video')
 
   useEffect(() => {
-    fetch('/api/mcp/account-call', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'list_projects', args: {} }),
-    })
-      .then((r) => {
-        if (r.status === 502) {
-          setDbPausedPhase('video')
-          setDbPaused(true)
-          requestAnimationFrame(() => setDbPausedVisible(true))
-        }
-      })
-      .catch(() => {})
+    const orig = window.fetch
+    window.fetch = async function (...args) {
+      const res = await orig.apply(window, args)
+      const url =
+        typeof args[0] === 'string'
+          ? args[0]
+          : args[0] instanceof URL
+            ? args[0].href
+            : (args[0] as Request).url
+      if (url.includes('/api/mcp/account-call') && res.status === 502) {
+        setDbPausedPhase('video')
+        setDbPaused(true)
+        requestAnimationFrame(() => setDbPausedVisible(true))
+      }
+      return res
+    }
+    return () => {
+      window.fetch = orig
+    }
   }, [])
 
   const dismissTipBanner = useCallback(() => {
