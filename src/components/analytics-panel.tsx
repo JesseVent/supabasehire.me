@@ -124,6 +124,27 @@ function typeColor(type: string) {
 
 // ─── Component ───
 
+const LS_KEY = 'iceberg-settings'
+
+function readLsSettings() {
+  if (typeof window === 'undefined') return {}
+  try {
+    return JSON.parse(localStorage.getItem(LS_KEY) ?? '{}') as {
+      s3KeyId?: string
+      s3Secret?: string
+      warehouse?: string
+    }
+  } catch {
+    return {}
+  }
+}
+
+function saveLsSettings(vals: { s3KeyId: string; s3Secret: string; warehouse: string }) {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(vals))
+  } catch {}
+}
+
 export function AnalyticsPanel({
   connection,
   isDemoMode = false,
@@ -136,20 +157,42 @@ export function AnalyticsPanel({
   const [phase, setPhase] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  // Pre-filled from saved connection; updated on successful connect
+  const resolveField = (
+    connVal: string | undefined,
+    envVal: string | undefined,
+    lsVal: string | undefined
+  ) => connVal || envVal || lsVal || ''
+
+  const ls = readLsSettings()
   const [s3KeyId, setS3KeyId] = useState(
-    connection?.s3KeyId ?? process.env.NEXT_PUBLIC_S3_KEY_ID ?? ''
+    resolveField(connection?.s3KeyId, process.env.NEXT_PUBLIC_S3_KEY_ID, ls.s3KeyId)
   )
   const [s3Secret, setS3Secret] = useState(
-    connection?.s3Secret ?? process.env.NEXT_PUBLIC_S3_SECRET ?? ''
+    resolveField(connection?.s3Secret, process.env.NEXT_PUBLIC_S3_SECRET, ls.s3Secret)
   )
   const [warehouse, setWarehouse] = useState(
-    connection?.s3Warehouse ?? process.env.NEXT_PUBLIC_S3_WAREHOUSE ?? ''
+    resolveField(connection?.s3Warehouse, process.env.NEXT_PUBLIC_S3_WAREHOUSE, ls.warehouse)
   )
 
   const [tables, setTables] = useState<IcebergTable[]>([])
   const [selectedTable, setSelectedTable] = useState<IcebergTable | null>(null)
   const [expandedNamespaces, setExpandedNamespaces] = useState<Set<string>>(new Set())
+
+  // Sync form fields when the active connection changes
+  const prevConnId = useRef<string | undefined>(connection?.id)
+  useEffect(() => {
+    if (connection?.id === prevConnId.current) return
+    prevConnId.current = connection?.id
+    const ls2 = readLsSettings()
+    setS3KeyId(resolveField(connection?.s3KeyId, process.env.NEXT_PUBLIC_S3_KEY_ID, ls2.s3KeyId))
+    setS3Secret(resolveField(connection?.s3Secret, process.env.NEXT_PUBLIC_S3_SECRET, ls2.s3Secret))
+    setWarehouse(
+      resolveField(connection?.s3Warehouse, process.env.NEXT_PUBLIC_S3_WAREHOUSE, ls2.warehouse)
+    )
+    setPhase('idle')
+    setTables([])
+    setSelectedTable(null)
+  }, [connection?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [tableSchema, setTableSchema] = useState<IcebergColumn[]>([])
   const [previewData, setPreviewData] = useState<QueryResult | null>(null)
@@ -187,6 +230,7 @@ export function AnalyticsPanel({
     if (connection) {
       updateConnection(connection.id, { s3KeyId, s3Secret, s3Warehouse: warehouse })
     }
+    saveLsSettings({ s3KeyId, s3Secret, warehouse })
 
     try {
       // Discover tables via Iceberg REST catalog (server-side, avoids CORS + S3 glob fragility).
@@ -831,8 +875,10 @@ export function AnalyticsPanel({
                   </div>
 
                   <p className="text-xs text-muted-foreground -mt-1">
-                    Postgres runs via Management API (network round-trip). Iceberg runs in DuckDB
-                    WASM (S3 reads, in-browser).
+                    ⚠️ Not apples-to-apples: Postgres time includes client→server→Management
+                    API→DB round-trip latency. DuckDB WASM runs locally (only S3 reads are
+                    measured). Iceberg will appear faster on small queries due to proxy overhead,
+                    not raw throughput. Use for relative comparison only.
                   </p>
 
                   {benchResults.length > 0 && (

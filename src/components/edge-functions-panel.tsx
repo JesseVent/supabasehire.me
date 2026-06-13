@@ -123,6 +123,13 @@ export function EdgeFunctionsPanel() {
     }
   }, [activeConnectionId, setEdgeFunctions])
 
+  // Auto-load when a connection is selected (or changes)
+  useEffect(() => {
+    if (activeConnectionId) {
+      fetchFunctions()
+    }
+  }, [activeConnectionId]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const invokeFunction = useCallback(async () => {
     if (!activeConnectionId || !selectedFunction) return
     setIsInvoking(true)

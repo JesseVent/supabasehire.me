@@ -1519,20 +1519,20 @@ export default function Home() {
                       <span className="hidden sm:inline">Catalog</span>
                     </TabsTrigger>
                     <TabsTrigger
-                      value="iceberg"
-                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
-                      title="Analytics"
-                    >
-                      <Layers className="size-3.5" />
-                      <span className="hidden sm:inline">Iceberg</span>
-                    </TabsTrigger>
-                    <TabsTrigger
                       value="traces"
                       className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
                       title="Traces"
                     >
                       <Activity className="size-3.5" />
                       <span className="hidden sm:inline">Traces</span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="iceberg"
+                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                      title="Analytics"
+                    >
+                      <Layers className="size-3.5" />
+                      <span className="hidden sm:inline">Iceberg</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="settings"
