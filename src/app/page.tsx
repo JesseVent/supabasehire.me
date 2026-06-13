@@ -430,6 +430,7 @@ export default function Home() {
   // DB paused overlay
   const [dbPaused, setDbPaused] = useState(false)
   const [dbPausedVisible, setDbPausedVisible] = useState(false)
+  const [dbPausedPhase, setDbPausedPhase] = useState<'video' | 'picker'>('video')
 
   useEffect(() => {
     fetch('/api/mcp/account-call', {
@@ -439,6 +440,7 @@ export default function Home() {
     })
       .then((r) => {
         if (r.status === 502) {
+          setDbPausedPhase('video')
           setDbPaused(true)
           requestAnimationFrame(() => setDbPausedVisible(true))
         }
@@ -785,17 +787,65 @@ export default function Home() {
       {/* DB-paused overlay */}
       {dbPaused && (
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 cursor-pointer"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85"
           style={{ opacity: dbPausedVisible ? 1 : 0, transition: 'opacity 1.2s ease' }}
-          onClick={() => { setDbPaused(false); setDbPausedVisible(false) }}
         >
-          <video
-            autoPlay
-            playsInline
-            src="https://kdwgvyczmsrvuuddsgwi.supabase.co/storage/v1/object/public/public-files/AQN1MvCWJWWSZsWMfeFREoyaYTgkbZ1MNxCCGJq_X8XyLZdOqE7BmwT33_gDAtOg2N697K-S2YLPWzBZQ7SBtNIkV41ydD7sriU.mp4"
-            className="max-w-2xl w-full rounded-xl shadow-2xl"
-            onEnded={() => { setDbPaused(false); setDbPausedVisible(false) }}
-          />
+          {dbPausedPhase === 'video' ? (
+            <video
+              autoPlay
+              playsInline
+              src="https://kdwgvyczmsrvuuddsgwi.supabase.co/storage/v1/object/public/public-files/AQN1MvCWJWWSZsWMfeFREoyaYTgkbZ1MNxCCGJq_X8XyLZdOqE7BmwT33_gDAtOg2N697K-S2YLPWzBZQ7SBtNIkV41ydD7sriU.mp4"
+              className="max-w-2xl w-full rounded-xl shadow-2xl cursor-pointer"
+              onClick={() => setDbPausedPhase('picker')}
+              onEnded={() => setDbPausedPhase('picker')}
+            />
+          ) : (
+            <div className="bg-background rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+              <div className="px-6 pt-6 pb-4 border-b border-border">
+                <h2 className="text-lg font-semibold">Switch Project</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  This project&apos;s database is paused. Connect to a different one.
+                </p>
+              </div>
+              <div className="divide-y divide-border max-h-80 overflow-y-auto">
+                {connections.filter((c) => c.id !== DEMO_CONNECTION_ID).map((c) => (
+                  <button
+                    key={c.id}
+                    className="w-full flex items-center gap-3 px-6 py-4 text-left hover:bg-muted transition-colors"
+                    onClick={() => {
+                      setActiveConnectionId(c.id)
+                      setDbPaused(false)
+                      setDbPausedVisible(false)
+                    }}
+                  >
+                    <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 text-primary font-bold text-sm">
+                      {c.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{c.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{c.supabaseUrl}</p>
+                    </div>
+                    {c.id === activeConnectionId && (
+                      <span className="ml-auto text-xs text-muted-foreground shrink-0">active</span>
+                    )}
+                  </button>
+                ))}
+                {connections.filter((c) => c.id !== DEMO_CONNECTION_ID).length === 0 && (
+                  <p className="px-6 py-8 text-sm text-muted-foreground text-center">
+                    No saved connections. Add one from the main UI.
+                  </p>
+                )}
+              </div>
+              <div className="px-6 py-4 border-t border-border">
+                <button
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => { setDbPaused(false); setDbPausedVisible(false) }}
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
