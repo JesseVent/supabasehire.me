@@ -441,13 +441,7 @@ export default function Home() {
           : args[0] instanceof URL
             ? args[0].href
             : (args[0] as Request).url
-      const { activeConnectionId: connId } = useSupabaseStore.getState()
-      if (
-        url.includes('/api/mcp/account-call') &&
-        !res.ok &&
-        connId &&
-        connId !== DEMO_CONNECTION_ID
-      ) {
+      if (url.includes('/api/mcp/account-call') && !res.ok) {
         setDbPaused(true)
         requestAnimationFrame(() => setDbPausedVisible(true))
       }
