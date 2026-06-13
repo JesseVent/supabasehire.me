@@ -131,7 +131,6 @@ function readLsSettings() {
   try {
     return JSON.parse(localStorage.getItem(LS_KEY) ?? '{}') as {
       s3KeyId?: string
-      s3Secret?: string
       warehouse?: string
     }
   } catch {
@@ -139,7 +138,7 @@ function readLsSettings() {
   }
 }
 
-function saveLsSettings(vals: { s3KeyId: string; s3Secret: string; warehouse: string }) {
+function saveLsSettings(vals: { s3KeyId: string; warehouse: string }) {
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(vals))
   } catch {}
@@ -230,7 +229,7 @@ export function AnalyticsPanel({
     if (connection) {
       updateConnection(connection.id, { s3KeyId, s3Secret, s3Warehouse: warehouse })
     }
-    saveLsSettings({ s3KeyId, s3Secret, warehouse })
+    saveLsSettings({ s3KeyId, warehouse })
 
     try {
       // Discover tables via Iceberg REST catalog (server-side, avoids CORS + S3 glob fragility).
