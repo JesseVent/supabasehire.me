@@ -164,9 +164,11 @@ export function AnalyticsPanel({
   const [isBenchmarking, setIsBenchmarking] = useState(false)
 
   const connRef = useRef<import('@duckdb/duckdb-wasm').AsyncDuckDBConnection | null>(null)
+  const connectingRef = useRef(false)
 
   const projectRef = connection ? extractProjectRef(connection.supabaseUrl) : ''
-  const s3Endpoint = `${projectRef}.supabase.co/storage/v1/s3`
+  // Supabase storage S3 endpoint — use the storage subdomain (same host as the Iceberg catalog)
+  const s3Endpoint = `${projectRef}.storage.supabase.co/storage/v1/s3`
 
   const connect = useCallback(async () => {
     if (!connection) return
@@ -174,25 +176,56 @@ export function AnalyticsPanel({
       toast.error('Enter S3 credentials and warehouse name')
       return
     }
+    if (connectingRef.current) return
+    connectingRef.current = true
 
     setPhase('connecting')
     setErrorMsg(null)
 
-    // Persist creds immediately so they survive a failed connect attempt
     if (connection) {
       updateConnection(connection.id, { s3KeyId, s3Secret, s3Warehouse: warehouse })
     }
 
     try {
+      // Discover tables via Iceberg REST catalog (server-side, avoids CORS + S3 glob fragility).
+      // Pass both serviceRoleKey and accessToken — the route prefers a real eyJ... JWT and will
+      // fall back to fetching one via the Management API when the key is opaque (sb_secret_...).
+      const catalogRes = await fetch('/api/iceberg/tables', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supabaseUrl: connection.supabaseUrl,
+          serviceRoleKey: connection.serviceRoleKey,
+          accessToken: connection.accessToken,
+          warehouse,
+        }),
+      })
+
+      if (!catalogRes.ok) {
+        const err = (await catalogRes.json()) as { error?: string; catalogUrl?: string }
+        throw new Error(
+          `Iceberg catalog error: ${err.error ?? catalogRes.statusText}${err.catalogUrl ? ` (${err.catalogUrl})` : ''}`
+        )
+      }
+
+      const { tables: catalogTables } = (await catalogRes.json()) as {
+        tables: Array<{ namespace: string; name: string; metadataLocation: string }>
+      }
+
+      if (catalogTables.length === 0) {
+        throw new Error(
+          `No Iceberg tables found in warehouse "${warehouse}". Verify the analytics bucket name and that tables have been created.`
+        )
+      }
+
+      // Set up DuckDB WASM with S3 credentials for data reads
       const db = await getDuckDB()
       const conn = await db.connect()
       connRef.current = conn
 
-      // Load extensions — iceberg_rest is NOT available in WASM; use httpfs + iceberg only
       await conn.query(`INSTALL httpfs; LOAD httpfs;`)
       await conn.query(`INSTALL iceberg; LOAD iceberg;`)
 
-      // S3 secret for Supabase
       await conn.query(`
         CREATE OR REPLACE SECRET supabase_s3 (
           TYPE S3,
@@ -203,131 +236,59 @@ export function AnalyticsPanel({
         );
       `)
 
-      // Discover tables via S3 glob.
-      // DuckDB WASM may not support ** recursive S3 globbing — try fixed-depth patterns instead.
-      // Iceberg structure: warehouse/{[namespace/]table}/metadata/00001-xxxx.metadata.json
-      const safeWarehouse = warehouse.replace(/'/g, "''")
-
-      const globPatterns = [
-        `s3://${safeWarehouse}/*/metadata/*.metadata.json`,
-        `s3://${safeWarehouse}/*/*/metadata/*.metadata.json`,
-        `s3://${safeWarehouse}/*/*/*/metadata/*.metadata.json`,
-        `s3://${safeWarehouse}/*/metadata/*.json`,
-        `s3://${safeWarehouse}/*/*/metadata/*.json`,
-        `s3://${safeWarehouse}/**/metadata/*.metadata.json`,
-      ]
-
-      const allFound: string[] = []
-      for (const pattern of globPatterns) {
-        try {
-          const res = await conn.query(`SELECT file FROM glob('${pattern}') ORDER BY file;`)
-          const files = res
-            .toArray()
-            .map((r) => {
-              const row = r.toJSON()
-              return String(row.file ?? row[Object.keys(row)[0]] ?? '')
-            })
-            .filter((f) => f && f.includes('/metadata/'))
-          allFound.push(...files)
-        } catch {
-          /* pattern unsupported or no matches */
-        }
-      }
-
-      // Deduplicate and filter to actual Iceberg metadata files
-      const metaFiles = [...new Set(allFound)]
-        .filter(
-          (f) => f.endsWith('.metadata.json') || /\/metadata\/\d{5}-[a-f0-9-]+\.json$/.test(f)
-        )
-        .sort()
-
-      if (metaFiles.length === 0) {
-        // Diagnostic: list top-level entries to surface what IS in the bucket
-        let hint = ''
-        try {
-          const diagRes = await conn.query(
-            `SELECT file FROM glob('s3://${safeWarehouse}/*') ORDER BY file LIMIT 20;`
-          )
-          const top = diagRes
-            .toArray()
-            .map((r) => {
-              const row = r.toJSON()
-              return String(row.file ?? row[Object.keys(row)[0]] ?? '')
-            })
-            .filter(Boolean)
-          hint =
-            top.length > 0
-              ? ` Top-level entries: ${top.slice(0, 5).join(', ')}${top.length > 5 ? '…' : ''}`
-              : ' Bucket appears empty or inaccessible — verify credentials.'
-        } catch {
-          hint = ' Could not list bucket — check S3 credentials and warehouse name.'
-        }
-        throw new Error(`No Iceberg metadata found in s3://${warehouse}/.${hint}`)
-      }
-
-      // Deduplicate: last entry per table root = newest version (sorted ascending)
-      const tableRoots = new Map<string, string>() // tableRoot → latestMetadataFile
-      for (const filePath of metaFiles) {
-        const metaIdx = filePath.lastIndexOf('/metadata/')
-        if (metaIdx < 0) continue
-        tableRoots.set(filePath.substring(0, metaIdx), filePath)
-      }
-
+      // Create DuckDB views using exact metadata locations from the catalog
       const tableList: IcebergTable[] = []
-      for (const [tableRoot, latestMeta] of tableRoots.entries()) {
-        const warehousePrefix = `s3://${warehouse}/`
-        const relative = tableRoot.startsWith(warehousePrefix)
-          ? tableRoot.slice(warehousePrefix.length)
-          : tableRoot
-        const parts = relative.split('/').filter(Boolean)
-        const tableName = parts[parts.length - 1] ?? tableRoot
-        const namespace = parts.length >= 2 ? parts.slice(0, -1).join('.') : 'default'
-        const viewName = `${namespace}_${tableName}`.replace(/[^a-z0-9_]/gi, '_')
-
+      const duckdbErrors: string[] = []
+      for (const t of catalogTables) {
+        const viewName = `${t.namespace}_${t.name}`.replace(/[^a-z0-9_]/gi, '_')
         try {
           await conn.query(
-            `CREATE OR REPLACE VIEW "${viewName}" AS SELECT * FROM iceberg_scan('${latestMeta.replace(/'/g, "''")}');`
+            `CREATE OR REPLACE VIEW "${viewName}" AS SELECT * FROM iceberg_scan('${t.metadataLocation.replace(/'/g, "''")}');`
           )
-        } catch {
-          // skip corrupt/empty tables
+        } catch (err) {
+          duckdbErrors.push(
+            `${t.name}: ${err instanceof Error ? err.message.slice(0, 120) : String(err)}`
+          )
         }
-
         tableList.push({
-          namespace,
-          name: tableName,
+          namespace: t.namespace,
+          name: t.name,
           fullName: viewName,
-          location: latestMeta,
+          location: t.metadataLocation,
           rowCount: null,
         })
       }
 
-      // Row counts (best-effort — skip on failure)
-      const withCounts = await Promise.all(
-        tableList.map(async (t) => {
-          try {
-            const cr = await conn.query(`SELECT COUNT(*) AS n FROM "${t.fullName}";`)
-            const n = cr.toArray()[0]?.toJSON()?.n
-            return { ...t, rowCount: typeof n === 'bigint' ? Number(n) : Number(n ?? 0) }
-          } catch {
-            return t
-          }
-        })
-      )
+      if (duckdbErrors.length > 0) {
+        console.warn('[analytics] DuckDB view errors:', duckdbErrors)
+        if (duckdbErrors.length === catalogTables.length) {
+          // Every table failed — likely S3 access issue
+          throw new Error(
+            `Catalog returned ${catalogTables.length} table(s) but DuckDB could not open any.\n` +
+              `First error: ${duckdbErrors[0]}\n\n` +
+              `Hint: Supabase Analytics Buckets store data in internal S3 buckets. ` +
+              `Ensure your S3 credentials have project-level access (not bucket-scoped).`
+          )
+        }
+        toast.warning(`${duckdbErrors.length} table(s) could not be opened by DuckDB`)
+      }
 
-      setTables(withCounts)
+      setTables(tableList)
 
-      const firstNs = [...new Set(withCounts.map((t) => t.namespace))]
+      const firstNs = [...new Set(tableList.map((t) => t.namespace))]
       if (firstNs.length > 0) setExpandedNamespaces(new Set([firstNs[0]]))
 
       setPhase('connected')
       toast.success(
-        `Connected — ${withCounts.length} table${withCounts.length !== 1 ? 's' : ''} found`
+        `Connected — ${tableList.length} table${tableList.length !== 1 ? 's' : ''} found`
       )
     } catch (err) {
       setPhase('error')
       const msg = err instanceof Error ? err.message : String(err)
       setErrorMsg(msg)
       toast.error('Connection failed')
+    } finally {
+      connectingRef.current = false
     }
   }, [connection, s3KeyId, s3Secret, warehouse, s3Endpoint, updateConnection])
 

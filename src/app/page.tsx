@@ -44,7 +44,7 @@ import {
   Zap,
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { AnalyticsPanel } from '@/components/analytics-panel'
 import { CommandPalette } from '@/components/command-palette'
@@ -528,10 +528,15 @@ export default function Home() {
     [removeConnection, connections, addActivityLog]
   )
 
+  // Stable ref so fetchSchemaAndRLS doesn't recreate when connections array changes
+  // (prevents the auto-fetch useEffect from re-running and switching to schema panel)
+  const connectionsRef = useRef(connections)
+  connectionsRef.current = connections
+
   // Fetch schema and RLS data
   const fetchSchemaAndRLS = useCallback(async () => {
     if (!activeConnectionId) return
-    const activeConn = connections.find((c) => c.id === activeConnectionId)
+    const activeConn = connectionsRef.current.find((c) => c.id === activeConnectionId)
     if (!activeConn) return
 
     // Skip connections that have consistently failed auth — stop retry storms
@@ -584,7 +589,7 @@ export default function Home() {
     } finally {
       setIsLoadingSchema(false)
     }
-  }, [activeConnectionId, connections, setTables, setRlsStatuses, addActivityLog])
+  }, [activeConnectionId, setTables, setRlsStatuses, addActivityLog])
 
   // Load demo data
   const loadDemoData = useCallback(() => {
@@ -1953,22 +1958,11 @@ export default function Home() {
             <TabsContent
               value="analytics"
               className="mt-0 h-[calc(100vh-120px)]"
-              forceMount={activePanel === 'analytics' ? true : undefined}
+              forceMount
             >
-              <AnimatePresence mode="wait">
-                {activePanel === 'analytics' && (
-                  <motion.div
-                    key="analytics"
-                    className="h-full"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  >
-                    <AnalyticsPanel connection={activeConnection || null} isDemoMode={isDemoMode} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <div className="h-full" style={{ display: activePanel === 'analytics' ? undefined : 'none' }}>
+                <AnalyticsPanel connection={activeConnection || null} isDemoMode={isDemoMode} />
+              </div>
             </TabsContent>
 
             <TabsContent
