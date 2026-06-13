@@ -793,7 +793,7 @@ export default function Home() {
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 cursor-pointer"
           style={{ opacity: dbPausedVisible ? 1 : 0, transition: 'opacity 1.2s ease' }}
-          onClick={() => { setDbPaused(false); setDbPausedVisible(false) }}
+          onClick={() => { setDbPaused(false); setDbPausedVisible(false); setActiveConnectionId('') }}
         >
           <video
             autoPlay
@@ -801,7 +801,7 @@ export default function Home() {
             src="https://kdwgvyczmsrvuuddsgwi.supabase.co/storage/v1/object/public/public-files/AQN1MvCWJWWSZsWMfeFREoyaYTgkbZ1MNxCCGJq_X8XyLZdOqE7BmwT33_gDAtOg2N697K-S2YLPWzBZQ7SBtNIkV41ydD7sriU.mp4"
             className="max-w-2xl w-full rounded-xl shadow-2xl"
             onClick={(e) => e.stopPropagation()}
-            onEnded={() => { setDbPaused(false); setDbPausedVisible(false) }}
+            onEnded={() => { setDbPaused(false); setDbPausedVisible(false); setActiveConnectionId('') }}
           />
         </div>
       )}
