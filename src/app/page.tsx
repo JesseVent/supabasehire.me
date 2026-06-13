@@ -1216,24 +1216,31 @@ export default function Home() {
               </motion.div>
             </motion.div>
 
-            <motion.h2
+            <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15, duration: 0.4 }}
-              className="text-4xl font-bold mb-4 tracking-tight font-display"
+              className="mb-4"
             >
-              Your Supabase project,
-              <br />
-              fully visible.
-            </motion.h2>
+              <span className="inline-block px-2 py-1 rounded bg-primary/10 text-primary text-xs font-semibold tracking-wide uppercase mb-3">
+                Portfolio Piece — Open Source
+              </span>
+              <h2 className="text-4xl font-bold tracking-tight font-display">
+                The dev's devtool
+                <br />
+                for Supabase.
+              </h2>
+            </motion.div>
             <motion.p
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.28, duration: 0.4 }}
-              className="text-base text-muted-foreground mb-8 max-w-md leading-relaxed"
+              className="text-base text-muted-foreground mb-8 max-w-lg leading-relaxed"
             >
-              Inspect schemas, audit RLS policies, query data, monitor realtime events, browse
-              storage, and generate AI-powered data catalogs — all in one tool.
+              I'm Jesse, a full-stack developer who built this inspector end-to-end — from OAuth
+              and Management API proxying to DuckDB WASM in the browser. Schema maps, RLS audits,
+              SQL runners, AI data catalogs. Connect your project or try the full demo. This is how
+              I think about developer experience.
             </motion.p>
 
             {connections.length > 0 ? (
@@ -1396,60 +1403,67 @@ export default function Home() {
             {/* Feature cards with staggered entrance */}
             <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-5xl w-full">
               <FeatureCard
-                icon={<GitFork className="size-4.5" />}
-                title="Schema Visualizer"
-                description="Interactive ER diagram with dagre auto-layout, FK relationships, and table detail panels."
+                icon={<LayoutDashboard className="size-4.5" />}
+                title="Project Dashboard"
+                description="Live overview with latency heatmaps, security scoring, and index analysis — all pulled from Management API and PostgREST in real time."
                 delay={0.55}
                 index={0}
               />
               <FeatureCard
-                icon={<ShieldAlert className="size-4.5" />}
-                title="RLS Inspector"
-                description="Visual audit of row-level security — highlights unprotected tables and surfaces policy definitions."
+                icon={<GitFork className="size-4.5" />}
+                title="Schema Visualizer"
+                description="Interactive ER diagrams built with React Flow and dagre auto-layout. Click any table to trace foreign key relationships across the graph."
                 delay={0.55}
                 index={1}
               />
               <FeatureCard
-                icon={<Terminal className="size-4.5" />}
-                title="SQL Runner"
-                description="Execute queries with syntax highlighting, history, and CSV/JSON export."
+                icon={<ShieldAlert className="size-4.5" />}
+                title="RLS Inspector"
+                description="Full security audit with at-a-glance RLS status. Spot unprotected tables instantly and review every policy definition inline."
                 delay={0.55}
                 index={2}
               />
               <FeatureCard
-                icon={<Zap className="size-4.5" />}
-                title="Edge Functions"
-                description="Browse, invoke, and inspect your Supabase edge functions with live response output."
+                icon={<Terminal className="size-4.5" />}
+                title="SQL Runner"
+                description="In-browser SQL editor with syntax highlighting, query history, and CSV/JSON export. Runs directly against PostgREST with service-role bypass."
                 delay={0.55}
                 index={3}
               />
               <FeatureCard
+                icon={<Zap className="size-4.5" />}
+                title="Edge Functions"
+                description="Browse, invoke, and debug Supabase Edge Functions from the UI with live request/response logs and custom payload editing."
+                delay={0.55}
+                index={4}
+              />
+              <FeatureCard
                 icon={<HardDrive className="size-4.5" />}
                 title="Storage Browser"
-                description="Navigate buckets, preview Parquet files with DuckDB WASM, and download assets."
+                description="Navigate buckets, folders, and files. Preview Parquet files using DuckDB compiled to WASM — zero server round-trips."
                 delay={0.55}
                 index={5}
               />
               <FeatureCard
                 icon={<BookOpen className="size-4.5" />}
                 title="Data Catalog"
-                description="Profile every table and generate plain-English descriptions via OpenAI gpt-4o."
+                description="Auto-profile every table and generate human-readable documentation via LLM. Stores descriptions back to your project catalog."
                 delay={0.55}
                 index={6}
               />
               <FeatureCard
                 icon={<Layers className="size-4.5" />}
                 title="Iceberg"
-                description="Query Iceberg tables directly in the browser via DuckDB WASM — no data leaves your tab."
+                description="Query Apache Iceberg tables entirely in the browser via DuckDB WASM. Connects to S3-compatible storage with no backend required."
                 delay={0.55}
                 index={7}
               />
               <FeatureCard
-                icon={<DatabaseBackup className="size-4.5" />}
-                title="Snapshot & Indexes"
-                description="Track schema changes over time and inspect index usage statistics."
+                icon={<Activity className="size-4.5" />}
+                title="Realtime Traces"
+                description="Live trace monitoring with OpenTelemetry integration. Watch agent execution steps, latency breakdowns, and skill coverage in real time."
                 delay={0.55}
-                index={5}
+                index={8}
               />
             </div>
           </div>
