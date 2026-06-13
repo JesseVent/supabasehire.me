@@ -777,14 +777,12 @@ export default function Home() {
             <div className="size-8 rounded-lg bg-muted flex items-center justify-center overflow-hidden p-1">
               <AppLogo className="w-full h-full" />
             </div>
-            <div>
-              <h1 className="text-sm font-semibold leading-none" style={{ fontWeight: 700 }}>
-                supabasehire.me
-              </h1>
-              <p className="text-[10px] text-muted-foreground leading-none mt-0.5">
-                Supabase DevTool
-              </p>
-            </div>
+            <h1
+              className="font-sans text-[22px] leading-none tracking-tight text-foreground"
+              style={{ fontWeight: 800 }}
+            >
+              supabasehire.me
+            </h1>
           </div>
 
           {/* Connection selector + Status + Theme toggle */}
