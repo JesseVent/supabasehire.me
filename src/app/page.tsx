@@ -787,16 +787,6 @@ export default function Home() {
 
           {/* Connection selector + Status + Theme toggle */}
           <div className="flex items-center gap-2">
-            {/* Connection status indicator */}
-            <div className="flex items-center gap-1.5">
-              <span
-                className={`size-2 rounded-full ${activeConnectionId ? (isDemoMode ? 'bg-amber-500' : 'bg-emerald-500 glow-dot') : 'bg-muted-foreground/40'}`}
-              />
-              <span className="text-[10px] text-muted-foreground hidden sm:inline">
-                {activeConnectionId ? (isDemoMode ? 'Demo Mode' : 'Connected') : 'No Connection'}
-              </span>
-            </div>
-
             {/* Quick Actions Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
