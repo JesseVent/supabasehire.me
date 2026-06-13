@@ -787,16 +787,6 @@ export default function Home() {
 
           {/* Connection selector + Status + Theme toggle */}
           <div className="flex items-center gap-2">
-            {/* Connection status indicator */}
-            <div className="flex items-center gap-1.5">
-              <span
-                className={`size-2 rounded-full ${activeConnectionId ? (isDemoMode ? 'bg-amber-500' : 'bg-emerald-500 glow-dot') : 'bg-muted-foreground/40'}`}
-              />
-              <span className="text-[10px] text-muted-foreground hidden sm:inline">
-                {activeConnectionId ? (isDemoMode ? 'Demo Mode' : 'Connected') : 'No Connection'}
-              </span>
-            </div>
-
             {/* Quick Actions Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -830,7 +820,6 @@ export default function Home() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <ThemeToggle />
             <Button
               variant="ghost"
               size="sm"
@@ -844,7 +833,7 @@ export default function Home() {
               variant="ghost"
               size="sm"
               onClick={() => setShowShortcutsDialog(true)}
-              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+              className="hidden sm:inline-flex h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
               title="Keyboard shortcuts (Ctrl+/)"
             >
               <Keyboard className="size-3.5" />
@@ -853,7 +842,7 @@ export default function Home() {
               href="https://github.com/JesseVent/supabase-devtool"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              className="hidden sm:inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               title="GitHub"
             >
               <span className="sr-only">GitHub</span>
@@ -865,7 +854,7 @@ export default function Home() {
               href="https://www.linkedin.com/in/jessevent/"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              className="hidden sm:inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               title="LinkedIn"
             >
               <span className="sr-only">LinkedIn</span>
@@ -877,7 +866,7 @@ export default function Home() {
               href="https://agenticlab.com.au"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-8 items-center justify-center rounded-md px-2 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              className="hidden md:inline-flex h-8 items-center justify-center rounded-md px-2 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               title="AgenticLab"
             >
               agenticlab.com.au
@@ -899,7 +888,7 @@ export default function Home() {
               </div>
             ) : connections.length > 0 ? (
               <Select value={activeConnectionId || ''} onValueChange={setActiveConnectionId}>
-                <SelectTrigger className="w-[200px] h-8">
+                <SelectTrigger className="w-[140px] sm:w-[200px] h-8">
                   <SelectValue placeholder="Select connection" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1164,7 +1153,7 @@ export default function Home() {
       <main className="flex-1 overflow-y-auto min-h-0 container mx-auto px-4 py-4">
         {!activeConnectionId ? (
           /* Welcome / empty state with animated gradient background */
-          <div className="relative flex flex-col items-center justify-center py-20 text-center overflow-hidden animated-gradient-bg">
+          <div className="relative flex flex-col items-center justify-center py-12 sm:py-20 text-center overflow-hidden animated-gradient-bg">
             {/* Grid pattern overlay */}
             <div className="absolute inset-0 -z-10 grid-pattern opacity-50" />
 
@@ -1220,27 +1209,22 @@ export default function Home() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15, duration: 0.4 }}
-              className="mb-4"
+              className="mb-3"
             >
-              <span className="inline-block px-2 py-1 rounded bg-primary/10 text-primary text-xs font-semibold tracking-wide uppercase mb-3">
-                Portfolio Piece — Open Source
-              </span>
-              <h2 className="text-4xl font-bold tracking-tight font-display">
-                The dev's devtool
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight font-display">
+                Supabase devtools,
                 <br />
-                for Supabase.
+                in your browser.
               </h2>
             </motion.div>
             <motion.p
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.28, duration: 0.4 }}
-              className="text-base text-muted-foreground mb-8 max-w-lg leading-relaxed"
+              className="text-sm sm:text-base text-muted-foreground mb-8 max-w-sm leading-relaxed px-2"
             >
-              I'm Jesse, a full-stack developer who built this inspector end-to-end — from OAuth
-              and Management API proxying to DuckDB WASM in the browser. Schema maps, RLS audits,
-              SQL runners, AI data catalogs. Connect your project or try the full demo. This is how
-              I think about developer experience.
+              Schema maps, RLS audits, SQL runner, realtime monitor, and AI data catalog.
+              Connect your project or try the demo.
             </motion.p>
 
             {connections.length > 0 ? (
@@ -1481,72 +1465,82 @@ export default function Home() {
                     <TabsTrigger
                       value="dashboard"
                       className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                      title="Dashboard"
                     >
                       <LayoutDashboard className="size-3.5" />
-                      <span className="inline">Dashboard</span>
+                      <span className="hidden sm:inline">Dashboard</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="schema"
                       className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                      title="Schema"
                     >
                       <GitFork className="size-3.5" />
-                      <span className="inline">Schema</span>
+                      <span className="hidden sm:inline">Schema</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="rls"
                       className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                      title="Row Level Security"
                     >
                       <Shield className="size-3.5" />
-                      <span className="inline">RLS</span>
+                      <span className="hidden sm:inline">RLS</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="edge-functions"
                       className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                      title="Edge Functions"
                     >
                       <Zap className="size-3.5" />
-                      <span className="inline">Functions</span>
+                      <span className="hidden sm:inline">Functions</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="sql"
                       className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                      title="SQL Editor"
                     >
                       <Terminal className="size-3.5" />
-                      <span className="inline">SQL</span>
+                      <span className="hidden sm:inline">SQL</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="storage"
                       className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                      title="Storage"
                     >
                       <HardDrive className="size-3.5" />
-                      <span className="inline">Storage</span>
+                      <span className="hidden sm:inline">Storage</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="catalog"
                       className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                      title="Data Catalog"
                     >
                       <BookOpen className="size-3.5" />
-                      <span className="inline">Catalog</span>
+                      <span className="hidden sm:inline">Catalog</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="iceberg"
                       className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                      title="Analytics"
                     >
                       <Layers className="size-3.5" />
-                      <span className="inline">Iceberg</span>
+                      <span className="hidden sm:inline">Iceberg</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="traces"
                       className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                      title="Traces"
                     >
                       <Activity className="size-3.5" />
-                      <span className="inline">Traces</span>
+                      <span className="hidden sm:inline">Traces</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="settings"
                       className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                      title="Settings"
                     >
                       <Settings className="size-3.5" />
-                      <span className="inline">Settings</span>
+                      <span className="hidden sm:inline">Settings</span>
                     </TabsTrigger>
                   </TabsList>
                 </div>
