@@ -4,12 +4,16 @@ import tailwindcssAnimate from 'tailwindcss-animate'
 const config: Config = {
   darkMode: 'class',
   content: [
-    './pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './components/**/*.{js,ts,jsx,tsx,mdx}',
-    './app/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Custom Font', 'Circular', 'Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
+        mono: ['Source Code Pro', 'Office Code Pro', 'JetBrains Mono', 'ui-monospace', 'Menlo', 'Consolas', 'monospace'],
+      },
       colors: {
         brand: {
           DEFAULT: '#3ECF8E',
@@ -67,9 +71,17 @@ const config: Config = {
         },
       },
       borderRadius: {
-        lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)',
+        lg: '8px',   /* DS radius-lg */
+        md: '6px',   /* DS radius-md (workhorse) */
+        sm: '4px',   /* DS radius-sm */
+        xs: '2px',   /* DS radius-xs */
+        full: '9999px',
+      },
+      boxShadow: {
+        sm: '0 1px 2px 0 rgba(0, 0, 0, 0.18)',
+        md: '0 2px 4px -1px rgba(0, 0, 0, 0.22), 0 4px 12px -2px rgba(0, 0, 0, 0.28)',
+        lg: '0 8px 24px -4px rgba(0, 0, 0, 0.36), 0 2px 6px -2px rgba(0, 0, 0, 0.30)',
+        overlay: '0 6px 20px -4px rgba(0, 0, 0, 0.45)',
       },
     },
   },
