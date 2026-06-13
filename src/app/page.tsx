@@ -427,6 +427,25 @@ export default function Home() {
     setShowTipBanner(!dismissed)
   }, [])
 
+  // DB paused overlay
+  const [dbPaused, setDbPaused] = useState(false)
+  const [dbPausedVisible, setDbPausedVisible] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/mcp/account-call', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'list_projects', args: {} }),
+    })
+      .then((r) => {
+        if (r.status === 502) {
+          setDbPaused(true)
+          requestAnimationFrame(() => setDbPausedVisible(true))
+        }
+      })
+      .catch(() => {})
+  }, [])
+
   const dismissTipBanner = useCallback(() => {
     setShowTipBanner(false)
     localStorage.setItem('supabase-debug-tip-dismissed', 'true')
@@ -763,6 +782,23 @@ export default function Home() {
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
+      {/* DB-paused overlay */}
+      {dbPaused && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 cursor-pointer"
+          style={{ opacity: dbPausedVisible ? 1 : 0, transition: 'opacity 1.2s ease' }}
+          onClick={() => { setDbPaused(false); setDbPausedVisible(false) }}
+        >
+          <video
+            autoPlay
+            playsInline
+            src="https://kdwgvyczmsrvuuddsgwi.supabase.co/storage/v1/object/public/public-files/AQN1MvCWJWWSZsWMfeFREoyaYTgkbZ1MNxCCGJq_X8XyLZdOqE7BmwT33_gDAtOg2N697K-S2YLPWzBZQ7SBtNIkV41ydD7sriU.mp4"
+            className="max-w-2xl w-full rounded-xl shadow-2xl"
+            onEnded={() => { setDbPaused(false); setDbPausedVisible(false) }}
+          />
+        </div>
+      )}
+
       {/* Top navigation bar */}
       <header
         className="bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 header-gradient"
