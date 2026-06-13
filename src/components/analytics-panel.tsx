@@ -48,9 +48,11 @@ interface IcebergColumn {
 interface IcebergTable {
   namespace: string
   name: string
-  fullName: string // DuckDB view name
+  fullName: string // DuckDB view name (created lazily on first select)
   location: string // Iceberg metadata-location (S3 URL)
   rowCount: number | null
+  schema: IcebergColumn[] // from catalog API — no DuckDB manifest reads needed
+  viewReady: boolean // true once the DuckDB view has been created
 }
 
 interface QueryResult {
@@ -209,7 +211,12 @@ export function AnalyticsPanel({
       }
 
       const { tables: catalogTables } = (await catalogRes.json()) as {
-        tables: Array<{ namespace: string; name: string; metadataLocation: string }>
+        tables: Array<{
+          namespace: string
+          name: string
+          metadataLocation: string
+          schema: Array<{ name: string; type: string; nullable: boolean }>
+        }>
       }
 
       if (catalogTables.length === 0) {
@@ -236,42 +243,18 @@ export function AnalyticsPanel({
         );
       `)
 
-      // Create DuckDB views using exact metadata locations from the catalog
-      const tableList: IcebergTable[] = []
-      const duckdbErrors: string[] = []
-      for (const t of catalogTables) {
-        const viewName = `${t.namespace}_${t.name}`.replace(/[^a-z0-9_]/gi, '_')
-        try {
-          await conn.query(
-            `CREATE OR REPLACE VIEW "${viewName}" AS SELECT * FROM iceberg_scan('${t.metadataLocation.replace(/'/g, "''")}');`
-          )
-        } catch (err) {
-          duckdbErrors.push(
-            `${t.name}: ${err instanceof Error ? err.message.slice(0, 120) : String(err)}`
-          )
-        }
-        tableList.push({
-          namespace: t.namespace,
-          name: t.name,
-          fullName: viewName,
-          location: t.metadataLocation,
-          rowCount: null,
-        })
-      }
-
-      if (duckdbErrors.length > 0) {
-        console.warn('[analytics] DuckDB view errors:', duckdbErrors)
-        if (duckdbErrors.length === catalogTables.length) {
-          // Every table failed — likely S3 access issue
-          throw new Error(
-            `Catalog returned ${catalogTables.length} table(s) but DuckDB could not open any.\n` +
-              `First error: ${duckdbErrors[0]}\n\n` +
-              `Hint: Supabase Analytics Buckets store data in internal S3 buckets. ` +
-              `Ensure your S3 credentials have project-level access (not bucket-scoped).`
-          )
-        }
-        toast.warning(`${duckdbErrors.length} table(s) could not be opened by DuckDB`)
-      }
+      // Build table list from catalog metadata — no DuckDB view creation yet.
+      // Views are created lazily in selectTable() to avoid reading manifests for
+      // every table at connect time.
+      const tableList: IcebergTable[] = catalogTables.map((t) => ({
+        namespace: t.namespace,
+        name: t.name,
+        fullName: `${t.namespace}_${t.name}`.replace(/[^a-z0-9_]/gi, '_'),
+        location: t.metadataLocation,
+        rowCount: null,
+        schema: (t.schema ?? []) as IcebergColumn[],
+        viewReady: false,
+      }))
 
       setTables(tableList)
 
@@ -309,62 +292,63 @@ export function AnalyticsPanel({
 
     try {
       const conn = connRef.current
+      const view = `"${table.fullName}"`
 
-      // Schema
-      const descResult = await conn.query(
-        `DESCRIBE SELECT * FROM iceberg_scan('${table.location.replace(/'/g, "''")}');`
-      )
-      const cols: IcebergColumn[] = descResult.toArray().map((r) => {
-        const row = r.toJSON()
-        return {
-          name: String(row.column_name ?? row.Field ?? ''),
-          type: String(row.column_type ?? row.Type ?? ''),
-          nullable: String(row.null ?? row.Null ?? 'YES').toUpperCase() !== 'NO',
-        }
-      })
+      // Create the DuckDB view on first access (lazy — avoids manifest reads at connect time).
+      if (!table.viewReady) {
+        await conn.query(
+          `CREATE OR REPLACE VIEW ${view} AS SELECT * FROM iceberg_scan('${table.location.replace(/'/g, "''")}');`
+        )
+        setTables((prev) =>
+          prev.map((t) => (t.fullName === table.fullName ? { ...t, viewReady: true } : t))
+        )
+      }
+
+      // Schema — use catalog metadata when available (zero extra S3 reads).
+      // Fall back to DESCRIBE only if the catalog didn't return fields.
+      let cols: IcebergColumn[] = table.schema.length > 0 ? table.schema : []
+      if (cols.length === 0) {
+        const descResult = await conn.query(`DESCRIBE ${view};`)
+        cols = descResult.toArray().map((r) => {
+          const row = r.toJSON()
+          return {
+            name: String(row.column_name ?? row.Field ?? ''),
+            type: String(row.column_type ?? row.Type ?? ''),
+            nullable: String(row.null ?? row.Null ?? 'YES').toUpperCase() !== 'NO',
+          }
+        })
+      }
       setTableSchema(cols)
 
-      // Preview
-      const previewResult = await conn.query(
-        `SELECT * FROM iceberg_scan('${table.location.replace(/'/g, "''")}') LIMIT 100;`
-      )
+      // Preview — one page only (LIMIT 100 from the view, reads at most one data file)
+      const previewResult = await conn.query(`SELECT * FROM ${view} LIMIT 100;`)
       const previewRows = previewResult.toArray().map((r) => r.toJSON())
       const previewCols = Object.keys(previewRows[0] ?? {})
       setPreviewData({ columns: previewCols, rows: previewRows })
 
-      // Profile: null %, distinct, min, max per column
-      if (cols.length > 0) {
-        const total = table.rowCount ?? 1
-        const profileCols = cols.slice(0, 20) // cap at 20 cols
-        const selects = profileCols.map((c) => {
-          const q = `"${c.name}"`
-          return [
-            `COUNT(${q}) AS "${c.name}_count"`,
-            `COUNT(DISTINCT ${q}) AS "${c.name}_distinct"`,
-            `MIN(${q})::VARCHAR AS "${c.name}_min"`,
-            `MAX(${q})::VARCHAR AS "${c.name}_max"`,
-          ].join(', ')
+      // Profile — computed entirely from the in-memory sample; zero additional S3 reads.
+      if (cols.length > 0 && previewRows.length > 0) {
+        const sampleSize = previewRows.length
+        const profileCols = cols.slice(0, 20)
+        const profileRows = profileCols.map((c) => {
+          const values = previewRows
+            .map((r) => r[c.name])
+            .filter((v) => v !== null && v !== undefined)
+          const nullCount = sampleSize - values.length
+          const distinct = new Set(values.map(String)).size
+          const sorted = [...values].sort((a, b) =>
+            String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0
+          )
+          return {
+            column: c.name,
+            type: c.type,
+            nullable: c.nullable ? 'YES' : 'NO',
+            null_pct: ((nullCount / sampleSize) * 100).toFixed(1) + '% (sample)',
+            distinct: String(distinct) + (sampleSize < 100 ? '' : '+'),
+            min: sorted.length > 0 ? String(sorted[0]) : '—',
+            max: sorted.length > 0 ? String(sorted[sorted.length - 1]) : '—',
+          }
         })
-        const profileResult = await conn.query(
-          `SELECT COUNT(*) AS total_rows, ${selects.join(', ')} FROM iceberg_scan('${table.location.replace(/'/g, "''")}');`
-        )
-        const pr = profileResult.toArray()[0]?.toJSON() ?? {}
-        const totalRows = Number(pr.total_rows ?? total)
-        const profileRows = profileCols.map((c) => ({
-          column: c.name,
-          type: c.type,
-          nullable: c.nullable ? 'YES' : 'NO',
-          null_pct:
-            totalRows > 0
-              ? (
-                  ((totalRows - Number(pr[`${c.name}_count`] ?? totalRows)) / totalRows) *
-                  100
-                ).toFixed(1) + '%'
-              : '—',
-          distinct: String(pr[`${c.name}_distinct`] ?? '—'),
-          min: String(pr[`${c.name}_min`] ?? '—'),
-          max: String(pr[`${c.name}_max`] ?? '—'),
-        }))
         setProfileData({
           columns: ['column', 'type', 'nullable', 'null_pct', 'distinct', 'min', 'max'],
           rows: profileRows,

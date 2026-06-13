@@ -1,10 +1,63 @@
 import { IcebergRestCatalog } from 'iceberg-js'
 import { NextRequest, NextResponse } from 'next/server'
 
+interface IcebergField {
+  id: number
+  name: string
+  required: boolean
+  type: unknown
+}
+
+interface IcebergSchema {
+  'schema-id'?: number
+  fields: IcebergField[]
+}
+
+interface IcebergTableMetadata {
+  'current-schema-id'?: number
+  schema?: IcebergSchema
+  schemas?: IcebergSchema[]
+}
+
 interface IcebergTableEntry {
   namespace: string
   name: string
   metadataLocation: string
+  schema: Array<{ name: string; type: string; nullable: boolean }>
+}
+
+function resolveType(t: unknown): string {
+  if (typeof t === 'string') return t
+  if (t && typeof t === 'object') {
+    const obj = t as Record<string, unknown>
+    if (obj.type === 'list') return `LIST<${resolveType(obj['element-type'] ?? obj.element)}>`
+    if (obj.type === 'map') return `MAP<${resolveType(obj['key-type'])}, ${resolveType(obj['value-type'])}>`
+    if (obj.type === 'struct') return 'STRUCT'
+    if (typeof obj.type === 'string') return obj.type
+  }
+  return 'unknown'
+}
+
+function extractSchema(
+  result: Record<string, unknown>
+): Array<{ name: string; type: string; nullable: boolean }> {
+  try {
+    const meta = result['metadata'] as IcebergTableMetadata | undefined
+    if (!meta) return []
+    const currentId = meta['current-schema-id'] ?? 0
+    const schema =
+      meta.schemas?.find((s) => (s['schema-id'] ?? 0) === currentId) ??
+      meta.schemas?.[0] ??
+      meta.schema
+    if (!schema?.fields) return []
+    return schema.fields.map((f) => ({
+      name: f.name,
+      type: resolveType(f.type),
+      nullable: !f.required,
+    }))
+  } catch {
+    return []
+  }
 }
 
 // Validate that supabaseUrl is a safe Supabase project URL before making outbound requests.
@@ -136,11 +189,15 @@ export async function POST(req: NextRequest) {
             namespace: id.namespace,
             name: id.name,
           })
-          const metadataLocation = (result as unknown as Record<string, unknown>)[
-            'metadata-location'
-          ] as string | undefined
+          const raw = result as unknown as Record<string, unknown>
+          const metadataLocation = raw['metadata-location'] as string | undefined
           if (metadataLocation) {
-            tables.push({ namespace: nsStr, name: id.name, metadataLocation })
+            tables.push({
+              namespace: nsStr,
+              name: id.name,
+              metadataLocation,
+              schema: extractSchema(raw),
+            })
           }
         } catch {
           // table not accessible — skip

@@ -180,7 +180,7 @@ export type ActivePanel =
   | 'sql'
   | 'storage'
   | 'catalog'
-  | 'analytics'
+  | 'iceberg'
   | 'traces'
   | 'settings'
 

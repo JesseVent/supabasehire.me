@@ -166,6 +166,19 @@ const SchemaDiagram = dynamic(
   }
 )
 
+function AppLogo({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" className={className} aria-hidden="true">
+      <style>{`.cls-0{fill:#0E1B21}.cls-1{fill:#1DD475}.cls-2{fill:#17262D}.cls-3{fill:#18292F}`}</style>
+      <path className="cls-1" d="m98.6 61-27.8-56.1c-0.1-0.2-0.3-0.4-0.5-0.4l-15.9-0.1c-0.2 0-0.4 0.1-0.5 0.3l-52.6 96.2-0.1-0.3 7.5 14.9c0.3 0.6 1 0.7 1.3 0.2l14.1-24.3 15.3-0.5c0.6 0 1.2 0.7 0.9 1.4l-14.7 29c4.5 2.1 13.6 5.3 14.2 14.4 0 0.2 0.1 0.5 0.4 0.4l33.6-0.2c0.6-0.1 0.8-0.4 0.6-0.9l-6.8-15.7c0-0.2-0.2-0.3-0.4-0.3h-21c-0.6 0-1.1-0.6-0.8-1.1l29.8-57.8-8.6-16.2-15.2 30.1c-0.1 0.2-0.3 0.3-0.5 0.3l-14.3 0.4c-0.6 0-1.1-0.6-0.8-1.1l26.1-49.5c0.3-0.6 1.3-0.5 1.6 0.1l26.8 52.9 8.3-15.6v-0.5z"/>
+      <path className="cls-2" d="m85.8 25.3 6.7 14.9c0.1 0.7-0.5 0.2 20.7 0.5 0.7 0 1.2 0.7 0.7 1.5l-30.2 56.8 9 16.8 15.9-29.2c0.1-0.2 0.3-0.3 0.4-0.3l14-0.3c0.7-0.1 1 0.6 0.6 1.3l-26.4 48.4c-0.3 0.6-1.2 0.6-1.4 0l-26.5-53.5h-0.4l-8.7 15.8 28.1 57.1c0.1 0.2 0.4 0.4 0.7 0.4l15.9 0.1c0.2 0 0.4-0.1 0.5-0.3l53.6-96-8-14.9c-0.3-0.6-1-0.7-1.4-0.1l-13.9 24.3c-0.1 0.2-0.3 0.4-0.6 0.4l-14.9 0.2c-0.7 0-1.2-0.7-0.8-1.4l14.7-28.2c-5.4-2.2-13-4.9-13.8-15.2h-34.4l-0.1 0.9z"/>
+      <path className="cls-3" d="m85.1 24.8"/>
+      <path className="cls-3" d="m85.9 24.4"/>
+      <path className="cls-1" d="m98.6 61"/>
+    </svg>
+  )
+}
+
 export default function Home() {
   const {
     connections,
@@ -765,8 +778,8 @@ export default function Home() {
       >
         <div className="container mx-auto flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-3">
-            <div className="size-8 rounded-lg bg-muted flex items-center justify-center">
-              <Database className="size-4 text-foreground" />
+            <div className="size-8 rounded-lg bg-muted flex items-center justify-center overflow-hidden p-1">
+              <AppLogo className="w-full h-full" />
             </div>
             <div>
               <h1 className="text-sm font-semibold leading-none" style={{ fontWeight: 700 }}>
@@ -928,10 +941,18 @@ export default function Home() {
 
             <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1">
-                  <Plus className="size-3.5" />
-                  Connect
-                </Button>
+                <button className="flex items-center" aria-label="Connect to Supabase">
+                  <img
+                    src="/connect-supabase-dark.svg"
+                    alt="Connect with Supabase"
+                    className="h-8 hidden dark:block"
+                  />
+                  <img
+                    src="/connect-supabase-light.svg"
+                    alt="Connect with Supabase"
+                    className="h-8 block dark:hidden"
+                  />
+                </button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
@@ -1009,25 +1030,32 @@ export default function Home() {
                   ) : (
                     <>
                       {/* Primary: OAuth */}
-                      <Button
+                      <button
                         onClick={connectWithOAuth}
                         disabled={isOAuthConnecting}
-                        className="w-full gap-2"
+                        className="flex items-center justify-center w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label="Connect with Supabase"
                       >
                         {isOAuthConnecting ? (
-                          <Loader2 className="size-4 animate-spin" />
+                          <div className="flex items-center gap-2 h-10 px-4 rounded-md border border-border text-sm text-muted-foreground">
+                            <Loader2 className="size-4 animate-spin" />
+                            Connecting…
+                          </div>
                         ) : (
-                          <svg
-                            className="size-4"
-                            viewBox="0 0 24 24"
-                            fill="currentColor"
-                            aria-hidden="true"
-                          >
-                            <path d="M21.362 9.354H12V.396a.396.396 0 0 0-.716-.233L2.203 12.424l-.401.562a.396.396 0 0 0 .32.625H12v8.958a.396.396 0 0 0 .716.233l9.081-12.261.401-.562a.396.396 0 0 0-.32-.625z" />
-                          </svg>
+                          <>
+                            <img
+                              src="/connect-supabase-dark.svg"
+                              alt="Connect with Supabase"
+                              className="h-10 hidden dark:block"
+                            />
+                            <img
+                              src="/connect-supabase-light.svg"
+                              alt="Connect with Supabase"
+                              className="h-10 block dark:hidden"
+                            />
+                          </>
                         )}
-                        Connect with Supabase
-                      </Button>
+                      </button>
 
                       <div className="flex items-center gap-3">
                         <div className="flex-1 h-px bg-border" />
@@ -1181,8 +1209,8 @@ export default function Home() {
               transition={{ duration: 0.5 }}
               className="relative mb-6"
             >
-              <div className="size-20 rounded-2xl bg-muted flex items-center justify-center ring-1 ring-border shadow-lg">
-                <Database className="size-10 text-foreground" />
+              <div className="size-20 rounded-2xl bg-muted flex items-center justify-center ring-1 ring-border shadow-lg overflow-hidden p-3">
+                <AppLogo className="w-full h-full" />
               </div>
               <motion.div
                 initial={{ scale: 0 }}
@@ -1417,7 +1445,7 @@ export default function Home() {
               />
               <FeatureCard
                 icon={<Layers className="size-4.5" />}
-                title="Analytics Buckets"
+                title="Iceberg"
                 description="Query Iceberg tables directly in the browser via DuckDB WASM — no data leaves your tab."
                 delay={0.55}
                 index={7}
@@ -1492,11 +1520,11 @@ export default function Home() {
                       <span className="inline">Catalog</span>
                     </TabsTrigger>
                     <TabsTrigger
-                      value="analytics"
+                      value="iceberg"
                       className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
                     >
                       <Layers className="size-3.5" />
-                      <span className="inline">Analytics</span>
+                      <span className="inline">Iceberg</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="traces"
@@ -1956,11 +1984,11 @@ export default function Home() {
             </TabsContent>
 
             <TabsContent
-              value="analytics"
+              value="iceberg"
               className="mt-0 h-[calc(100vh-120px)]"
               forceMount
             >
-              <div className="h-full" style={{ display: activePanel === 'analytics' ? undefined : 'none' }}>
+              <div className="h-full" style={{ display: activePanel === 'iceberg' ? undefined : 'none' }}>
                 <AnalyticsPanel connection={activeConnection || null} isDemoMode={isDemoMode} />
               </div>
             </TabsContent>
