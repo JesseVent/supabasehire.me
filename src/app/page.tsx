@@ -809,7 +809,6 @@ export default function Home() {
             onClick={(e) => e.stopPropagation()}
             onEnded={() => { setDbPaused(false); setDbPausedVisible(false) }}
           />
-          )}
         </div>
       )}
 
