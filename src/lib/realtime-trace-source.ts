@@ -207,10 +207,8 @@ export class RealtimeTraceSource {
 
     const bridge = getAgentTraceBridge()
     if (envelope.runId !== this.currentRunId) {
-      // A new run started — restart the live trace; ignore stragglers from old runs.
-      if (this.currentRunId !== null && envelope.seq > 0 && envelope.action !== 'status_change_event') {
-        return
-      }
+      // Start tracking a new run. Accept any event as the run boundary —
+      // the dedupe set already prevents duplicate ingestion.
       this.currentRunId = envelope.runId
       bridge.reset()
     }

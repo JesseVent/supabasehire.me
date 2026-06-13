@@ -140,14 +140,8 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
   // ── Backend trace spans (from SSE) ──────────────────────────────────────
   const [backendSpans, setBackendSpans] = useState<TraceSpan[]>([])
 
-  // ── Live trace bridge ───────────────────────────────────────────────────
+  // ── Bridge subscription (always active so backfilled / live data is visible) ─
   useEffect(() => {
-    if (!isLive) {
-      setLiveTrace(null)
-      setBackendSpans([])
-      return
-    }
-
     const bridge = getAgentTraceBridge()
     bridge.startListening()
 
@@ -158,7 +152,19 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
       }
     })
 
-    // ── Backend SSE connection ────────────────────────────────────────────
+    return () => {
+      bridge.stopListening()
+      unsubscribe()
+    }
+  }, [])
+
+  // ── Backend SSE connection (only when explicitly in live mode) ───────────
+  useEffect(() => {
+    if (!isLive) {
+      setBackendSpans([])
+      return
+    }
+
     const es = new EventSource('/api/agent/trace')
     es.onmessage = (e) => {
       try {
@@ -174,8 +180,6 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
     }
 
     return () => {
-      bridge.stopListening()
-      unsubscribe()
       es.close()
     }
   }, [isLive])
@@ -199,7 +203,7 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
     return { traceRecord, spans }
   }, [mergedSpans, liveTrace?.id, liveTrace?.name])
 
-  const activeTraceData = isLive ? liveTraceData() : traceData
+  const activeTraceData = traceData ?? liveTraceData()
 
   return (
     <div className="p-4">
@@ -257,8 +261,10 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
                 <p className="text-sm text-muted-foreground max-w-xl">
                   {isLive
                     ? 'Real-time trace stream from the running supa-agent. Every tool call, reflection, and LLM invocation is captured as it happens.'
-                    : 'Runs an agentic edge function instrumented with OpenTelemetry — three chained SQL queries, each wrapped in an OTLP span — then visualizes the trace with '}
-                  {!isLive && (
+                    : liveTrace
+                      ? 'Most recent agent run pulled from your project’s trace store. Click “Live Trace” to stream new runs in real time.'
+                      : 'Runs an agentic edge function instrumented with OpenTelemetry — three chained SQL queries, each wrapped in an OTLP span — then visualizes the trace with '}
+                  {!isLive && !liveTrace && (
                     <a
                       href="https://github.com/evilmartians/agent-prism"
                       target="_blank"
@@ -305,8 +311,8 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
               </div>
             </div>
 
-            {/* Deploy notice (static mode only) */}
-            {!isDemoMode && !isLive && (
+            {/* Deploy notice (static mode only, hide when a backfilled trace is already visible) */}
+            {!isDemoMode && !isLive && !liveTrace && (
               <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground space-y-1 bg-muted/30">
                 <p className="font-medium text-foreground">Before running:</p>
                 <p>Deploy the edge function to your project first:</p>
@@ -431,7 +437,13 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
             {activeTraceData && (
               <div className="space-y-2">
                 <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide text-[11px]">
-                  {isLive ? 'Live trace stream' : 'OTLP trace — visualized with AgentPrism'}
+                  {isLive
+                    ? 'Live trace stream'
+                    : traceData
+                      ? 'OTLP trace — visualized with AgentPrism'
+                      : liveTrace
+                        ? 'Recent trace — visualized with AgentPrism'
+                        : 'OTLP trace — visualized with AgentPrism'}
                 </p>
                 <div
                   className="w-full rounded-xl border border-border shadow-sm overflow-hidden bg-card"
@@ -462,7 +474,7 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
                 <p className="text-xs text-muted-foreground max-w-xs">
                   {isLive
                     ? 'Start the agent from the sidebar to see a live trace stream.'
-                    : 'Deploy the edge function, then click "Run agent" to generate a live OTLP trace.'}
+                    : 'Connect a project with the supa_agent_trace extension installed. Recent traces appear automatically; click "Run agent" to generate a new one.'}
                 </p>
               </div>
             )}
