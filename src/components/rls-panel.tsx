@@ -298,13 +298,13 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
       {/* Header */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Shield className="size-5 text-primary" />
+              <Shield className="size-5 text-primary shrink-0" />
               <CardTitle>Row Level Security</CardTitle>
             </div>
             {activeConnectionId && (
-              <Button onClick={fetchRLSInfo} disabled={isLoadingRLS} size="sm">
+              <Button onClick={fetchRLSInfo} disabled={isLoadingRLS} size="sm" className="shrink-0">
                 {isLoadingRLS ? (
                   <Loader2 className="mr-2 size-4 animate-spin" />
                 ) : (
@@ -392,7 +392,7 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
               <CardContent>
                 <div className="flex flex-wrap items-center gap-4">
                   <Select value={selectedTable} onValueChange={setSelectedTable}>
-                    <SelectTrigger className="w-[240px]">
+                    <SelectTrigger className="w-full sm:w-[240px]">
                       <SelectValue placeholder="Select a table" />
                     </SelectTrigger>
                     <SelectContent>
@@ -567,11 +567,11 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-col gap-4">
-                  <div className="flex flex-wrap items-end gap-4">
-                    <div className="flex flex-col gap-1.5">
+                  <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-end gap-3">
+                    <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
                       <Label className="text-xs">Table</Label>
                       <Select value={selectedTable} onValueChange={setSelectedTable}>
-                        <SelectTrigger className="w-[200px]">
+                        <SelectTrigger className="w-full sm:w-[200px]">
                           <SelectValue placeholder="Select table" />
                         </SelectTrigger>
                         <SelectContent>
@@ -587,7 +587,7 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
                     <div className="flex flex-col gap-1.5">
                       <Label className="text-xs">Operation</Label>
                       <Select value={testOperation} onValueChange={setTestOperation}>
-                        <SelectTrigger className="w-[130px]">
+                        <SelectTrigger className="w-full sm:w-[130px]">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -602,7 +602,7 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
                     <div className="flex flex-col gap-1.5">
                       <Label className="text-xs">Role</Label>
                       <Select value={testRole} onValueChange={setTestRole}>
-                        <SelectTrigger className="w-[160px]">
+                        <SelectTrigger className="w-full sm:w-[160px]">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
