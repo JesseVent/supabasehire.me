@@ -890,16 +890,24 @@ a,
 }
 
 /* ─── React Flow — themed for light and dark ─── */
-.react-flow__controls-button {
-  background: hsl(var(--card));
-  border-color: hsl(var(--border));
-  color: hsl(var(--foreground));
+/* --card/--border/--foreground are full lab/oklch color values, not HSL channels */
+.react-flow {
+  --xy-controls-button-background-color: var(--card);
+  --xy-controls-button-background-color-hover: var(--accent);
+  --xy-controls-button-border-color: var(--border);
+  --xy-controls-button-color: var(--foreground);
+  --xy-controls-button-color-hover: var(--foreground);
+  --xy-controls-box-shadow: 0 0 0 1px color-mix(in srgb, var(--border) 50%, transparent);
 }
-.react-flow__controls-button:hover {
-  background: hsl(var(--accent));
+.dark .react-flow {
+  --xy-controls-box-shadow: 0 0 0 1px color-mix(in srgb, var(--border) 40%, transparent), 0 2px 8px rgba(0,0,0,0.4);
 }
 .react-flow__controls-button svg {
-  fill: hsl(var(--foreground));
+  fill: currentColor;
+}
+.react-flow__controls-button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 /* Minimap node color — light mode uses theme-aware muted tone, dark mode lighter */
