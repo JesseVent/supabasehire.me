@@ -28,16 +28,36 @@ export const TraceViewer = ({ data, spanCardViewOptions }: TraceViewerProps) => 
   const [searchValue, setSearchValue] = useState('')
   const [traceListExpanded, setTraceListExpanded] = useState(true)
 
+  const lastItem = data[data.length - 1]
   const [selectedTrace, setSelectedTrace] = useState<TraceRecordWithDisplayData | undefined>(
-    data[0]
+    lastItem
       ? {
-          ...data[0].traceRecord,
-          badges: data[0].badges,
-          spanCardViewOptions: data[0].spanCardViewOptions,
+          ...lastItem.traceRecord,
+          badges: lastItem.badges,
+          spanCardViewOptions: lastItem.spanCardViewOptions,
         }
       : undefined
   )
-  const [selectedTraceSpans, setSelectedTraceSpans] = useState<TraceSpan[]>(data[0]?.spans || [])
+  const [selectedTraceSpans, setSelectedTraceSpans] = useState<TraceSpan[]>(lastItem?.spans || [])
+
+  // Auto-select the newest trace when a new one is added to the list.
+  useEffect(() => {
+    const newest = data[data.length - 1]
+    if (!newest) return
+    setSelectedTrace({ ...newest.traceRecord, badges: newest.badges, spanCardViewOptions: newest.spanCardViewOptions })
+    setSelectedTraceSpans(newest.spans)
+    setSelectedSpan(undefined)
+    setExpandedSpansIds([])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.length])
+
+  // Keep the selected trace's spans in sync as new spans arrive (live updates).
+  useEffect(() => {
+    if (!selectedTrace) return
+    const current = data.find((d) => d.traceRecord.id === selectedTrace.id)
+    if (current) setSelectedTraceSpans(current.spans)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, selectedTrace?.id])
 
   const traceRecords: TraceRecordWithDisplayData[] = useMemo(() => {
     return data.map((item) => ({

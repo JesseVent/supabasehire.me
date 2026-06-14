@@ -13,15 +13,13 @@ import {
   Play,
   Radio,
   Square,
-  Zap,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { TraceViewer } from '@/components/agent-prism/TraceViewer/TraceViewer'
 import { SkillCoverageMatrix } from '@/components/skill-coverage-matrix'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useRealtimeTrace } from '@/hooks/use-realtime-trace'
 import { apiFetch } from '@/lib/api-auth'
@@ -104,10 +102,13 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
 
   // ── Live trace state ────────────────────────────────────────────────────
   const [isLive, setIsLive] = useState(false)
-  const [liveTrace, setLiveTrace] = useState<LiveTrace | null>(null)
+  const [allBridgeTraces, setAllBridgeTraces] = useState<LiveTrace[]>([])
   const liveLogRef = useRef<HTMLDivElement>(null)
   // Remote pairing over Supabase Realtime (in addition to tab-local postMessage)
   const { status: realtimeStatus, agentOnline } = useRealtimeTrace()
+
+  // Derive current (most-recent) trace for status checks and the activity log.
+  const currentTrace = allBridgeTraces[allBridgeTraces.length - 1] ?? null
 
   async function runAgent() {
     if (!connection) return
@@ -145,8 +146,8 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
     const bridge = getAgentTraceBridge()
     bridge.startListening()
 
-    const unsubscribe = bridge.subscribe((trace) => {
-      setLiveTrace(trace)
+    const unsubscribe = bridge.subscribe(() => {
+      setAllBridgeTraces(bridge.getAllTraces())
       if (liveLogRef.current) {
         liveLogRef.current.scrollTop = liveLogRef.current.scrollHeight
       }
@@ -184,26 +185,41 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
     }
   }, [isLive])
 
+  // Spans for the activity log: current bridge trace + any SSE backend spans.
   const mergedSpans = useMemo(() => {
-    if (!liveTrace) return backendSpans
-    return [...liveTrace.spans, ...backendSpans]
-  }, [liveTrace, backendSpans])
+    const current = currentTrace?.spans ?? []
+    return [...current, ...backendSpans]
+  }, [currentTrace, backendSpans])
 
-  const liveTraceData = useCallback(() => {
-    const spans = mergedSpans
-    if (spans.length === 0) return null
-    const totalMs = spans.reduce((sum, s) => sum + (s.duration || 0), 0)
-    const traceRecord: TraceRecord = {
-      id: liveTrace?.id ?? 'live-trace',
-      name: liveTrace?.name ?? 'Live Agent Execution',
-      spansCount: spans.length,
-      durationMs: totalMs,
-      agentDescription: 'live-agent',
-    }
-    return { traceRecord, spans }
-  }, [mergedSpans, liveTrace?.id, liveTrace?.name])
+  // Build TraceViewerData for every accumulated bridge trace, newest last.
+  const bridgeTraceDataList = useMemo<{ traceRecord: TraceRecord; spans: TraceSpan[] }[]>(() => {
+    return allBridgeTraces
+      .filter((t) => t.spans.length > 0)
+      .map((t) => {
+        const spans = t.id === currentTrace?.id ? [...t.spans, ...backendSpans] : t.spans
+        const totalMs = spans.reduce((sum, s) => sum + (s.duration || 0), 0)
+        return {
+          traceRecord: {
+            id: t.id,
+            name: t.name,
+            spansCount: spans.length,
+            durationMs: totalMs,
+            agentDescription: 'live-agent',
+          },
+          spans,
+        }
+      })
+  }, [allBridgeTraces, currentTrace?.id, backendSpans])
 
-  const activeTraceData = traceData ?? liveTraceData()
+  // Final array passed to TraceViewer: OTLP static run (if any) + all bridge traces.
+  const allTraceViewerData = useMemo(() => {
+    const items: { traceRecord: TraceRecord; spans: TraceSpan[] }[] = []
+    if (traceData) items.push(traceData)
+    items.push(...bridgeTraceDataList)
+    return items
+  }, [traceData, bridgeTraceDataList])
+
+  const hasAnyTrace = allTraceViewerData.length > 0
 
   return (
     <div className="p-4">
@@ -249,8 +265,8 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
                       className="text-xs gap-1 text-sky-600 dark:text-sky-400 border-sky-500/30 bg-sky-500/10"
                       title={
                         agentOnline
-                          ? 'Paired over Supabase Realtime — agent currently running'
-                          : 'Paired over Supabase Realtime — waiting for an agent run'
+                          ? 'Paired over Supabase Realtime -- agent currently running'
+                          : 'Paired over Supabase Realtime -- waiting for an agent run'
                       }
                     >
                       <Radio className={agentOnline ? 'size-3 animate-pulse' : 'size-3'} />
@@ -261,10 +277,10 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
                 <p className="text-sm text-muted-foreground max-w-xl">
                   {isLive
                     ? 'Real-time trace stream from the running supa-agent. Every tool call, reflection, and LLM invocation is captured as it happens.'
-                    : liveTrace
-                      ? 'Most recent agent run pulled from your project’s trace store. Click “Live Trace” to stream new runs in real time.'
-                      : 'Runs an agentic edge function instrumented with OpenTelemetry — three chained SQL queries, each wrapped in an OTLP span — then visualizes the trace with '}
-                  {!isLive && !liveTrace && (
+                    : hasAnyTrace
+                      ? "Most recent agent run pulled from your project's trace store. Click \"Live Trace\" to stream new runs in real time."
+                      : 'Runs an agentic edge function instrumented with OpenTelemetry -- three chained SQL queries, each wrapped in an OTLP span -- then visualizes the trace with '}
+                  {!isLive && !hasAnyTrace && (
                     <a
                       href="https://github.com/evilmartians/agent-prism"
                       target="_blank"
@@ -312,7 +328,7 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
             </div>
 
             {/* Deploy notice (static mode only, hide when a backfilled trace is already visible) */}
-            {!isDemoMode && !isLive && !liveTrace && (
+            {!isDemoMode && !isLive && !hasAnyTrace && (
               <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground space-y-1 bg-muted/30">
                 <p className="font-medium text-foreground">Before running:</p>
                 <p>Deploy the edge function to your project first:</p>
@@ -323,12 +339,12 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
             )}
 
             {/* Live mode instructions */}
-            {isLive && liveTrace?.status === 'idle' && (
+            {isLive && currentTrace?.status === 'idle' && (
               <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground space-y-1 bg-muted/30">
                 <p className="font-medium text-foreground">Waiting for agent…</p>
                 {(window as any).PAGE_AGENT_EXT ? (
                   <p>
-                    Extension detected. Open the agent sidebar and start a task — trace events will
+                    Extension detected. Open the agent sidebar and start a task -- trace events will
                     stream here automatically.
                   </p>
                 ) : (
@@ -434,16 +450,10 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
             )}
 
             {/* AgentPrism TraceViewer */}
-            {activeTraceData && (
+            {hasAnyTrace && (
               <div className="space-y-2">
                 <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide text-[11px]">
-                  {isLive
-                    ? 'Live trace stream'
-                    : traceData
-                      ? 'OTLP trace — visualized with AgentPrism'
-                      : liveTrace
-                        ? 'Recent trace — visualized with AgentPrism'
-                        : 'OTLP trace — visualized with AgentPrism'}
+                  {isLive ? 'Live trace stream' : 'Agent traces -- visualized with AgentPrism'}
                 </p>
                 <div
                   className="w-full rounded-xl border border-border shadow-sm overflow-hidden bg-card"
@@ -461,13 +471,13 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
                     } as React.CSSProperties
                   }
                 >
-                  <TraceViewer data={[activeTraceData]} />
+                  <TraceViewer data={allTraceViewerData} />
                 </div>
               </div>
             )}
 
             {/* Empty state */}
-            {!activeTraceData && !error && !isDemoMode && (
+            {!hasAnyTrace && !error && !isDemoMode && (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center space-y-3">
                 <Activity className="size-10 text-muted-foreground/40" />
                 <p className="text-sm font-medium">No trace yet</p>

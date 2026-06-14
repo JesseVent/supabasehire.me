@@ -17,10 +17,36 @@ interface AgentStepEvent {
   stepIndex: number
   reflection?: { evaluation_previous_goal?: string; memory?: string; next_goal?: string }
   action: { name: string; input?: unknown; output?: string }
-  usage?: { totalTokens?: number }
+  usage?: {
+    promptTokens?: number
+    completionTokens?: number
+    totalTokens?: number
+    cachedTokens?: number
+    reasoningTokens?: number
+  }
+  rawRequest?: unknown
+  rawResponse?: unknown
 }
 
-type HistoricalEvent = AgentStepEvent | { type: string }
+interface ObservationEvent {
+  type: 'observation'
+  content: string
+}
+
+interface RetryEvent {
+  type: 'retry'
+  message: string
+  attempt: number
+  maxAttempts: number
+}
+
+interface AgentErrorHistoryEvent {
+  type: 'error'
+  message: string
+  rawResponse?: unknown
+}
+
+type HistoricalEvent = AgentStepEvent | ObservationEvent | RetryEvent | AgentErrorHistoryEvent | { type: string }
 
 let bridgeInstance: AgentTraceBridge | null = null
 
@@ -50,7 +76,9 @@ export type TraceListener = (trace: LiveTrace) => void
 export class AgentTraceBridge {
   private listeners: Set<TraceListener> = new Set()
   private trace: LiveTrace = this.makeEmptyTrace()
+  private completedTraces: LiveTrace[] = []
   private pendingSpans: Map<string, TraceSpan> = new Map()
+  private renderedSteps: Set<number> = new Set()
   private isListening = false
 
   static getInstance(): AgentTraceBridge {
@@ -104,9 +132,22 @@ export class AgentTraceBridge {
   }
 
   reset(): void {
+    // Archive the current trace if it has content so the sidebar can show history.
+    if (this.trace.spans.length > 0) {
+      this.completedTraces.push({ ...this.trace, spans: [...this.trace.spans] })
+    }
     this.trace = this.makeEmptyTrace()
     this.pendingSpans.clear()
+    this.renderedSteps.clear()
     this.emit()
+  }
+
+  /** All traces: completed runs in chronological order + the current run (if non-empty). */
+  getAllTraces(): LiveTrace[] {
+    if (this.trace.spans.length > 0 || this.trace.status !== 'idle') {
+      return [...this.completedTraces, this.trace]
+    }
+    return [...this.completedTraces]
   }
 
   complete(): void {
@@ -215,19 +256,21 @@ export class AgentTraceBridge {
         if (existing) {
           existing.status = 'success'
           existing.endTime = new Date(now)
-          existing.duration = activity.duration
+          const existingStartMs = existing.startTime instanceof Date ? existing.startTime.getTime() : existing.startTime as number
+          existing.duration = activity.duration ?? (now - existingStartMs)
           existing.output = activity.output
           this.pendingSpans.delete(key)
         } else {
+          const inferredDuration = activity.duration ?? 0
           this.trace.spans.push(
             this.makeSpan({
               id: `exec-${activity.tool}-${now}`,
               title: `Executed: ${activity.tool}`,
               type: 'tool_execution',
               status: 'success',
-              startTime: now - (activity.duration ?? 0),
+              startTime: now - inferredDuration,
               endTime: now,
-              duration: activity.duration,
+              duration: inferredDuration,
               input: JSON.stringify(activity.input, null, 2),
               output: activity.output,
             })
@@ -274,13 +317,125 @@ export class AgentTraceBridge {
 
   private onHistoryChange(history: HistoricalEvent[]): void {
     if (!Array.isArray(history) || history.length === 0) return
-    const lastEvent = history[history.length - 1]
-    if (lastEvent.type !== 'step') return
 
-    const step = lastEvent as AgentStepEvent
+    // Process every event — the publisher may emit a single history_change_event
+    // with the full history at run end (or one per event with cumulative history).
+    // renderedSteps guards step dedup; non-step events are deduplicated by index position.
+    let added = false
+    for (let i = 0; i < history.length; i++) {
+      const event = history[i]
+      if (event.type === 'step') {
+        const step = event as AgentStepEvent
+        if (this.renderedSteps.has(step.stepIndex)) continue
+        this.renderedSteps.add(step.stepIndex)
+        this.buildStepSpan(step)
+        added = true
+      } else if (event.type === 'observation') {
+        const obs = event as ObservationEvent
+        const id = `obs-${i}`
+        if (this.trace.spans.some((s) => s.id === id)) continue
+        this.trace.spans.push(
+          this.makeSpan({
+            id,
+            title: `Observation: ${obs.content.slice(0, 60)}${obs.content.length > 60 ? '…' : ''}`,
+            type: 'event',
+            status: 'success',
+            startTime: Date.now(),
+            endTime: Date.now(),
+            duration: 0,
+            output: obs.content,
+          })
+        )
+        added = true
+      } else if (event.type === 'retry') {
+        const ret = event as RetryEvent
+        const id = `retry-hist-${i}`
+        if (this.trace.spans.some((s) => s.id === id)) continue
+        this.trace.spans.push(
+          this.makeSpan({
+            id,
+            title: `Retry ${ret.attempt}/${ret.maxAttempts}`,
+            type: 'event',
+            status: 'warning',
+            startTime: Date.now(),
+            endTime: Date.now(),
+            duration: 0,
+            output: ret.message,
+          })
+        )
+        added = true
+      } else if (event.type === 'error') {
+        const err = event as AgentErrorHistoryEvent
+        const id = `err-hist-${i}`
+        if (this.trace.spans.some((s) => s.id === id)) continue
+        this.trace.spans.push(
+          this.makeSpan({
+            id,
+            title: 'Agent Error',
+            type: 'event',
+            status: 'error',
+            startTime: Date.now(),
+            endTime: Date.now(),
+            duration: 0,
+            output: err.message,
+            input: err.rawResponse != null ? JSON.stringify(err.rawResponse, null, 2) : undefined,
+          })
+        )
+        this.trace.status = 'error'
+        added = true
+      }
+    }
+
+    if (added) this.emit()
+  }
+
+  private buildStepSpan(step: AgentStepEvent): void {
     const now = Date.now()
     const children: TraceSpan[] = []
 
+    // ── LLM request (prompt sent to the model) ────────────────────────────
+    if (step.rawRequest != null) {
+      children.push(
+        this.makeSpan({
+          id: `llm-req-${step.stepIndex}`,
+          title: 'LLM Request',
+          type: 'llm_call',
+          status: 'success',
+          startTime: now,
+          endTime: now,
+          duration: 0,
+          input: JSON.stringify(step.rawRequest, null, 2),
+        })
+      )
+    }
+
+    // ── LLM response (raw API response including reasoning tokens) ────────
+    if (step.rawResponse != null) {
+      const usageParts: string[] = []
+      if (step.usage) {
+        const u = step.usage
+        if (u.promptTokens) usageParts.push(`prompt: ${u.promptTokens}`)
+        if (u.completionTokens) usageParts.push(`completion: ${u.completionTokens}`)
+        if (u.cachedTokens) usageParts.push(`cached: ${u.cachedTokens}`)
+        if (u.reasoningTokens) usageParts.push(`reasoning: ${u.reasoningTokens}`)
+        if (u.totalTokens) usageParts.push(`total: ${u.totalTokens}`)
+      }
+      children.push(
+        this.makeSpan({
+          id: `llm-res-${step.stepIndex}`,
+          title: 'LLM Response',
+          type: 'llm_call',
+          status: 'success',
+          startTime: now,
+          endTime: now,
+          duration: 0,
+          output: JSON.stringify(step.rawResponse, null, 2),
+          ...(usageParts.length > 0 ? { input: `Tokens — ${usageParts.join(', ')}` } : {}),
+        })
+      )
+    }
+
+    // ── Reflection ────────────────────────────────────────────────────────
     if (step.reflection) {
       const parts: string[] = []
       if (step.reflection.evaluation_previous_goal) parts.push(`Evaluation: ${step.reflection.evaluation_previous_goal}`)
@@ -302,6 +457,7 @@ export class AgentTraceBridge {
       }
     }
 
+    // ── Action (tool execution) ───────────────────────────────────────────
     children.push(
       this.makeSpan({
         id: `action-${step.stepIndex}`,
@@ -316,10 +472,11 @@ export class AgentTraceBridge {
       })
     )
 
+    // ── Step root span ────────────────────────────────────────────────────
     this.trace.spans.push(
       this.makeSpan({
         id: `step-${step.stepIndex}`,
-        title: `Step ${step.stepIndex + 1}`,
+        title: `Step ${step.stepIndex + 1}${step.action.name === 'done' ? ' (done)' : ''}`,
         type: 'agent_invocation',
         status: 'success',
         startTime: now,
@@ -329,8 +486,6 @@ export class AgentTraceBridge {
         children,
       })
     )
-
-    this.emit()
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
