@@ -80,6 +80,7 @@ export class AgentTraceBridge {
   private pendingSpans: Map<string, TraceSpan> = new Map()
   private renderedSteps: Set<number> = new Set()
   private isListening = false
+  private spanSeq = 0
 
   static getInstance(): AgentTraceBridge {
     if (!bridgeInstance) bridgeInstance = new AgentTraceBridge()
@@ -139,6 +140,7 @@ export class AgentTraceBridge {
     this.trace = this.makeEmptyTrace()
     this.pendingSpans.clear()
     this.renderedSteps.clear()
+    this.spanSeq = 0
     this.emit()
   }
 
@@ -221,10 +223,12 @@ export class AgentTraceBridge {
     if (!activity) return
     const now = Date.now()
 
+    const seq = ++this.spanSeq
+
     switch (activity.type) {
       case 'thinking': {
         const span = this.makeSpan({
-          id: `thinking-${now}`,
+          id: `thinking-${seq}`,
           title: 'Thinking…',
           type: 'llm_call',
           status: 'pending',
@@ -238,7 +242,7 @@ export class AgentTraceBridge {
       case 'executing': {
         this.closePending('thinking', now)
         const span = this.makeSpan({
-          id: `exec-${activity.tool}-${now}`,
+          id: `exec-${activity.tool}-${seq}`,
           title: `Execute: ${activity.tool}`,
           type: 'tool_execution',
           status: 'pending',
@@ -264,7 +268,7 @@ export class AgentTraceBridge {
           const inferredDuration = activity.duration ?? 0
           this.trace.spans.push(
             this.makeSpan({
-              id: `exec-${activity.tool}-${now}`,
+              id: `exec-${activity.tool}-${seq}`,
               title: `Executed: ${activity.tool}`,
               type: 'tool_execution',
               status: 'success',
@@ -282,7 +286,7 @@ export class AgentTraceBridge {
       case 'retrying': {
         this.trace.spans.push(
           this.makeSpan({
-            id: `retry-${now}`,
+            id: `retry-${seq}`,
             title: `Retry ${activity.attempt}/${activity.maxAttempts}`,
             type: 'event',
             status: 'warning',
@@ -297,7 +301,7 @@ export class AgentTraceBridge {
       case 'error': {
         this.trace.spans.push(
           this.makeSpan({
-            id: `error-${now}`,
+            id: `error-${seq}`,
             title: 'Agent Error',
             type: 'event',
             status: 'error',
@@ -458,6 +462,20 @@ export class AgentTraceBridge {
     }
 
     // ── Action (tool execution) ───────────────────────────────────────────
+    // step.action.input may be null when arguments only exist in rawResponse tool_calls
+    let actionInput: unknown = step.action.input
+    if (actionInput == null && step.rawResponse != null) {
+      const resp = step.rawResponse as {
+        choices?: Array<{ message?: { tool_calls?: Array<{ function?: { arguments?: string; name?: string } }> } } >
+      }
+      const toolCalls = resp.choices?.[0]?.message?.tool_calls
+      if (toolCalls && toolCalls.length > 0) {
+        const argStr = toolCalls[0].function?.arguments
+        if (argStr) {
+          try { actionInput = JSON.parse(argStr) } catch { actionInput = argStr }
+        }
+      }
+    }
     children.push(
       this.makeSpan({
         id: `action-${step.stepIndex}`,
@@ -467,7 +485,7 @@ export class AgentTraceBridge {
         startTime: now,
         endTime: now,
         duration: 0,
-        input: JSON.stringify(step.action.input, null, 2),
+        input: actionInput != null ? JSON.stringify(actionInput, null, 2) : undefined,
         output: step.action.output,
       })
     )
@@ -507,7 +525,8 @@ export class AgentTraceBridge {
     const raw = partial.output ?? partial.input ?? ''
     // Normalize startTime/endTime to Date so the UI can call .toLocaleTimeString()
     const startTime = partial.startTime instanceof Date ? partial.startTime : new Date(partial.startTime as number)
-    const endTime = partial.endTime instanceof Date ? partial.endTime : partial.endTime != null ? new Date(partial.endTime as number) : undefined
+    // Fall back to startTime when endTime is absent so getDurationMs returns 0 instead of NaN
+    const endTime = partial.endTime instanceof Date ? partial.endTime : partial.endTime != null ? new Date(partial.endTime as number) : startTime
     return {
       raw,
       attributes: [],

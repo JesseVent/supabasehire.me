@@ -1818,7 +1818,7 @@ export default function Home() {
                         </div>
 
                         {/* Diagram + side panel */}
-                        <div className="flex flex-col lg:flex-row gap-4 h-[600px] min-h-[600px]">
+                        <div className="flex flex-col lg:flex-row gap-4 min-h-[400px]" style={{ height: 'calc(100vh - 250px)' }}>
                           {/* Diagram area */}
                           <div className="flex-1 border border-border rounded-xl overflow-hidden bg-card shadow-sm relative h-full">
                             {filteredTables.length > 0 ? (

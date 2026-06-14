@@ -707,93 +707,81 @@ export function SQLPanel() {
   }, [resultRows])
 
   return (
-    <div className="em-panel h-full flex flex-col gap-4">
-      {/* Header */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Terminal className="size-5 text-primary" />
-            <CardTitle>SQL Query</CardTitle>
-            {activeConnectionId === DEMO_CONNECTION_ID && (
-              <Badge
-                variant="outline"
-                className="gap-1 text-amber-600 border-amber-200 dark:text-amber-400 dark:border-amber-800 text-[10px]"
-              >
-                <Eye className="size-3" />
-                Demo
-              </Badge>
-            )}
-          </div>
-          <CardDescription>
-            {activeConnectionId === DEMO_CONNECTION_ID
-              ? 'Execute SQL queries with simulated demo results'
-              : 'Execute raw SQL queries against your Supabase database'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <AlertTriangle className="size-3.5" />
-            {activeConnectionId === DEMO_CONNECTION_ID
-              ? 'Demo mode — results are simulated. Connect to a real project for live data.'
-              : 'Queries run with management API access — use with caution'}
-          </div>
-        </CardContent>
-      </Card>
+    <div className="em-panel h-full flex flex-col gap-3 p-3">
+      {/* Compact header toolbar */}
+      <div className="flex items-center gap-2">
+        <Terminal className="size-4 text-primary shrink-0" />
+        <span className="font-semibold text-sm">SQL Query</span>
+        {activeConnectionId === DEMO_CONNECTION_ID && (
+          <Badge
+            variant="outline"
+            className="gap-1 text-amber-600 border-amber-200 dark:text-amber-400 dark:border-amber-800 text-[10px]"
+          >
+            <Eye className="size-3" />
+            Demo
+          </Badge>
+        )}
+        <span className="flex items-center gap-1 text-[11px] text-muted-foreground ml-1">
+          <AlertTriangle className="size-3" />
+          {activeConnectionId === DEMO_CONNECTION_ID
+            ? 'Demo mode — results are simulated'
+            : 'Management API access — use with caution'}
+        </span>
+      </div>
 
       {/* Tabs: Query Runner & Migrations */}
       {activeConnectionId ? (
         <Tabs defaultValue="query-runner" className="w-full">
-          <TabsList>
-            <TabsTrigger value="query-runner" className="gap-1.5">
-              <Terminal className="size-3.5" />
+          <TabsList className="h-8">
+            <TabsTrigger value="query-runner" className="gap-1 text-xs h-7">
+              <Terminal className="size-3" />
               Query Runner
             </TabsTrigger>
-            <TabsTrigger value="migrations" className="gap-1.5">
-              <Database className="size-3.5" />
+            <TabsTrigger value="migrations" className="gap-1 text-xs h-7">
+              <Database className="size-3" />
               Migrations
             </TabsTrigger>
-            <TabsTrigger value="analyzer" className="gap-1.5">
-              <Gauge className="size-3.5" />
+            <TabsTrigger value="analyzer" className="gap-1 text-xs h-7">
+              <Gauge className="size-3" />
               Analyzer
             </TabsTrigger>
           </TabsList>
 
           {/* Query Runner Tab */}
-          <TabsContent value="query-runner">
-            <div className="flex flex-col gap-4">
+          <TabsContent value="query-runner" className="mt-2">
+            <div className="flex flex-col gap-2">
               {/* Query Editor */}
               <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">Query Editor</CardTitle>
-                    <div className="flex items-center gap-2">
-                      <Select onValueChange={applyTemplate}>
-                        <SelectTrigger className="w-[180px]">
-                          <SelectValue placeholder="Quick Templates" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.keys(QUICK_TEMPLATES).map((name) => (
-                            <SelectItem key={name} value={name}>
-                              {name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyToClipboard(query, 'query')}
-                        disabled={!query.trim()}
-                      >
-                        {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
-                      </Button>
-                    </div>
+                <div className="flex items-center justify-between px-4 py-2 border-b border-border/60">
+                  <span className="text-sm font-medium">Query Editor</span>
+                  <div className="flex items-center gap-2">
+                    <Select onValueChange={applyTemplate}>
+                      <SelectTrigger className="h-7 text-xs w-[160px]">
+                        <SelectValue placeholder="Quick Templates" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.keys(QUICK_TEMPLATES).map((name) => (
+                          <SelectItem key={name} value={name}>
+                            {name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      onClick={() => copyToClipboard(query, 'query')}
+                      disabled={!query.trim()}
+                    >
+                      {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
+                    </Button>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col gap-4">
+                </div>
+                <CardContent className="pt-2 pb-3">
+                  <div className="flex flex-col gap-2">
                     {/* AI Demo Buttons */}
-                    <div className="flex flex-wrap items-center gap-2 pb-1 border-b border-border/50">
+                    <div className="flex flex-wrap items-center gap-2 pb-1.5 border-b border-border/50">
                       <span className="flex items-center gap-1 text-[11px] text-muted-foreground font-medium shrink-0">
                         <Sparkles className="size-3 text-primary" />
                         AI demos
@@ -942,34 +930,35 @@ export function SQLPanel() {
               {/* Results */}
               {result && (
                 <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {result.success ? (
-                          <CheckCircle2 className="size-5 text-primary" />
-                        ) : (
-                          <XCircle className="size-5 text-red-500" />
-                        )}
-                        <CardTitle className="text-base">
-                          {result.success ? 'Query Executed Successfully' : 'Query Failed'}
-                        </CardTitle>
-                      </div>
-                      {resultRows.length > 0 && (
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge variant="secondary">
-                            {resultRows.length} row{resultRows.length !== 1 ? 's' : ''}
-                          </Badge>
-                          <Button
-                            variant={showVisualization ? 'secondary' : 'ghost'}
-                            size="sm"
-                            onClick={() => setShowVisualization(!showVisualization)}
-                          >
-                            <BarChart3 className="mr-1 size-3" />
-                            {showVisualization ? 'Hide Chart' : 'Visualize'}
-                          </Button>
+                  <div className="flex items-center justify-between px-4 py-2 border-b border-border/60">
+                    <div className="flex items-center gap-2">
+                      {result.success ? (
+                        <CheckCircle2 className="size-4 text-primary" />
+                      ) : (
+                        <XCircle className="size-4 text-red-500" />
+                      )}
+                      <span className="text-sm font-medium">
+                        {result.success ? 'Query Executed Successfully' : 'Query Failed'}
+                      </span>
+                    </div>
+                    {resultRows.length > 0 && (
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <Badge variant="secondary" className="text-xs">
+                          {resultRows.length} row{resultRows.length !== 1 ? 's' : ''}
+                        </Badge>
+                        <Button
+                          variant={showVisualization ? 'secondary' : 'ghost'}
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => setShowVisualization(!showVisualization)}
+                        >
+                          <BarChart3 className="mr-1 size-3" />
+                          {showVisualization ? 'Hide Chart' : 'Visualize'}
+                        </Button>
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-7 text-xs"
                             onClick={() =>
                               copyToClipboard(JSON.stringify(resultRows, null, 2), 'results')
                             }
@@ -981,19 +970,18 @@ export function SQLPanel() {
                             )}
                             Copy
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={handleExportCSV}>
+                          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleExportCSV}>
                             <FileText className="mr-1 size-3" />
                             CSV
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={handleExportJSON}>
+                          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleExportJSON}>
                             <FileJson className="mr-1 size-3" />
                             JSON
                           </Button>
-                        </div>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent>
+                      </div>
+                    )}
+                  </div>
+                  <CardContent className="pt-3 pb-3">
                     {result.error && (
                       <Alert variant="destructive" className="mb-4">
                         <AlertDescription className="font-mono text-xs whitespace-pre-wrap">

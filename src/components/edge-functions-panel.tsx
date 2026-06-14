@@ -114,7 +114,11 @@ export function EdgeFunctionsPanel() {
       if (data.error) {
         setFetchError(data.error)
       } else {
-        setEdgeFunctions(data.functions || [])
+        const fns = data.functions || []
+        setEdgeFunctions(fns)
+        if (fns.length > 0) {
+          setSelectedFunction((prev) => prev ?? fns[0])
+        }
       }
     } catch {
       setFetchError('Failed to fetch edge functions')
@@ -312,48 +316,38 @@ export function EdgeFunctionsPanel() {
   }, [])
 
   const getStatusBadge = (status: string) => {
+    const cls = 'text-[9px] h-4 px-1'
     switch (status.toLowerCase()) {
       case 'active':
-        return <Badge variant="default">Active</Badge>
+        return <Badge variant="default" className={cls}>Active</Badge>
       case 'inactive':
-        return <Badge variant="secondary">Inactive</Badge>
+        return <Badge variant="secondary" className={cls}>Inactive</Badge>
       case 'failed':
-        return <Badge variant="destructive">Failed</Badge>
+        return <Badge variant="destructive" className={cls}>Failed</Badge>
       default:
-        return <Badge variant="outline">{status}</Badge>
+        return <Badge variant="outline" className={cls}>{status}</Badge>
     }
   }
 
   return (
-    <div className="em-panel h-full flex flex-col gap-4">
-      {/* Header */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Zap className="size-5 text-primary" />
-            <CardTitle>Edge Functions</CardTitle>
-          </div>
-          <CardDescription>Test and invoke your Supabase Edge Functions</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap items-center gap-3">
-            {activeConnectionId ? (
-              <Button onClick={fetchFunctions} disabled={isLoading} size="sm">
-                {isLoading ? (
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                ) : (
-                  <Zap className="mr-2 size-4" />
-                )}
-                {edgeFunctions.length > 0 ? 'Refresh Functions' : 'Load Edge Functions'}
-              </Button>
+    <div className="em-panel h-full flex flex-col gap-3 p-3">
+      {/* Compact header */}
+      <div className="flex items-center gap-2">
+        <Zap className="size-4 text-primary shrink-0" />
+        <span className="font-semibold text-sm">Edge Functions</span>
+        {activeConnectionId ? (
+          <Button onClick={fetchFunctions} disabled={isLoading} size="sm" className="h-7 text-xs ml-auto">
+            {isLoading ? (
+              <Loader2 className="mr-1 size-3 animate-spin" />
             ) : (
-              <p className="text-sm text-muted-foreground">
-                Select a connection first to view edge functions
-              </p>
+              <Zap className="mr-1 size-3" />
             )}
-          </div>
-        </CardContent>
-      </Card>
+            {edgeFunctions.length > 0 ? 'Refresh' : 'Load'}
+          </Button>
+        ) : (
+          <p className="text-xs text-muted-foreground ml-2">Select a connection to view functions</p>
+        )}
+      </div>
 
       {/* Error display */}
       {fetchError && (
@@ -362,64 +356,49 @@ export function EdgeFunctionsPanel() {
         </Alert>
       )}
 
-      {/* Function List */}
+      {/* Two-column layout: function list sidebar + details/invoke */}
       {edgeFunctions.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Deployed Functions</CardTitle>
-            <CardDescription>{edgeFunctions.length} function(s) deployed</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea>
-              <div className="flex flex-col gap-2">
+        <div className="flex gap-3 min-h-0 flex-1">
+          {/* Left: function list */}
+          <Card className="w-52 shrink-0 flex flex-col min-h-0">
+            <div className="px-3 py-2 border-b border-border/60 text-xs font-medium text-muted-foreground">
+              Functions ({edgeFunctions.length})
+            </div>
+            <ScrollArea className="flex-1">
+              <div className="flex flex-col py-1">
                 {edgeFunctions.map((fn: EdgeFunction) => (
                   <button
                     key={fn.id}
                     onClick={() => setSelectedFunction(fn)}
-                    className={`flex items-center justify-between rounded-lg border p-3 text-left transition-colors hover:bg-accent ${
-                      selectedFunction?.id === fn.id ? 'border-primary bg-accent' : ''
+                    className={`flex items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-accent ${
+                      selectedFunction?.id === fn.id ? 'bg-accent text-accent-foreground' : ''
                     }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <span
-                        className={`size-2 rounded-full shrink-0 ${fn.status === 'active' ? 'bg-primary' : fn.status === 'failed' ? 'bg-red-500' : 'bg-muted-foreground'}`}
-                      />
-                      <div className="flex flex-col">
-                        <span className="font-mono text-sm font-medium">{fn.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {fn.entrypoint_path ? fn.entrypoint_path.split('/').pop() : 'index.ts'}
-                        </span>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="font-mono text-xs font-medium truncate">{fn.name}</span>
+                      <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                        {getStatusBadge(fn.status)}
+                        <span className="text-[10px] text-muted-foreground">v{fn.version}</span>
+                        {fn.verify_jwt && (
+                          <Badge variant="outline" className="text-[9px] h-4 px-1">JWT</Badge>
+                        )}
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {getStatusBadge(fn.status)}
-                      {fn.verify_jwt !== undefined && (
-                        <Badge variant={fn.verify_jwt ? 'default' : 'outline'} className="text-xs">
-                          {fn.verify_jwt ? 'JWT ✓' : 'No JWT'}
-                        </Badge>
-                      )}
-                      <Badge variant="secondary" className="text-xs">
-                        v{fn.version}
-                      </Badge>
                     </div>
                   </button>
                 ))}
               </div>
             </ScrollArea>
-          </CardContent>
-        </Card>
-      )}
+          </Card>
 
+          {/* Right: details + invoke */}
+          <div className="flex-1 flex flex-col gap-2 min-h-0 min-w-0">
       {/* Function Details + Schema */}
       {selectedFunction && (
         <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-border/60">
               <div className="flex items-center gap-2">
-                <Info className="size-4 text-muted-foreground" />
-                <CardTitle className="text-base">
-                  <span className="font-mono">{selectedFunction.name}</span>
-                </CardTitle>
+                <Info className="size-3.5 text-muted-foreground" />
+                <span className="text-sm font-medium font-mono">{selectedFunction.name}</span>
               </div>
               <div className="flex items-center gap-1">
                 <Button
@@ -476,11 +455,10 @@ export function EdgeFunctionsPanel() {
                 )}
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-4">
+          <CardContent className="pt-2 pb-3">
+            <div className="flex flex-col gap-2">
               {/* Metadata row */}
-              <div className="flex flex-wrap gap-x-6 gap-y-1.5 text-xs text-muted-foreground">
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                 <span>
                   <span className="font-medium text-foreground">Version</span> v
                   {selectedFunction.version}
@@ -514,8 +492,6 @@ export function EdgeFunctionsPanel() {
                   })}
                 </span>
               </div>
-
-              <Separator />
 
               {/* Schema / notes */}
               {isEditingNotes ? (
@@ -776,104 +752,79 @@ export function EdgeFunctionsPanel() {
       {/* Invoke Section */}
       {selectedFunction && (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              Invoke: <span className="font-mono">{selectedFunction.name}</span>
-            </CardTitle>
-            <CardDescription>Send a request to this edge function</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-4">
-              {/* Method selector */}
-              <div className="flex flex-wrap items-end gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs">HTTP Method</Label>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant={httpMethod === 'GET' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setHttpMethod('GET')}
-                      className={
-                        httpMethod === 'GET'
-                          ? 'bg-primary hover:bg-primary text-white gap-1'
-                          : 'gap-1'
-                      }
-                    >
-                      GET
-                    </Button>
-                    <Button
-                      variant={httpMethod === 'POST' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setHttpMethod('POST')}
-                      className={
-                        httpMethod === 'POST'
-                          ? 'bg-amber-600 hover:bg-amber-700 text-white gap-1'
-                          : 'gap-1'
-                      }
-                    >
-                      POST
-                    </Button>
-                  </div>
-                </div>
-
-                <Button onClick={invokeFunction} disabled={isInvoking} size="sm">
-                  {isInvoking ? (
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                  ) : (
-                    <Play className="mr-2 size-4" />
-                  )}
-                  Invoke
-                </Button>
-              </div>
-
+          <div className="flex items-center justify-between px-4 py-2 border-b border-border/60">
+            <span className="text-xs font-medium text-muted-foreground">Invoke</span>
+            <div className="flex items-center gap-1">
+              <Button
+                variant={httpMethod === 'GET' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setHttpMethod('GET')}
+                className="h-6 px-2 text-[10px]"
+              >GET</Button>
+              <Button
+                variant={httpMethod === 'POST' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setHttpMethod('POST')}
+                className={`h-6 px-2 text-[10px] ${httpMethod === 'POST' ? 'bg-amber-600 hover:bg-amber-700 text-white' : ''}`}
+              >POST</Button>
+              <Button onClick={invokeFunction} disabled={isInvoking} size="sm" className="h-6 px-2 text-xs">
+                {isInvoking ? (
+                  <Loader2 className="size-3 animate-spin" />
+                ) : (
+                  <Play className="size-3" />
+                )}
+                <span className="ml-1">Invoke</span>
+              </Button>
+            </div>
+          </div>
+          <CardContent className="pt-2 pb-3">
+            <div className="flex flex-col gap-2">
               {/* Request Body */}
               {httpMethod === 'POST' && (
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs text-muted-foreground">Request Body (JSON)</Label>
+                <div className="flex flex-col gap-1">
+                  <Label className="text-[11px] text-muted-foreground">Request Body (JSON)</Label>
                   <Textarea
                     value={requestBody}
                     onChange={(e) => setRequestBody(e.target.value)}
                     placeholder='{"key": "value"}'
-                    className="font-mono text-xs min-h-[100px] bg-muted/50"
+                    className="font-mono text-xs min-h-[80px] bg-muted/50"
                   />
                 </div>
               )}
 
               {/* Custom Headers */}
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">Custom Headers</Label>
-                  <Button variant="ghost" size="sm" onClick={addHeader}>
-                    + Add Header
+                  <Label className="text-[11px] text-muted-foreground">Custom Headers</Label>
+                  <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={addHeader}>
+                    + Add
                   </Button>
                 </div>
                 {customHeaders.map((header, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
+                  <div key={idx} className="flex items-center gap-1.5">
                     <Input
                       value={header.key}
                       onChange={(e) => updateHeader(idx, 'key', e.target.value)}
                       placeholder="Header name"
-                      className="font-mono text-xs h-8"
+                      className="font-mono text-xs h-7"
                     />
                     <Input
                       value={header.value}
                       onChange={(e) => updateHeader(idx, 'value', e.target.value)}
                       placeholder="Header value"
-                      className="font-mono text-xs h-8"
+                      className="font-mono text-xs h-7"
                     />
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => removeHeader(idx)}
-                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0"
                     >
                       ×
                     </Button>
                   </div>
                 ))}
               </div>
-
-              <Separator />
 
               {/* Response */}
               {invokeResult && (
@@ -974,6 +925,9 @@ export function EdgeFunctionsPanel() {
             </div>
           </CardContent>
         </Card>
+      )}
+          </div>
+        </div>
       )}
 
       {/* Empty state - no connection */}

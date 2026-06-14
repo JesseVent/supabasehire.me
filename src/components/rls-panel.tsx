@@ -294,71 +294,62 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
   }
 
   return (
-    <div className="h-full flex flex-col gap-4">
-      {/* Header */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Shield className="size-5 text-primary shrink-0" />
-              <CardTitle>Row Level Security</CardTitle>
-            </div>
-            {activeConnectionId && (
-              <Button onClick={fetchRLSInfo} disabled={isLoadingRLS} size="sm" className="shrink-0">
-                {isLoadingRLS ? (
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                ) : (
-                  <ShieldAlert className="mr-2 size-4" />
-                )}
-                {rlsStatuses.length > 0 ? 'Refresh RLS Info' : 'Load RLS Policies'}
-              </Button>
+    <div className="h-full flex flex-col gap-3 p-3">
+      {/* Compact header */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Shield className="size-4 text-primary shrink-0" />
+        <span className="font-semibold text-sm">Row Level Security</span>
+        {activeConnectionId && (
+          <Button onClick={fetchRLSInfo} disabled={isLoadingRLS} size="sm" className="h-7 text-xs ml-auto shrink-0">
+            {isLoadingRLS ? (
+              <Loader2 className="mr-1 size-3 animate-spin" />
+            ) : (
+              <ShieldAlert className="mr-1 size-3" />
             )}
-          </div>
-          <CardDescription>Inspect and test RLS policies for your Supabase tables</CardDescription>
-        </CardHeader>
-        {rlsStatuses.length > 0 && (
-          <CardContent className="pt-0">
-            <div className="flex flex-wrap gap-1">
-              <Button
-                variant={subTab === 'policies' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSubTab('policies')}
-                className="gap-1.5"
-              >
-                <Shield className="size-3.5" />
-                Policies & Tester
-              </Button>
-              <Button
-                variant={subTab === 'score' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSubTab('score')}
-                className="gap-1.5"
-              >
-                <BarChart3 className="size-3.5" />
-                Security Score
-              </Button>
-              <Button
-                variant={subTab === 'generator' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSubTab('generator')}
-                className="gap-1.5"
-              >
-                <Wand2 className="size-3.5" />
-                Policy Generator
-              </Button>
-              <Button
-                variant={subTab === 'simulator' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSubTab('simulator')}
-                className="gap-1.5"
-              >
-                <User className="size-3.5" />
-                Auth Simulator
-              </Button>
-            </div>
-          </CardContent>
+            {rlsStatuses.length > 0 ? 'Refresh' : 'Load'}
+          </Button>
         )}
-      </Card>
+        {rlsStatuses.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            <Button
+              variant={subTab === 'policies' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSubTab('policies')}
+              className="h-7 text-xs gap-1"
+            >
+              <Shield className="size-3" />
+              Policies
+            </Button>
+            <Button
+              variant={subTab === 'score' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSubTab('score')}
+              className="h-7 text-xs gap-1"
+            >
+              <BarChart3 className="size-3" />
+              Score
+            </Button>
+            <Button
+              variant={subTab === 'generator' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSubTab('generator')}
+              className="h-7 text-xs gap-1"
+            >
+              <Wand2 className="size-3" />
+              Generator
+            </Button>
+            <Button
+              variant={subTab === 'simulator' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSubTab('simulator')}
+              className="h-7 text-xs gap-1"
+            >
+              <User className="size-3" />
+              Simulator
+            </Button>
+          </div>
+        )}
+      </div>
 
       {/* Error display */}
       {rlsError && (
@@ -383,211 +374,170 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
       {/* Policies & Tester Sub-Tab */}
       {(subTab === 'policies' || rlsStatuses.length === 0) && (
         <>
-          {/* Table selector + RLS status */}
+          {/* Table selector row */}
           {rlsStatuses.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Table Selector</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap items-center gap-4">
-                  <Select value={selectedTable} onValueChange={setSelectedTable}>
-                    <SelectTrigger className="w-full sm:w-[240px]">
-                      <SelectValue placeholder="Select a table" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {tableNames.map((name) => (
-                        <SelectItem key={name} value={name}>
-                          {name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {currentTableInfo && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">RLS Status:</span>
-                      {!currentTableInfo.rlsEnabled ? (
-                        <Badge variant="destructive" className="gap-1">
-                          <ShieldX className="size-3" />
-                          Disabled
-                        </Badge>
-                      ) : currentTableInfo.policies.length === 0 ? (
-                        <Badge variant="outline" className="gap-1 text-amber-600 border-amber-400">
-                          <ShieldAlert className="size-3" />
-                          No Policies
-                        </Badge>
-                      ) : (
-                        <Badge variant="default" className="gap-1">
-                          <ShieldCheck className="size-3" />
-                          Enabled
-                        </Badge>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Select value={selectedTable} onValueChange={setSelectedTable}>
+                <SelectTrigger className="h-7 text-xs w-[220px]">
+                  <SelectValue placeholder="Select table…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {rlsStatuses.map((t) => (
+                    <SelectItem key={t.tableName} value={t.tableName}>
+                      <div className="flex items-center gap-2">
+                        {!t.rlsEnabled ? (
+                          <ShieldX className="size-3 text-red-500 shrink-0" />
+                        ) : t.policies.length === 0 ? (
+                          <ShieldAlert className="size-3 text-amber-500 shrink-0" />
+                        ) : (
+                          <ShieldCheck className="size-3 text-primary shrink-0" />
+                        )}
+                        <span className="font-mono">{t.tableName}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {currentTableInfo && (
+                !currentTableInfo.rlsEnabled ? (
+                  <Badge variant="destructive" className="gap-1 text-[10px] h-5">
+                    <ShieldX className="size-3" />RLS off
+                  </Badge>
+                ) : currentTableInfo.policies.length === 0 ? (
+                  <Badge variant="outline" className="gap-1 text-amber-600 border-amber-400 text-[10px] h-5">
+                    <ShieldAlert className="size-3" />No policies
+                  </Badge>
+                ) : (
+                  <Badge variant="default" className="gap-1 text-[10px] h-5">
+                    <ShieldCheck className="size-3" />{currentTableInfo.policies.length} polic{currentTableInfo.policies.length === 1 ? 'y' : 'ies'}
+                  </Badge>
+                )
+              )}
+            </div>
           )}
 
-          {/* Policy List */}
-          {currentTableInfo && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">
-                  Policies for <span className="font-mono">{selectedTable}</span>
-                </CardTitle>
-                <CardDescription>
-                  {currentTableInfo.policies.length} polic
-                  {currentTableInfo.policies.length === 1 ? 'y' : 'ies'} defined
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {currentTableInfo.policies.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-center space-y-3">
-                    {!currentTableInfo.rlsEnabled ? (
-                      <>
-                        <div className="size-14 rounded-full bg-red-100 dark:bg-red-950/30 flex items-center justify-center rls-pulse-red">
-                          <Unlock className="size-7 text-red-500" />
-                        </div>
-                        <p className="text-sm font-medium text-red-600 dark:text-red-400">
-                          RLS is disabled — Table is fully exposed!
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Anyone with the anon key can read, insert, update, and delete all rows.
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <ShieldAlert className="size-10 text-amber-500 mx-auto" />
-                        <p className="text-sm text-muted-foreground">
-                          No RLS policies defined for this table.
-                        </p>
-                        <p className="text-xs text-amber-600">
-                          RLS is enabled but no policies exist — all access will be denied.
-                        </p>
-                      </>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-1 gap-1.5"
-                      onClick={() => setSubTab('generator')}
-                    >
-                      <Wand2 className="size-3.5" />
-                      Generate Policy
-                    </Button>
+          {/* Policy details — full width */}
+          {rlsStatuses.length > 0 && (
+            <>
+              {currentTableInfo && (
+                <Card className="flex-1 flex flex-col min-h-0">
+                  <div className="px-4 py-2 border-b border-border/60">
+                    <span className="text-sm font-medium font-mono">{selectedTable}</span>
                   </div>
-                ) : (
-                  <ScrollArea className="flex-1 min-h-0">
-                    <div className="flex flex-col gap-3">
-                      {currentTableInfo.policies.map((policy: RLSPolicy, idx: number) => (
-                        <div
-                          key={policy.policyname}
-                          className={`rounded-lg border p-4 hover:shadow-md transition-shadow ${
-                            policy.cmd === 'SELECT'
-                              ? 'border-l-4 border-l-primary'
-                              : policy.cmd === 'INSERT'
-                                ? 'border-l-4 border-l-amber-500'
-                                : policy.cmd === 'UPDATE'
-                                  ? 'border-l-4 border-l-blue-500'
-                                  : policy.cmd === 'DELETE'
-                                    ? 'border-l-4 border-l-red-500'
-                                    : 'border-l-4 border-l-violet-500'
-                          }`}
+                  <ScrollArea className="flex-1">
+                    <div className="p-3">
+                    {currentTableInfo.policies.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-6 text-center space-y-2">
+                        {!currentTableInfo.rlsEnabled ? (
+                          <>
+                            <div className="size-10 rounded-full bg-red-100 dark:bg-red-950/30 flex items-center justify-center rls-pulse-red">
+                              <Unlock className="size-5 text-red-500" />
+                            </div>
+                            <p className="text-sm font-medium text-red-600 dark:text-red-400">
+                              RLS disabled — Table fully exposed
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <ShieldAlert className="size-8 text-amber-500 mx-auto" />
+                            <p className="text-xs text-amber-600">
+                              RLS enabled but no policies — all access denied.
+                            </p>
+                          </>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-1 gap-1 h-7 text-xs"
+                          onClick={() => setSubTab('generator')}
                         >
-                          <div className="flex flex-wrap items-center gap-2 mb-2">
-                            <ChevronRight className="size-4 text-muted-foreground" />
-                            <span className="font-mono text-sm font-medium">
-                              {policy.policyname}
-                            </span>
-                            <Badge variant={getCommandBadgeVariant(policy.cmd)}>{policy.cmd}</Badge>
-                            <div className="flex items-center gap-1">
-                              {getPermissiveIcon(policy.permissive)}
-                              <span className="text-xs text-muted-foreground">
-                                {policy.permissive}
-                              </span>
+                          <Wand2 className="size-3" />
+                          Generate Policy
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        {currentTableInfo.policies.map((policy: RLSPolicy) => (
+                          <div
+                            key={policy.policyname}
+                            className={`rounded-lg border p-3 hover:shadow-sm transition-shadow ${
+                              policy.cmd === 'SELECT'
+                                ? 'border-l-4 border-l-primary'
+                                : policy.cmd === 'INSERT'
+                                  ? 'border-l-4 border-l-amber-500'
+                                  : policy.cmd === 'UPDATE'
+                                    ? 'border-l-4 border-l-blue-500'
+                                    : policy.cmd === 'DELETE'
+                                      ? 'border-l-4 border-l-red-500'
+                                      : 'border-l-4 border-l-violet-500'
+                            }`}
+                          >
+                            <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                              <span className="font-mono text-xs font-medium">{policy.policyname}</span>
+                              <Badge variant={getCommandBadgeVariant(policy.cmd)} className="text-[10px] h-4 px-1">{policy.cmd}</Badge>
+                              <div className="flex items-center gap-0.5">
+                                {getPermissiveIcon(policy.permissive)}
+                                <span className="text-[10px] text-muted-foreground">{policy.permissive}</span>
+                              </div>
+                              <div className="ml-auto">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                                  disabled={deletingPolicy === policy.policyname}
+                                  onClick={() => deletePolicy(selectedTable, policy.policyname)}
+                                  title={`Drop policy "${policy.policyname}"`}
+                                >
+                                  {deletingPolicy === policy.policyname ? (
+                                    <Loader2 className="size-3 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="size-3" />
+                                  )}
+                                </Button>
+                              </div>
                             </div>
-                            <div className="ml-auto">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                                disabled={deletingPolicy === policy.policyname}
-                                onClick={() => deletePolicy(selectedTable, policy.policyname)}
-                                title={`Drop policy "${policy.policyname}"`}
-                              >
-                                {deletingPolicy === policy.policyname ? (
-                                  <Loader2 className="size-3.5 animate-spin" />
-                                ) : (
-                                  <Trash2 className="size-3.5" />
-                                )}
-                              </Button>
+                            <div className="ml-0 flex flex-col gap-0.5 text-xs">
+                              <div className="flex items-start gap-2">
+                                <span className="text-muted-foreground min-w-[50px]">Roles:</span>
+                                <span className="font-mono">{policy.roles}</span>
+                              </div>
+                              {policy.qual && (
+                                <div className="flex items-start gap-2">
+                                  <span className="text-muted-foreground min-w-[50px]">USING:</span>
+                                  <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">{policy.qual}</code>
+                                </div>
+                              )}
+                              {policy.with_check && (
+                                <div className="flex items-start gap-2">
+                                  <span className="text-muted-foreground min-w-[50px]">CHECK:</span>
+                                  <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">{policy.with_check}</code>
+                                </div>
+                              )}
                             </div>
                           </div>
-                          <div className="ml-6 flex flex-col gap-1 text-sm">
-                            <div className="flex items-start gap-2">
-                              <span className="text-muted-foreground min-w-[60px]">Roles:</span>
-                              <span className="font-mono text-xs">{policy.roles}</span>
-                            </div>
-                            {policy.qual && (
-                              <div className="flex items-start gap-2">
-                                <span className="text-muted-foreground min-w-[60px]">USING:</span>
-                                <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
-                                  {policy.qual}
-                                </code>
-                              </div>
-                            )}
-                            {policy.with_check && (
-                              <div className="flex items-start gap-2">
-                                <span className="text-muted-foreground min-w-[60px]">CHECK:</span>
-                                <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
-                                  {policy.with_check}
-                                </code>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
+                    )}
                     </div>
                   </ScrollArea>
-                )}
-              </CardContent>
-            </Card>
+                </Card>
+              )}
+            </>
           )}
 
           {/* RLS Test Section */}
           {activeConnectionId && rlsStatuses.length > 0 && (
             <Card>
-              <CardHeader>
-                <CardTitle className="text-base">RLS Policy Tester</CardTitle>
-                <CardDescription>
-                  Simulate queries with different roles to test your RLS policies
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col gap-4">
-                  <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-end gap-3">
-                    <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
-                      <Label className="text-xs">Table</Label>
-                      <Select value={selectedTable} onValueChange={setSelectedTable}>
-                        <SelectTrigger className="w-full sm:w-[200px]">
-                          <SelectValue placeholder="Select table" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {tableNames.map((name) => (
-                            <SelectItem key={name} value={name}>
-                              {name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <Label className="text-xs">Operation</Label>
+              <div className="px-4 py-2 border-b border-border/60 text-xs font-medium text-muted-foreground">
+                RLS Policy Tester
+              </div>
+              <CardContent className="pt-3 pb-3">
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-wrap items-end gap-2">
+                    <div className="flex flex-col gap-1">
+                      <Label className="text-[11px] text-muted-foreground">Operation</Label>
                       <Select value={testOperation} onValueChange={setTestOperation}>
-                        <SelectTrigger className="w-full sm:w-[130px]">
+                        <SelectTrigger className="h-7 text-xs w-[110px]">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -599,10 +549,10 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
                       </Select>
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
-                      <Label className="text-xs">Role</Label>
+                    <div className="flex flex-col gap-1">
+                      <Label className="text-[11px] text-muted-foreground">Role</Label>
                       <Select value={testRole} onValueChange={setTestRole}>
-                        <SelectTrigger className="w-full sm:w-[160px]">
+                        <SelectTrigger className="h-7 text-xs w-[140px]">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -612,11 +562,11 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
                       </Select>
                     </div>
 
-                    <Button onClick={runRLSTest} disabled={isTesting || !selectedTable} size="sm">
+                    <Button onClick={runRLSTest} disabled={isTesting || !selectedTable} size="sm" className="h-7 text-xs">
                       {isTesting ? (
-                        <Loader2 className="mr-2 size-4 animate-spin" />
+                        <Loader2 className="mr-1 size-3 animate-spin" />
                       ) : (
-                        <Shield className="mr-2 size-4" />
+                        <Shield className="mr-1 size-3" />
                       )}
                       Run Test
                     </Button>
