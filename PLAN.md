@@ -1,6 +1,6 @@
-# PLAN — supa-agent / supabase-devtool Remediation Backlog
+# PLAN — supa-agent / supabasehire.me Remediation Backlog
 
-Source: production-readiness review of `~/Dev/supa-agent` + `~/Dev/supabase-devtool`, 2026-06-10.
+Source: production-readiness review of `~/Dev/supa-agent` + `~/Dev/supabasehire.me`, 2026-06-10.
 Each open item is self-contained and allocatable: it names the repo, files, the change, and acceptance criteria.
 Severity: C=Critical, H=High, M=Medium, L=Low. Effort: S (<1h), M (half day), L (1+ day).
 
@@ -10,10 +10,10 @@ Severity: C=Critical, H=High, M=Medium, L=Low. Effort: S (<1h), M (half day), L 
 
 | ID | Item | Repo |
 |----|------|------|
-| F-01 | Remove `OPENAI_API_KEY` from client payload (`layout.tsx` prop → script URL) | supabase-devtool |
-| F-02 | Fix `COLUMNS_SQL` pg_class namespace join (664→494 rows verified; kills ~1,300 dup React keys + `security_invoker` false-negatives) — `src/app/api/schema/route.ts` | supabase-devtool |
-| F-03 | Port MCP tools / server proxy / skill router / grounded system prompt into floating `SupaAgentPanel` (IIFE `autoInit=false`, zero-dep, `enableMask:false`); new `src/agent/supa-agent-config.ts` | supabase-devtool |
-| F-04 | Delete dead path: `use-devtool-agent.ts`, `agent-chat-panel.tsx`, sparkles toggle, orphaned `public/supa-agent.js` | supabase-devtool |
+| F-01 | Remove `OPENAI_API_KEY` from client payload (`layout.tsx` prop → script URL) | supabasehire.me |
+| F-02 | Fix `COLUMNS_SQL` pg_class namespace join (664→494 rows verified; kills ~1,300 dup React keys + `security_invoker` false-negatives) — `src/app/api/schema/route.ts` | supabasehire.me |
+| F-03 | Port MCP tools / server proxy / skill router / grounded system prompt into floating `SupaAgentPanel` (IIFE `autoInit=false`, zero-dep, `enableMask:false`); new `src/agent/supa-agent-config.ts` | supabasehire.me |
+| F-04 | Delete dead path: `use-devtool-agent.ts`, `agent-chat-panel.tsx`, sparkles toggle, orphaned `public/supa-agent.js` | supabasehire.me |
 | F-05 | Core: remove LLM listeners in `dispose()` + concurrent `execute()` guard + 3 tests (`packages/core/src/SupaAgentCore.ts`, suite 44/44) | supa-agent |
 | F-06 | Rebuild IIFE with core fixes → `public/supa-agent.iife.js` | both |
 
@@ -27,7 +27,7 @@ Until F-01, the server `OPENAI_API_KEY` was serialized into every visitor's page
 **Accept:** old key returns 401; view-source of prod page contains no `sk-` key material.
 
 ### T-02 · Commit + deploy the session's fixes — **C / S**
-**Repos:** supabase-devtool (`feat/view-security-invoker`), supa-agent.
+**Repos:** supabasehire.me (`feat/view-security-invoker`), supa-agent.
 **Accept:** both working trees clean; prod build green; deployed site loads schema without dup-key console warnings.
 
 ### T-03 · Sanitize MCP tool outputs in the extension — **H / S**
@@ -47,13 +47,13 @@ Returns plaintext decrypted vault secrets gated only on a service-role string co
 **Accept:** publishable-key call → 403; each successful call writes an audit row.
 
 ### T-05 · Authenticate `/api/agent/chat` proxy — **M / M**
-**Repo:** supabase-devtool · `src/app/api/agent/chat/route.ts`.
+**Repo:** supabasehire.me · `src/app/api/agent/chat/route.ts`.
 Unauthenticated: anyone can burn the server LLM key. (Previously accepted as dev-tool tradeoff — revisit now that the panel ships by default.)
 **Do:** minimal shared-secret header or session check + per-IP rate limit.
 **Accept:** request without credential → 401; panel still works end-to-end.
 
 ### T-06 · Backoff for schema/RLS pollers — **M / M**
-**Repo:** supabase-devtool · callers of `/api/schema`, `/api/rls` (latency monitor / RLS status fetch).
+**Repo:** supabasehire.me · callers of `/api/schema`, `/api/rls` (latency monitor / RLS status fetch).
 Observed: ~144 rapid `/api/rls` calls retrying without backoff → self-inflicted Supabase MCP `ThrottlerException` that starves the valid token for minutes; stale connections amplify it.
 **Do:** exponential backoff + stop retrying on 429/throttle; dedupe identical in-flight requests; skip connections whose last N calls failed auth.
 **Accept:** with one bad connection saved, dev.log shows bounded retries (not continuous 500s); diagram loads on a valid connection.
@@ -96,7 +96,7 @@ Removes the hand-copy of `dist/iife/supa-agent.demo.js` → `public/supa-agent.i
 **Repo:** supa-agent · `entrypoints/background.ts` (93-107, 133-158). OAuth client secret + tokens plaintext in `chrome.storage.local`. Prefer public-client flow (`token_endpoint_auth_method: 'none'`) to drop the secret entirely; surface token-refresh events to the user.
 
 ### T-16 · Prune stale stored connections UX — **L / S**
-**Repo:** supabase-devtool. 8+ saved connections incl. 4 duplicate "Prom Labs" with expired tokens hammer APIs on every load. Add a health badge + "remove broken connections" action.
+**Repo:** supabasehire.me. 8+ saved connections incl. 4 duplicate "Prom Labs" with expired tokens hammer APIs on every load. Add a health badge + "remove broken connections" action.
 
 ---
 

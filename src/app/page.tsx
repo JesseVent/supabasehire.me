@@ -882,7 +882,7 @@ export default function Home() {
               <Keyboard className="size-3.5" />
             </Button>
             <a
-              href="https://github.com/JesseVent/supabase-devtool"
+              href="https://github.com/JesseVent/supabasehire.me"
               target="_blank"
               rel="noopener noreferrer"
               className="hidden sm:inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
@@ -2923,7 +2923,7 @@ function SettingsPanel({
               <span className="text-sm text-muted-foreground">Source Code</span>
               <Button variant="outline" size="sm" className="gap-1.5" asChild>
                 <a
-                  href="https://github.com/JesseVent/supabase-devtool"
+                  href="https://github.com/JesseVent/supabasehire.me"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
