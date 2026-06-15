@@ -89,32 +89,74 @@ function json(body: unknown, status = 200) {
 }
 
 // ─── Prompt + sampling defaults per action ────────────────────────────────────
+// Caller-supplied values that are interpolated INTO a fixed system-prompt template
+// (categories, entity_types, target_language, schema_hint) are sanitized here so a
+// hostile caller can't break out of the instruction with newlines/control chars or
+// smuggle extra instructions. `input` itself is intentionally passed through as the
+// user-role message (standard LLM input separation) and is not restricted.
+
+const MAX_SYSTEM = 2000 // caller-supplied system-prompt override
+const MAX_LABEL = 40 // per category / entity-type token
+const MAX_LABELS = 20 // max categories / entity-types accepted
+const MAX_LANG = 40 // target_language
+const MAX_SCHEMA = 200 // schema_hint (comma-separated keys)
+
+// Strip control chars + collapse whitespace, then cap length. Used for values that
+// are spliced into a prompt template as a single inline token.
+function oneLine(s: string | undefined | null, max: number): string {
+  if (!s) return ''
+  return s
+    .replace(/[\u0000-\u001f]/g, ' ') // strip control chars (CR/LF/tab/etc.); keep spaces + punctuation
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, max)
+}
+
+// Restrict each label to a safe token charset, cap count + length. Falls back to the
+// provided defaults if nothing valid remains.
+function sanitizeLabels(arr: string[] | undefined | null, fallback: string[]): string[] {
+  if (!Array.isArray(arr) || arr.length === 0) return fallback
+  const cleaned = arr
+    .map((x) => (typeof x === 'string' ? x.replace(/[^A-Za-z0-9 _-]/g, '').trim() : ''))
+    .filter((x) => x.length > 0)
+    .slice(0, MAX_LABELS)
+    .map((x) => x.slice(0, MAX_LABEL))
+  return cleaned.length > 0 ? cleaned : fallback
+}
+
+// Length-only cap for a caller-authored prompt (kept verbatim — newlines allowed).
+function capPrompt(s: string | undefined | null, max: number): string {
+  if (!s) return ''
+  return s.slice(0, max)
+}
 
 function systemPromptFor(action: string, req: AiRequest): string | undefined {
   switch (action) {
     case 'complete':
-      return req.system // free-form; caller may pass their own
+      return capPrompt(req.system, MAX_SYSTEM) || undefined // free-form; caller may pass their own
     case 'summary':
-      return req.system ?? 'Summarize the input clearly and briefly in 1–3 sentences.'
+      return capPrompt(req.system, MAX_SYSTEM) || 'Summarize the input clearly and briefly in 1–3 sentences.'
     case 'summarize_agg':
       return (
-        req.system ??
+        capPrompt(req.system, MAX_SYSTEM) ||
         'You are summarizing a group of items at once. Read all of them, then write 1–3 concise sentences that capture the key themes shared across the whole group. Do not list items individually.'
       )
     case 'classify': {
-      const cats = (req.categories ?? ['positive', 'negative', 'neutral']).join(', ')
+      const cats = sanitizeLabels(req.categories, ['positive', 'negative', 'neutral']).join(', ')
       return `You are a text classifier. Classify the input into exactly one of these categories: ${cats}. Respond with ONLY the category label and nothing else — no punctuation, no explanation.`
     }
     case 'sentiment':
       return 'You are a sentiment analyzer. Respond with EXACTLY one lowercase word: positive, negative, or neutral. Nothing else.'
     case 'extract':
       return `Extract information from the input. Return ONLY a valid JSON object (no markdown fences, no surrounding prose) using these keys: ${
-        req.schema_hint ?? 'name, email, company, date, amount'
+        oneLine(req.schema_hint, MAX_SCHEMA) || 'name, email, company, date, amount'
       }. Use null for any field that is not present.`
     case 'translate':
-      return `Translate the following text into ${req.target_language ?? 'Spanish'}. Return ONLY the translation — no explanations, no quotation marks.`
+      return `Translate the following text into ${
+        oneLine(req.target_language, MAX_LANG) || 'Spanish'
+      }. Return ONLY the translation — no explanations, no quotation marks.`
     case 'redact': {
-      const types = (req.entity_types ?? ['email', 'phone', 'ssn', 'name']).join(', ')
+      const types = sanitizeLabels(req.entity_types, ['email', 'phone', 'ssn', 'name']).join(', ')
       return `Redact the following PII types from the input: ${types}. Replace every occurrence of each with the token [REDACTED]. Preserve all non-PII text exactly as written. Return ONLY the redacted text.`
     }
     default:

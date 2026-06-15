@@ -5,32 +5,32 @@
 --   'openai'   — OpenAI chat completions + embeddings (requires OPENAI_API_KEY)
 --   'supabase' — Supabase built-in inference (no key needed; mistral by default)
 --
--- ─── Scalar functions (one model call per row) ────────────────────────────────
---   public.ai_complete (input, system, model, provider)          -> text
---   public.ai_summary (input, system, model, provider)           -> text
---   public.ai_classify(input, categories, model, provider)       -> text
---   public.ai_sentiment(input, model, provider)                  -> text
---   public.ai_extract (input, schema_hint, model, provider)      -> jsonb
---   public.ai_embed   (input, model, provider)                   -> real[]
---   public.ai_translate(input, target_language, model, provider) -> text
---   public.ai_redact  (input, entity_types, model, provider)     -> text
+-- This migration is ADDITIVE: it does NOT redefine the pre-existing, already-
+-- working public.ai_complete and public.ai_summary. The expanded suite uses new
+-- names (ai_complete2, ai_classify, …) so the originals are never clobbered.
 --
--- ─── Aggregate functions (one model call per GROUP BY group) ───────────────────
---   public.ai_summarize_agg(input text)  -> text   collapse + summarize a group
---   public.ai_extract_agg(input text)    -> jsonb  extract entities across a group
+-- ─── Pre-existing (untouched — created by an earlier migration) ────────────────
+--   public.ai_complete (input, system, model, provider) -> text
+--   public.ai_summary  (input, system, model, provider) -> text
 --
--- Usage:
---   -- Free-form completion (OpenAI default)
---   select public.ai_complete('Write a tagline for an AI note-taking app');
---   -- Supabase built-in inference (no API key needed)
---   select public.ai_complete('Write a tagline', provider => 'supabase');
+-- ─── Added by this migration — scalar (one model call per row) ─────────────────
+--   public.ai_complete2 (input, system, model, provider)          -> text
+--   public.ai_classify  (input, categories, model, provider)      -> text
+--   public.ai_sentiment (input, model, provider)                  -> text
+--   public.ai_extract   (input, schema_hint, model, provider)     -> jsonb
+--   public.ai_embed     (input, model, provider)                  -> real[]
+--   public.ai_translate (input, target_language, model, provider) -> text
+--   public.ai_redact    (input, entity_types, model, provider)    -> text
 --
---   -- Per-row classification / sentiment / translation / redaction
+-- ─── Added by this migration — aggregate (one model call per GROUP BY group) ───
+--   public.ai_summarize_agg(input text) -> text   collapse + summarize a group
+--   public.ai_extract_agg(input text)   -> jsonb  extract entities across a group
+--
+-- Usage (expanded suite):
+--   select public.ai_complete2('Write a tagline', provider => 'supabase');
 --   select id, public.ai_sentiment(body) from posts;
 --   select public.ai_translate(title, target_language => 'French') from posts limit 1;
 --   select public.ai_redact(message, entity_types => array['email','phone']) from logs;
---
---   -- Embeddings for similarity search (returns real[]; cast to vector if pgvector is installed)
 --   select id, public.ai_embed(content) from documents limit 5;
 --
 --   -- TRUE aggregates usable in GROUP BY — one model call per group
@@ -51,7 +51,11 @@
 --   set ai_agg.max_items = 50;
 --   set ai_agg.max_chars = 8000;
 --
--- Before running, replace the two placeholders in public._ai_call:
+-- Why placeholders? This file is a portable template / repo artifact. The real
+-- project ref and a service/anon key are secrets that differ per project and
+-- must never be committed to git, so they are left as fill-in placeholders —
+-- exactly as the original ai_complete/ai_summary migration was. Fill the two
+-- placeholders in public._ai_call before applying:
 --   YOUR_PROJECT_REF         — e.g. abcdefghijklmnop
 --   YOUR_ANON_OR_SERVICE_KEY — anon or service_role key from your project settings
 
@@ -107,9 +111,9 @@ $$;
 comment on function public._ai_call(jsonb) is
   'Internal: POST a JSON payload to the /functions/v1/ai edge function and return the parsed body.';
 
--- ─── ai_complete ─────────────────────────────────────────────────────────────
+-- ─── ai_complete2 (expanded v2; the original ai_complete is left untouched) ───
 
-create or replace function public.ai_complete(
+create or replace function public.ai_complete2(
   input_text  text,
   system_text text    default null,
   model_name  text    default null,
@@ -133,37 +137,11 @@ begin
 end;
 $$;
 
-comment on function public.ai_complete(text, text, text, text) is
-  'Free-form LLM completion. provider: ''openai'' (default) or ''supabase'' (built-in, no key needed).';
+comment on function public.ai_complete2(text, text, text, text) is
+  'Expanded-suite free-form completion (v2). The original public.ai_complete is preserved untouched.';
 
--- ─── ai_summary (per-row) ─────────────────────────────────────────────────────
-
-create or replace function public.ai_summary(
-  input_text  text,
-  system_text text    default 'Summarize this text in 1–3 concise sentences.',
-  model_name  text    default null,
-  provider    text    default 'openai'
-)
-returns text
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare body jsonb;
-begin
-  body := public._ai_call(jsonb_build_object(
-    'provider', provider,
-    'action',   'summary',
-    'input',    input_text,
-    'system',   system_text,
-    'model',    model_name
-  ));
-  return body->>'text';
-end;
-$$;
-
-comment on function public.ai_summary(text, text, text, text) is
-  'Per-row summarization. For summarizing a whole group in one call, use the ai_summarize_agg aggregate.';
+-- NOTE: public.ai_summary is NOT redefined here — the pre-existing, working
+-- version is left in place. For whole-group summarization use ai_summarize_agg.
 
 -- ─── ai_classify ──────────────────────────────────────────────────────────────
 
