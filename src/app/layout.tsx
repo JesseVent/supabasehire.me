@@ -60,7 +60,7 @@ export default function RootLayout({
             <span className="text-border">·</span>
             <span className="text-muted-foreground/70">Not affiliated with Supabase</span>
             <span className="text-border">·</span>
-            <a href="https://github.com/JesseVent/supabase-devtool" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground font-medium transition-colors">GitHub</a>
+            <a href="https://github.com/JesseVent/supabasehire.me" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground font-medium transition-colors">GitHub</a>
             <span className="text-border">·</span>
             <a href="https://www.linkedin.com/in/jessevent/" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground font-medium transition-colors">LinkedIn</a>
           </footer>

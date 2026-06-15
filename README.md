@@ -127,7 +127,7 @@ Settings persist in `localStorage` via the agent store. If any field is missing,
 
 ## Skill Coverage Eval
 
-The devtool includes a **Skill Coverage Matrix** (in the Traces panel) that shows which Supabase skill references are loaded for different user prompts. This is powered by an evaluation harness in the companion [`supabase-devtools`](https://github.com/supabase/supabase-devtools) repository.
+The devtool includes a **Skill Coverage Matrix** (in the Traces panel) that shows which Supabase skill references are loaded for different user prompts. This is powered by an evaluation harness in the companion [`supabasehire.mes`](https://github.com/supabase/supabasehire.mes) repository.
 
 ### What it evaluates
 
@@ -155,10 +155,10 @@ The `--noisy` flag injects simulated prior-conversation context (~20K tokens of 
 
 ### Running the eval
 
-The eval harness lives in the `supabase-devtools` repo (the skills repository, not this app):
+The eval harness lives in the `supabasehire.mes` repo (the skills repository, not this app):
 
 ```bash
-# In supabase-devtools/
+# In supabasehire.mes/
 pnpm eval                     # run all 97 prompts (clean context)
 pnpm eval --noisy             # run with noisy prior context
 pnpm eval --concurrency 15    # control parallelism
@@ -235,8 +235,8 @@ The `SkillCoverageMatrix` component (`src/components/skill-coverage-matrix.tsx`)
 
 ```bash
 # Clone and install
-git clone https://github.com/yourusername/supabase-devtool.git
-cd supabase-devtool
+git clone https://github.com/yourusername/supabasehire.me.git
+cd supabasehire.me
 bun install
 
 # Start the dev server
