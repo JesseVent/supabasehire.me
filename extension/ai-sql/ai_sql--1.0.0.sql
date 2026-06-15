@@ -46,7 +46,7 @@
 --
 -- ─── Providers ────────────────────────────────────────────────────────────────
 --
---   provider => 'openai'   (default) — GPT-4o-mini + text-embedding-3-small
+--   provider => 'openai'   (default) — gpt-5.4-mini + text-embedding-3-small
 --                                      Points to OPENAI_BASE_URL (default: https://api.openai.com/v1)
 --                                      Compatible with Groq, Together, Azure OpenAI, Ollama, etc.
 --                                      supabase secrets set OPENAI_BASE_URL=https://api.groq.com/openai/v1
@@ -183,7 +183,7 @@ async function runOpenAI(req: AiRequest): Promise<Record<string,unknown>> {
     base + '/chat/completions',
     apiKey,
     {
-      model: req.model ?? 'gpt-4o-mini',
+      model: req.model ?? 'gpt-5.4-mini',
       messages,
       temperature: req.temperature ?? temperature,
       max_tokens: req.max_tokens ?? max_tokens,
