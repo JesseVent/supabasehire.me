@@ -2,6 +2,38 @@
 // Used as a fallback when source cannot be read (e.g. eszip bundles from CLI deploys).
 // Keyed by function slug (the `name` field from the Management API).
 export const BUILT_IN_FUNCTION_SCHEMAS: Record<string, string> = {
+  ai: [
+    '@description General-purpose AI helper backing the public.ai_* SQL functions.',
+    '  Two providers: "openai" (chat completions + embeddings, needs OPENAI_API_KEY)',
+    '  and "supabase" (built-in inference, no key, default model mistral).',
+    '  Called synchronously from Postgres via the http extension.',
+    '',
+    '  Actions (the `action` body field):',
+    '    complete      — free-form completion',
+    '    summary       — summarize a single text',
+    '    summarize_agg — collectively summarize several texts (used by ai_summarize_agg)',
+    '    classify      — classify into one of `categories`',
+    '    sentiment     — positive | negative | neutral',
+    '    extract       — extract fields as JSON (keys from `schema_hint`)',
+    '    embed         — embedding vector (openai only)',
+    '    translate     — translate into `target_language`',
+    '    redact        — redact PII `entity_types`',
+    '',
+    '  Response envelope: { text?, result?, embedding?, provider }.',
+    '',
+    '@param provider string optional - "openai" (default) | "supabase"',
+    '@param action string required - one of the nine actions above',
+    '@param input string required - text to process',
+    '@param system string optional - system-prompt override (text actions)',
+    '@param model string optional - model name',
+    '@param max_tokens number optional - openai text actions only',
+    '@param temperature number optional - openai text actions only',
+    '@param categories string[] optional - labels for classify',
+    '@param target_language string optional - target language for translate',
+    '@param schema_hint string optional - comma-separated keys for extract',
+    '@param entity_types string[] optional - PII types for redact',
+  ].join('\n'),
+
   'agent-query': [
     '@description Demonstrates OpenTelemetry instrumentation in a Supabase edge function.',
     '  Runs 3 chained SQL queries against the project database (discover_tables →',

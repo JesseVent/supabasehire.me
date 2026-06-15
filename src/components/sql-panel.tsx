@@ -399,6 +399,104 @@ select id, public.ai_summary(content${pInline}) as why_hire_jesse
 from reasons
 order by id;`,
     },
+    {
+      label: 'AI: Classify',
+      description: 'Classify each row into a category with ai_classify()',
+      sql: `with feedback (id, body) as (
+  values
+    (1, 'This devtool is incredible — it made debugging RLS policies trivial.'),
+    (2, 'The schema diagrams keep crashing on large projects. Really frustrating.'),
+    (3, 'It works, I guess. Took a while to connect.')
+)
+select
+  public.ai_classify(
+    body,
+    categories => array['praise', 'complaint', 'neutral']${p}
+  ) as category
+from feedback
+order by id;`,
+    },
+    {
+      label: 'AI: Sentiment',
+      description: 'Get a sentiment label with ai_sentiment()',
+      sql: `select public.ai_sentiment(
+  'I cannot believe how polished this Supabase devtool is — schema introspection, ' ||
+  'an RLS inspector, an AI agent, and now inline LLM calls straight from SQL. ' ||
+  'This is the kind of platform depth that makes you want to build everything on Supabase.'${p}
+) as sentiment;`,
+    },
+    {
+      label: 'AI: Extract',
+      description: 'Pull structured fields out of text as JSON with ai_extract()',
+      sql: `select public.ai_extract(
+  'Hi, I''m Jesse Davies (jesse@example.com) calling from Adelaide on +61 400 000 000. ' ||
+  'I applied for the DX Engineer role at Supabase last week.',
+  schema_hint => 'name, email, location, phone, company, role'${p}
+) as extracted;`,
+    },
+    {
+      label: 'AI: Embed',
+      description: 'Generate an embedding vector with ai_embed() (returns real[])',
+      sql: `select array_length(
+  public.ai_embed(
+    'Hire Jesse Davies — he built a full Supabase developer tool as his job application.'${p}
+  ),
+  1
+) as dimensions;`,
+    },
+    {
+      label: 'AI: Translate',
+      description: 'Translate text with ai_translate()',
+      sql: `select public.ai_translate(
+  'Jesse built a complete Supabase developer tool — schema, RLS, edge functions, an AI agent, ' ||
+  'and inline LLM calls from SQL — just to apply for this job.',
+  target_language => 'French'${p}
+) as translation;`,
+    },
+    {
+      label: 'AI: Redact',
+      description: 'Strip PII from text with ai_redact()',
+      sql: `select public.ai_redact(
+  'Logged in as jesse@example.com from +61 400 000 000. SSN 123-45-6789 verified identity.',
+  entity_types => array['email', 'phone', 'ssn']${p}
+) as redacted;`,
+    },
+    {
+      label: 'AI: Summarize agg',
+      description: 'GROUP BY → one ai_summarize_agg() call per group',
+      sql: `with pitches (audience, content) as (
+  values
+    ('hiring',  'Jesse built a full Supabase devtool as his job application.'),
+    ('hiring',  'It ships a SQL runner, RLS inspector, AI agent, and OTel traces.'),
+    ('hiring',  'He debugged undocumented Supabase API edge cases and shipped anyway.'),
+    ('product', 'The inline ai_* SQL functions let you call LLMs from a SELECT.'),
+    ('product', 'ai_summarize_agg collapses a whole GROUP BY into one model call.'),
+    ('product', 'AgentPrism visualizes the agent loop with OpenTelemetry spans.')
+)
+select
+  audience,
+  public.ai_summarize_agg(content) as collective_summary
+from pitches
+group by audience
+order by audience;`,
+    },
+    {
+      label: 'AI: Extract agg',
+      description: 'GROUP BY → extract entities across each group with ai_extract_agg()',
+      sql: `with threads (channel, message) as (
+  values
+    ('sales',   'Hi, I''m Dana (dana@acme.co) from Acme, +1 555 0100. Quote for 50 seats.'),
+    ('sales',   'Marco at Globex here — marco@globex.io. We need enterprise pricing.'),
+    ('support', 'Logged in as pat@example.com, phone +1 555 0142. Cannot reset password.'),
+    ('support', 'User kim@other.io reporting 500s since the deploy.')
+)
+select
+  channel,
+  public.ai_extract_agg(message) as entities
+from threads
+group by channel
+order by channel;`,
+    },
   ]
 }
 
@@ -441,6 +539,73 @@ const AI_DEMO_MOCK: Record<string, Array<Record<string, unknown>>> = {
       id: 5,
       why_hire_jesse:
         'He built the tool he wished existed, then used it to apply for the job. This is either deranged or genius. Supabase, of all companies, should recognise the difference is small.',
+    },
+  ],
+  'AI: Classify': [
+    { category: 'praise' },
+    { category: 'complaint' },
+    { category: 'neutral' },
+  ],
+  'AI: Sentiment': [
+    { sentiment: 'positive' },
+  ],
+  'AI: Extract': [
+    {
+      extracted: {
+        name: 'Jesse Davies',
+        email: 'jesse@example.com',
+        location: 'Adelaide',
+        phone: '+61 400 000 000',
+        company: 'Supabase',
+        role: 'DX Engineer',
+      },
+    },
+  ],
+  'AI: Embed': [
+    { dimensions: 1536 },
+  ],
+  'AI: Translate': [
+    {
+      translation:
+        'Jesse a construit un outil de développement Supabase complet — schéma, RLS, fonctions edge, un agent IA et des appels LLM en ligne depuis SQL — juste pour postuler à ce poste.',
+    },
+  ],
+  'AI: Redact': [
+    {
+      redacted:
+        'Logged in as [REDACTED] from [REDACTED]. [REDACTED] verified identity.',
+    },
+  ],
+  'AI: Summarize agg': [
+    {
+      audience: 'hiring',
+      collective_summary:
+        'Jesse submitted a fully-featured Supabase devtool as his job application — covering a SQL runner, RLS inspector, AI agent, and OTel traces — and shipped it despite hitting undocumented API edge cases.',
+    },
+    {
+      audience: 'product',
+      collective_summary:
+        'The tool adds inline ai_* SQL functions (including a GROUP BY aggregate that collapses a whole group into one model call) and AgentPrism, which visualizes the agent loop with OpenTelemetry spans.',
+    },
+  ],
+  'AI: Extract agg': [
+    {
+      channel: 'sales',
+      entities: {
+        contacts: [
+          { name: 'Dana', email: 'dana@acme.co', phone: '+1 555 0100', company: 'Acme', note: 'quote for 50 seats' },
+          { name: 'Marco', email: 'marco@globex.io', company: 'Globex', note: 'enterprise pricing' },
+        ],
+      },
+    },
+    {
+      channel: 'support',
+      entities: {
+        contacts: [
+          { email: 'pat@example.com', phone: '+1 555 0142', note: 'cannot reset password' },
+          { email: 'kim@other.io', note: '500s since the deploy' },
+        ],
+      },
     },
   ],
 }
