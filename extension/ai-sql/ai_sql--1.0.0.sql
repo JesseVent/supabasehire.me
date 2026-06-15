@@ -47,7 +47,11 @@
 -- ─── Providers ────────────────────────────────────────────────────────────────
 --
 --   provider => 'openai'   (default) — GPT-4o-mini + text-embedding-3-small
---                                      via raw fetch to api.openai.com
+--                                      Points to OPENAI_BASE_URL (default: https://api.openai.com/v1)
+--                                      Compatible with Groq, Together, Azure OpenAI, Ollama, etc.
+--                                      supabase secrets set OPENAI_BASE_URL=https://api.groq.com/openai/v1
+--   provider => 'supabase' — Supabase built-in inference (Mistral, no extra cost)
+--                             No API key needed; runs in Edge Function runtime
 
 \echo Use "CREATE EXTENSION \"supabase/ai-sql\"" to load this file. \quit
 
@@ -76,8 +80,8 @@ returns text language sql immutable
 as $WRAPPER$
 select $EFSOURCE$
 // Self-contained edge function: zero imports, zero npm specifiers.
-// Uses raw fetch to the OpenAI REST API so it can be deployed via the
-// Supabase Management API body field from inside Postgres.
+// Uses raw fetch so it can be deployed via the Supabase Management API
+// body field from inside Postgres. OPENAI_BASE_URL controls the endpoint.
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -144,7 +148,7 @@ function parseJson(text: string): unknown {
   try { return JSON.parse(c) } catch { return { value: text.trim() } }
 }
 
-async function callOpenAI(endpoint: string, apiKey: string, payload: unknown): Promise<unknown> {
+async function callCompatAPI(endpoint: string, apiKey: string, payload: unknown): Promise<unknown> {
   const r = await fetch(endpoint, {
     method: 'POST',
     headers: {
@@ -154,17 +158,18 @@ async function callOpenAI(endpoint: string, apiKey: string, payload: unknown): P
     body: JSON.stringify(payload),
   })
   const j = await r.json().catch(() => ({}))
-  if (!r.ok) throw new Error((j as any).error?.message || 'OpenAI request failed (' + r.status + ')')
+  if (!r.ok) throw new Error((j as any).error?.message || 'AI request failed (' + r.status + ')')
   return j
 }
 
 async function runOpenAI(req: AiRequest): Promise<Record<string,unknown>> {
   const apiKey = Deno.env.get('OPENAI_API_KEY')
   if (!apiKey) throw new Error('OPENAI_API_KEY secret is not set')
+  const base = (Deno.env.get('OPENAI_BASE_URL') ?? 'https://api.openai.com/v1').replace(/\/$/, '')
 
   if (req.action === 'embed') {
-    const j = await callOpenAI(
-      'https://api.openai.com/v1/embeddings',
+    const j = await callCompatAPI(
+      base + '/embeddings',
       apiKey,
       { model: req.model ?? 'text-embedding-3-small', input: req.input }
     ) as any
@@ -174,8 +179,8 @@ async function runOpenAI(req: AiRequest): Promise<Record<string,unknown>> {
   const { temperature, max_tokens } = samplingFor(req.action)
   const system = systemPromptFor(req.action, req)
   const messages = [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content: req.input }]
-  const j = await callOpenAI(
-    'https://api.openai.com/v1/chat/completions',
+  const j = await callCompatAPI(
+    base + '/chat/completions',
     apiKey,
     {
       model: req.model ?? 'gpt-4o-mini',
@@ -188,6 +193,16 @@ async function runOpenAI(req: AiRequest): Promise<Record<string,unknown>> {
   return req.action === 'extract' ? { result: parseJson(text), provider: 'openai' } : { text, provider: 'openai' }
 }
 
+async function runSupabase(req: AiRequest): Promise<Record<string,unknown>> {
+  if (req.action === 'embed') throw new Error('Supabase built-in inference does not support embeddings. Use provider=openai.')
+  const session = new (globalThis as any).Supabase.ai.Session(req.model ?? 'mistral')
+  const system = systemPromptFor(req.action, req)
+  const prompt = system ? `${system}\n\n${req.input}` : req.input
+  const output = await session.run(prompt, { stream: false })
+  const text = typeof output === 'string' ? output : (output as any)?.generated_text ?? ''
+  return req.action === 'extract' ? { result: parseJson(text), provider: 'supabase' } : { text, provider: 'supabase' }
+}
+
 export default {
   fetch: async (req: Request) => {
     if (req.method === 'OPTIONS') return new Response(null, { headers: CORS })
@@ -195,6 +210,8 @@ export default {
       const b: AiRequest = await req.json()
       if (!b.action || !b.input) return json({ error: 'Missing action or input' }, 400)
       if (!VALID_ACTIONS.has(b.action)) return json({ error: `Unknown action "${b.action}". Valid: ${[...VALID_ACTIONS].sort().join(', ')}` }, 400)
+      const provider = b.provider ?? 'openai'
+      if (provider === 'supabase') return json(await runSupabase(b))
       return json(await runOpenAI(b))
     } catch (err) {
       return json({ error: err instanceof Error ? err.message : 'Unknown error' }, 500)

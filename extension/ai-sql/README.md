@@ -22,7 +22,7 @@ select vault.create_secret('sbp_xxxxxxxxxxxx', 'ai_access_token');
 
 This is the only secret that touches the database. It is encrypted at rest and only readable by `postgres`/service role inside `ai.deploy()`.
 
-### 2. Set your OpenAI key (if using OpenAI provider)
+### 2. Set your OpenAI-compatible API key
 
 Use the CLI — never pass the key as a SQL parameter, as it would appear in `pg_stat_activity` logs:
 
@@ -31,6 +31,19 @@ supabase secrets set OPENAI_API_KEY=sk-...
 ```
 
 Or via the dashboard: **Settings → Edge Functions → Secrets**.
+
+To use any OpenAI-compatible provider (Groq, Together AI, Azure OpenAI, Ollama, etc.), also set `OPENAI_BASE_URL`:
+
+```bash
+# Groq
+supabase secrets set OPENAI_BASE_URL=https://api.groq.com/openai/v1
+# Together AI
+supabase secrets set OPENAI_BASE_URL=https://api.together.xyz/v1
+# Local Ollama
+supabase secrets set OPENAI_BASE_URL=http://localhost:11434/v1
+```
+
+Omit `OPENAI_BASE_URL` to use the default (`https://api.openai.com/v1`).
 
 ### 3. Deploy
 
@@ -119,14 +132,28 @@ group by user_id;
 
 ## Providers
 
-Pass `provider => 'supabase'` to use Supabase built-in inference (Mistral) at no extra cost:
+### OpenAI (default)
+
+Points to `OPENAI_BASE_URL` (default: `https://api.openai.com/v1`). Any OpenAI-compatible API works — Groq, Together AI, Azure OpenAI, Ollama, etc. Set `OPENAI_BASE_URL` to switch; keep `OPENAI_API_KEY` as the credential regardless of provider.
+
+```sql
+-- Default (api.openai.com)
+select ai_complete2('Write a tagline for Postgres.');
+
+-- Using a custom model (e.g. Groq's llama-3)
+select ai_complete2('Summarize this', model_name => 'llama-3.1-70b-versatile');
+```
+
+### Supabase built-in (free)
+
+Pass `provider => 'supabase'` to use Supabase built-in inference (Mistral) at no extra cost — no extra API key needed:
 
 ```sql
 select ai_complete2('Hello', provider => 'supabase');
 select ai_sentiment('Great product!', provider => 'supabase');
 ```
 
-Note: `ai_embed` requires `provider => 'openai'` — Supabase built-in inference does not expose an embeddings API.
+Note: `ai_embed` requires `provider => 'openai'` — Supabase built-in inference does not expose an embeddings endpoint.
 
 ## Aggregate safety caps
 
