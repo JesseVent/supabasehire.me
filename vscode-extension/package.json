@@ -7,7 +7,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jvent/supabase-devtool"
+    "url": "https://github.com/jvent/supabasehire.me"
   },
   "engines": {
     "vscode": "^1.120.0"
