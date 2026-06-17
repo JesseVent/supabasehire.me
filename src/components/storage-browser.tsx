@@ -40,6 +40,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { apiFetch } from '@/lib/api-auth'
+import { track } from '@/lib/analytics'
 
 // ─── Types ───
 
@@ -563,6 +564,7 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
       const url = `${base.replace(/\/$/, '')}/storage/v1/object/public/${file.bucketId}/${file.name}`
       navigator.clipboard.writeText(url)
       setCopiedId(file.id)
+      track('storage_url_copied', { bucket: file.bucketId, file_name: file.name })
       toast.success('URL copied to clipboard')
       setTimeout(() => setCopiedId(null), 2000)
     },

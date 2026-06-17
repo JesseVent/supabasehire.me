@@ -49,6 +49,7 @@ import { apiFetch } from '@/lib/api-auth'
 import { DEMO_CONNECTION_ID, DEMO_RLS_STATUSES } from '@/lib/demo-data'
 import type { RLSPolicy, RLSTestResult, TableRLSInfo } from '@/lib/supabase-types'
 import { useSupabaseStore } from '@/store/supabase-store'
+import { track } from '@/lib/analytics'
 
 type RLSSubTab = 'policies' | 'score' | 'generator' | 'simulator'
 
@@ -260,6 +261,7 @@ export function RLSPanel({ initialTable }: { initialTable?: string }) {
   const copyToClipboard = useCallback((text: string) => {
     navigator.clipboard.writeText(text)
     setCopied(true)
+    track('rls_policy_copied')
     setTimeout(() => setCopied(false), 2000)
   }, [])
 

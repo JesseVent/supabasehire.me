@@ -52,6 +52,7 @@ import { apiFetch } from '@/lib/api-auth'
 import { DEMO_CONNECTION_ID } from '@/lib/demo-data'
 import type { SQLQueryResult } from '@/lib/supabase-types'
 import { useSupabaseStore } from '@/store/supabase-store'
+import { track } from '@/lib/analytics'
 
 // ─── Demo SQL Results ───
 
@@ -723,6 +724,7 @@ export function SQLPanel() {
       setResult(sqlResult)
       addSqlResult(sqlResult)
       addSqlToHistory(query.trim())
+      track('sql_executed', { success: !data.error, query_length: query.trim().length })
       addActivityLog({
         type: 'sql',
         action: 'SQL query executed',

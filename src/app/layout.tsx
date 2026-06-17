@@ -4,6 +4,7 @@ import './globals.css'
 import { ThemeProvider } from 'next-themes'
 import { AgentSidebar } from '@/components/AgentSidebar'
 import { Toaster } from '@/components/ui/sonner'
+import { PostHogInit } from '@/components/PostHogInit'
 
 export const metadata: Metadata = {
   title: 'AI Tooling Engineer',
@@ -45,6 +46,7 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
+          <PostHogInit />
           <div className="flex-1 flex flex-col">{children}</div>
           <Toaster />
           <AgentSidebar />

@@ -49,6 +49,7 @@ import { DEMO_CONNECTION_ID, DEMO_FUNCTION_NOTES } from '@/lib/demo-data'
 import { generateBodyFromSchema, parseFunctionNotes } from '@/lib/edge-function-utils'
 import type { EdgeFunction } from '@/lib/supabase-types'
 import { useSupabaseStore } from '@/store/supabase-store'
+import { track } from '@/lib/analytics'
 
 interface InvokeResult {
   data?: unknown
@@ -208,6 +209,12 @@ export function EdgeFunctionsPanel() {
 
       const data = await res.json()
       const responseTime = Date.now() - startTime
+      track('edge_function_invoked', {
+        function_name: selectedFunction.name,
+        method: httpMethod,
+        response_time_ms: responseTime,
+        success: !data.error,
+      })
 
       setInvokeResult({
         data: data.data,

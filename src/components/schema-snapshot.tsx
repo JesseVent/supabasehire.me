@@ -60,6 +60,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { DEMO_CONNECTION_ID } from '@/lib/demo-data'
 import type { ColumnInfo, ForeignKeyInfo, TableRLSInfo, TableSchema } from '@/lib/supabase-types'
 import { type SchemaSnapshot, useSupabaseStore } from '@/store/supabase-store'
+import { track } from '@/lib/analytics'
 
 // ─── Diff Types ───
 
@@ -348,6 +349,7 @@ export function SchemaSnapshotPanel() {
       connectionId: activeConnectionId,
       connectionName: activeConnection.name,
     })
+    track('schema_snapshot_taken', { table_count: tables.length })
 
     addActivityLog({
       type: 'schema',

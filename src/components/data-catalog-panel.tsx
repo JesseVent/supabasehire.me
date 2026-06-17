@@ -38,6 +38,7 @@ import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { apiFetch } from '@/lib/api-auth'
 import type { CatalogColumn, CatalogTable, SupabaseConnection } from '@/lib/supabase-types'
+import { track } from '@/lib/analytics'
 
 const DEMO_CATALOG_TABLES: CatalogTable[] = [
   {
@@ -1026,6 +1027,7 @@ export function DataCatalogPanel({
     setGeneratingTable(table.table_name)
     try {
       await invokeAIGeneration(table)
+      track('catalog_ai_generated', { table_name: table.table_name })
       toast.success(`AI descriptions generated for ${table.table_name}`)
       await loadCatalog()
     } catch (err) {
@@ -1076,6 +1078,7 @@ export function DataCatalogPanel({
       } else if (data.committed === 0) {
         toast.info(data.message || 'Nothing to commit')
       } else {
+        track('catalog_committed', { table_name: table.table_name, committed: data.committed })
         toast.success(`Committed ${data.committed} comment(s) to schema`, {
           description: `COMMENT ON TABLE/COLUMN written for ${table.table_name}`,
         })

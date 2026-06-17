@@ -139,6 +139,7 @@ import {
   openOAuthPopup,
   waitForOAuthCallback,
 } from '@/lib/supabase-oauth'
+import { track, setProject } from '@/lib/analytics'
 import type {
   ActivePanel,
   ColumnInfo,
@@ -300,6 +301,7 @@ export default function Home() {
         addConnection(newConnection)
         setActiveConnectionId(newConnection.id)
         addActivityLog({ type: 'connection', action: 'Connected via OAuth', details: project.name })
+        track('oauth_connection_completed', { has_anon_key: !!anonKey })
 
         if (anonKey) {
           toast.success('Connected', { description: project.name })
@@ -326,6 +328,7 @@ export default function Home() {
   const connectWithOAuth = useCallback(async () => {
     setIsOAuthConnecting(true)
     setCreateError(null)
+    track('oauth_connection_started')
     try {
       const redirectUri = getCallbackUrl()
 
@@ -525,6 +528,7 @@ export default function Home() {
         action: 'Connection created',
         details: newConnection.name,
       })
+      track('connection_created', { has_service_role_key: !!newServiceRoleKey.trim(), has_access_token: !!newAccessToken.trim() })
       toast.success('Connection created', { description: newConnection.name })
       setShowNewDialog(false)
       setNewName('')
@@ -552,6 +556,7 @@ export default function Home() {
     (id: string) => {
       const conn = connections.find((c) => c.id === id)
       removeConnection(id)
+      track('connection_deleted')
       addActivityLog({
         type: 'connection',
         action: 'Connection deleted',
@@ -641,6 +646,7 @@ export default function Home() {
     }
     setSelectedTable(null)
     setActivePanel('schema')
+    track('demo_mode_started')
     const noRlsCount = DEMO_RLS_STATUSES.filter((t) => !t.rlsEnabled).length
     toast.warning(`${DEMO_TABLES.length} tables loaded · ${noRlsCount} without RLS protection`, {
       description: 'Hover a table on the canvas to trace its foreign key relationships.',
@@ -683,6 +689,8 @@ export default function Home() {
       setSelectedTable(null)
       setActivePanel('schema')
       fetchSchemaAndRLS()
+      const conn = connections.find((c) => c.id === activeConnectionId)
+      if (conn?.supabaseUrl) setProject(conn.supabaseUrl)
     }
   }, [
     activeConnectionId,
@@ -1498,7 +1506,10 @@ export default function Home() {
           /* Connected: show tabs layout */
           <Tabs
             value={activePanel}
-            onValueChange={(val) => setActivePanel(val as ActivePanel)}
+            onValueChange={(val) => {
+              setActivePanel(val as ActivePanel)
+              track('feature_viewed', { feature: val })
+            }}
             className="w-full"
           >
             <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 -mx-4 px-4 py-2 border-b border-border/50">

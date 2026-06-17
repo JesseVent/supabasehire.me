@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
+import OpenAI from 'openai'
 import { serverTraceBus } from '@/lib/server-trace-bus'
 
 /**
@@ -153,9 +154,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Build the provider URL from the server-side allowlist
-    const endpoint = `${baseURL}/chat/completions`
-
     // Inject model from client config if not already in body
     if (!body.model && model) {
       body.model = model
@@ -178,10 +176,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ── Publish trace: LLM call start ─────────────────────────────────────────
+    // Use the OpenAI SDK so @opentelemetry/instrumentation-openai auto-captures
+    // token counts, latency, and model info as PostHog AI spans.
+    const client = new OpenAI({ apiKey, baseURL })
+
     const callStart = Date.now()
     const modelName = (body.model ?? model ?? 'unknown') as string
     const msgCount = Array.isArray(body.messages) ? body.messages.length : 0
+
     serverTraceBus.publish({
       type: 'llm_call',
       title: `LLM → ${provider}/${modelName}`,
@@ -189,89 +191,28 @@ export async function POST(request: NextRequest) {
       input: JSON.stringify({ model: modelName, messages: body.messages, tools: body.tools }),
     })
 
-    // Forward to the provider
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(body),
-    })
-
-    // Stream or JSON — pass through the response as-is
-    const contentType = response.headers.get('content-type') || ''
-    const isStream = body.stream === true || contentType.includes('text/event-stream')
-
-    if (isStream) {
-      // Stream the response back
-      const reader = response.body?.getReader()
-      if (!reader) {
-        serverTraceBus.publish({
-          type: 'error',
-          title: 'LLM stream failed',
-          duration: Date.now() - callStart,
-          error: 'No response body from provider',
-        })
-        return NextResponse.json({ error: 'No response body from provider' }, { status: 502 })
-      }
-
-      return new NextResponse(
-        new ReadableStream({
-          async start(controller) {
-            try {
-              while (true) {
-                const { done, value } = await reader.read()
-                if (done) break
-                controller.enqueue(value)
-              }
-              // Publish completion when stream ends
-              serverTraceBus.publish({
-                type: 'llm_call',
-                title: `LLM ← ${provider}/${modelName} (stream)`,
-                duration: Date.now() - callStart,
-                metadata: { provider, model: modelName, streaming: true },
-              })
-              controller.close()
-            } catch (err) {
-              serverTraceBus.publish({
-                type: 'error',
-                title: 'LLM stream error',
-                duration: Date.now() - callStart,
-                error: err instanceof Error ? err.message : String(err),
-              })
-              controller.error(err)
-            }
-          },
-        }),
-        {
-          status: response.status,
-          headers: {
-            'Content-Type': contentType || 'text/event-stream',
-            'Cache-Control': 'no-cache',
-            Connection: 'keep-alive',
-          },
-        }
-      )
-    }
-
-    // Non-streaming: pass through JSON
-    const data = await response.json()
-    const duration = Date.now() - callStart
-
-    if (!response.ok) {
+    if (body.stream === true) {
+      const stream = await client.chat.completions.create({ ...body, stream: true })
       serverTraceBus.publish({
-        type: 'error',
-        title: `LLM error (${response.status})`,
-        duration,
-        metadata: { provider, model: modelName },
-        error: JSON.stringify(data),
+        type: 'llm_call',
+        title: `LLM ← ${provider}/${modelName} (stream)`,
+        duration: Date.now() - callStart,
+        metadata: { provider, model: modelName, streaming: true },
       })
-      return NextResponse.json(data, { status: response.status })
+      return new NextResponse(stream.toReadableStream(), {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive',
+        },
+      })
     }
 
-    // Publish successful completion with usage if available
-    const usage = data.usage as { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | undefined
+    // Non-streaming
+    const completion = await client.chat.completions.create({ ...body, stream: false })
+    const duration = Date.now() - callStart
+    const usage = completion.usage
+
     serverTraceBus.publish({
       type: 'llm_call',
       title: `LLM ← ${provider}/${modelName}`,
@@ -283,10 +224,10 @@ export async function POST(request: NextRequest) {
         completionTokens: usage?.completion_tokens,
         totalTokens: usage?.total_tokens,
       },
-      output: JSON.stringify(data.choices?.[0]?.message ?? data),
+      output: JSON.stringify(completion.choices?.[0]?.message ?? completion),
     })
 
-    return NextResponse.json(data)
+    return NextResponse.json(completion)
   } catch (err) {
     console.error('[/api/agent/chat] Error:', err)
     serverTraceBus.publish({

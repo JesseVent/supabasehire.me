@@ -46,6 +46,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import type { RLSPolicy, RLSTestResult, TableRLSInfo } from '@/lib/supabase-types'
 import { useSupabaseStore } from '@/store/supabase-store'
+import { track } from '@/lib/analytics'
 
 interface SimulatedUser {
   id: string
@@ -192,6 +193,7 @@ export function AuthSimulator() {
       const result: RLSTestResult = data.error
         ? { success: false, error: data.error, operation: 'SELECT', role: (userRole === 'custom' ? 'authenticated' : userRole) as RLSTestResult['role'], tableName: testTable }
         : data
+      track('auth_simulation_run', { role: userRole, table: testTable, passed: result.success })
       setTestResult(result)
       addRlsTestResult(result)
       addActivityLog({ type: 'rls', action: `Auth Simulator test: SELECT on ${testTable}`, details: `Role: ${userRole}, User: ${userEmail || 'anon'}, Result: ${result.success ? 'Allowed' : 'Blocked'}` })
