@@ -11,10 +11,12 @@ Try it instantly with **Demo Mode** — no Supabase connection required.
 A dev tool for Supabase projects. Surfaces everything the platform exposes — Management API, PostgREST, Storage, Edge Functions, Realtime — in one place, without switching tabs.
 
 - **Security** — Security Score dashboard shows every table with RLS disabled or policies missing before it becomes a problem
-- **Debugging** — run SQL, browse live rows, invoke edge functions with custom payloads, and watch Realtime events, all in one place
+- **Debugging** — run SQL, browse live rows, invoke edge functions via an auto-generated test harness, and watch Realtime events, all in one place
 - **Schema understanding** — auto-layout ER diagrams (dagre) make foreign key relationships readable at a glance, even on large schemas
+- **AI SQL** — `ai_complete2`, `ai_classify`, `ai_sentiment`, `ai_extract`, `ai_embed`, `ai_translate`, `ai_redact`, and aggregate variants — callable directly in SQL, no app code required
 - **Data Catalog** — profiles every table automatically: row counts, null %, distinct counts, min/max per column. Generates AI descriptions for tables and columns so devs can understand an unfamiliar schema without reading migrations or asking someone
 - **Parquet / Iceberg** — the Analytics tab connects to an Iceberg REST Catalog, profiles tables via DuckDB WASM in-browser, and lets you run SQL against `.parquet` files with zero server infrastructure
+- **Observability** — Realtime-backed live trace feed of agent and edge function activity, plus an evaluation harness for tracking skill/AI quality over time
 
 > **Run this locally.** Credentials are stored in your browser's `localStorage` via Zustand — they never leave your machine. Don't enter real service role keys into any hosted or web-based deployment of this tool.
 
@@ -198,11 +200,12 @@ The `SkillCoverageMatrix` component (`src/components/skill-coverage-matrix.tsx`)
 - **SQL Runner** — execute queries with persistent history and result charting
 - **Query Analyzer** — EXPLAIN ANALYZE with cost estimates and suggestions
 - **Database Health** — latency tracking, index viewer, trigger viewer, views and stored functions
-- **Edge Functions** — list deployed functions and invoke them with custom payloads
+- **Edge Functions** — list deployed functions and invoke them via an auto-generated test harness: input forms are built from the function's schema, so you don't hand-write JSON payloads
+- **AI SQL Functions** — `ai_complete2`, `ai_classify`, `ai_sentiment`, `ai_extract`, `ai_embed`, `ai_translate`, `ai_redact`, plus `ai_summarize_agg`/`ai_extract_agg` true aggregates — set-based scalar functions you can call directly in SQL, including inside `GROUP BY`
 - **Storage Explorer** — browse buckets and folders; preview Parquet files with schema, data, and SQL tabs (DuckDB WASM, fully in-browser)
 - **Data Catalog** — auto-profile tables (row counts, null %, distinct, min/max) with AI-generated descriptions per table and column
 - **Analytics** — in-browser SQL over Parquet/Iceberg via DuckDB WASM; benchmark Postgres vs Iceberg query performance
-- **Agent Traces** — OpenTelemetry trace visualizer powered by [AgentPrism](https://github.com/evilmartians/agent-prism); includes a live example edge function instrumented with OTLP spans
+- **Agent Traces** — OpenTelemetry trace visualizer powered by [AgentPrism](https://github.com/evilmartians/agent-prism); includes a live example edge function instrumented with OTLP spans. Live mode streams agent/edge-function activity over Supabase Realtime (`realtime-trace-source.ts`), and can also receive trace events from a companion browser extension via `agent-trace-bridge.ts`
 - **Security Score** — dashboard summarising RLS coverage, policy gaps, and risk scoring
 - **Realtime Monitor** — subscribe to and inspect realtime events
 - **Migration Runner** — execute and track SQL migrations with pass/fail history

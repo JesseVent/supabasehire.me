@@ -1274,8 +1274,8 @@ export default function Home() {
               transition={{ delay: 0.28, duration: 0.4 }}
               className="text-sm sm:text-base text-muted-foreground mb-8 max-w-sm leading-relaxed px-2"
             >
-              Schema maps, RLS audits, SQL runner, realtime monitor, and AI data catalog.
-              Connect your project or try the demo.
+              Schema maps, RLS audits, edge function testing, AI SQL functions, and Realtime
+              trace observability. Connect your project or try the demo.
             </motion.p>
 
             {connections.length > 0 ? (
