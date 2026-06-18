@@ -80,4 +80,7 @@ supabase/.temp/
 
 # Eval results
 evals/results/
-'/Users/jvent/Dev/supabasehire.me/Agentic Labs Design System'
+
+# Office docs (accidental commits)
+*.docx
+*.xlsx
