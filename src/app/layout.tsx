@@ -6,22 +6,65 @@ import { AgentSidebar } from '@/components/AgentSidebar'
 import { Toaster } from '@/components/ui/sonner'
 import { PostHogInit } from '@/components/PostHogInit'
 
+const SITE_URL = 'https://supabasehire.me'
+const SITE_NAME = 'Supabase DevTool'
+const SITE_TITLE = `${SITE_NAME} — Inspect Schema, RLS & Edge Functions`
+const SITE_DESCRIPTION =
+  'A web-based inspector and debugger for Supabase projects. Run SQL, browse RLS policies, invoke edge functions, profile tables, and visualize schema — all in one place, with a Demo Mode that needs no connection.'
+
 export const metadata: Metadata = {
-  title: 'AI Tooling Engineer',
-  description:
-    'Debug and inspect your Supabase RLS policies, edge functions, and database schema with interactive visualizations. Red-line highlighting for tables without row-level security.',
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: SITE_TITLE,
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
   keywords: [
     'Supabase',
+    'Supabase DevTool',
     'RLS',
+    'Row Level Security',
     'Edge Functions',
     'Database Debugging',
     'PostgreSQL',
-    'Row Level Security',
     'Schema Visualization',
+    'Supabase Management API',
+    'Supabase Inspector',
   ],
+  authors: [{ name: 'Jesse Vent', url: 'https://github.com/JesseVent' }],
+  alternates: { canonical: '/' },
   icons: {
     icon: '/logo.svg',
   },
+  openGraph: {
+    type: 'website',
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
+  },
+}
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: SITE_NAME,
+  url: SITE_URL,
+  applicationCategory: 'DeveloperApplication',
+  operatingSystem: 'Any (Web-based)',
+  description: SITE_DESCRIPTION,
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  author: { '@type': 'Person', name: 'Jesse Vent', url: 'https://github.com/JesseVent' },
 }
 
 export default function RootLayout({
@@ -32,6 +75,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
