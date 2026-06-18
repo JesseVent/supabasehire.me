@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Script from 'next/script'
+import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 import { ThemeProvider } from 'next-themes'
 import { AgentSidebar } from '@/components/AgentSidebar'
@@ -118,6 +119,7 @@ export default function RootLayout({
           <div className="flex-1 flex flex-col">{children}</div>
           <Toaster />
           <AgentSidebar />
+          <Analytics />
           <Script
             src="https://umami.rankuse.com/stats"
             data-website-id="03bb816f-2dbb-4375-8f9e-e437f4a5e270"
