@@ -60,7 +60,8 @@ export default async function OpengraphImage() {
             textAlign: 'center',
           }}
         >
-          Inspect schema, RLS policies & edge functions — debug Supabase projects in one place
+          RLS simulation, edge function testing, AI SQL, Iceberg & agent observability — one
+          Supabase devtool
         </div>
       </div>
     ),

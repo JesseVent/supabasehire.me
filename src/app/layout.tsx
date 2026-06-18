@@ -8,9 +8,9 @@ import { PostHogInit } from '@/components/PostHogInit'
 
 const SITE_URL = 'https://supabasehire.me'
 const SITE_NAME = 'Supabase DevTool'
-const SITE_TITLE = `${SITE_NAME} — Inspect Schema, RLS & Edge Functions`
+const SITE_TITLE = `${SITE_NAME} — RLS, Edge Functions, AI SQL & Observability`
 const SITE_DESCRIPTION =
-  'A web-based inspector and debugger for Supabase projects. Run SQL, browse RLS policies, invoke edge functions, profile tables, and visualize schema — all in one place, with a Demo Mode that needs no connection.'
+  'A full-stack inspector for Supabase projects: visualize schema with RLS policies highlighted, simulate policies across multiple users at scale, test edge functions with auto-generated forms, run AI-powered SQL functions across your database, browse Parquet/Iceberg files in-browser via DuckDB WASM, auto-generate data governance descriptions, and trace agent activity in real time — all with a Demo Mode that needs no connection.'
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -24,12 +24,22 @@ export const metadata: Metadata = {
     'Supabase DevTool',
     'RLS',
     'Row Level Security',
+    'RLS Simulation',
     'Edge Functions',
+    'Edge Function Testing',
     'Database Debugging',
     'PostgreSQL',
     'Schema Visualization',
     'Supabase Management API',
     'Supabase Inspector',
+    'AI SQL Functions',
+    'Parquet Viewer',
+    'DuckDB WASM',
+    'Apache Iceberg',
+    'Data Governance',
+    'Agent Observability',
+    'Supabase Realtime',
+    'MCP Browser Extension',
   ],
   authors: [{ name: 'Jesse Vent', url: 'https://github.com/JesseVent' }],
   alternates: { canonical: '/' },
@@ -63,6 +73,17 @@ const jsonLd = {
   applicationCategory: 'DeveloperApplication',
   operatingSystem: 'Any (Web-based)',
   description: SITE_DESCRIPTION,
+  featureList: [
+    'Schema visualization with RLS policy highlighting',
+    'RLS policy generation and multi-user simulation at scale',
+    'Edge function test harness with auto-generated input forms',
+    'AI SQL functions for natural-language queries across your database',
+    'Parquet and Iceberg file viewer in-browser via DuckDB WASM',
+    'AI-generated table and column descriptions for data governance',
+    'Realtime observability and trace logs for agent and edge function activity',
+    'Evaluation harness for tracking AI skill improvements',
+    'Browser extension for MCP-driven UI automation',
+  ],
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   author: { '@type': 'Person', name: 'Jesse Vent', url: 'https://github.com/JesseVent' },
 }
