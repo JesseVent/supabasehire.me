@@ -52,6 +52,7 @@ export async function fetchWithBackoff(
         // Success or continue
         if (res.ok) return res
       } catch (err) {
+        if ((err as Error).name === 'AbortError') throw err
         if (attempt === maxAttempts) throw err
       }
 

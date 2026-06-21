@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
+import type { StateStorage } from 'zustand/middleware'
 import type {
   ActivePanel,
   EdgeFunction,
@@ -159,6 +160,42 @@ const initialState = {
   sessions: {} as Record<string, UserSession | null>,
 }
 
+// Credentials (connections) live in sessionStorage — cleared on tab close.
+// Non-sensitive UI state (active panel, SQL history, snapshots, etc.) lives in localStorage.
+// The extension vault path further prevents credentials from hitting any storage at all.
+const splitStorage: StateStorage = {
+  getItem: (name) => {
+    if (typeof window === 'undefined') return null
+    const localRaw = localStorage.getItem(name)
+    const sessionRaw = sessionStorage.getItem(`${name}-credentials`)
+    if (!localRaw && !sessionRaw) return null
+    const local = localRaw ? JSON.parse(localRaw) : { state: {}, version: 0 }
+    const session = sessionRaw ? JSON.parse(sessionRaw) : null
+    return JSON.stringify({
+      ...local,
+      state: {
+        ...local.state,
+        ...(session?.state ?? {}),
+      },
+    })
+  },
+  setItem: (name, value) => {
+    if (typeof window === 'undefined') return
+    const parsed = JSON.parse(value) as { state: Record<string, unknown>; version: number }
+    const { connections, activeConnectionId, ...uiState } = parsed.state
+    sessionStorage.setItem(
+      `${name}-credentials`,
+      JSON.stringify({ state: { connections, activeConnectionId }, version: parsed.version })
+    )
+    localStorage.setItem(name, JSON.stringify({ ...parsed, state: uiState }))
+  },
+  removeItem: (name) => {
+    if (typeof window === 'undefined') return
+    localStorage.removeItem(name)
+    sessionStorage.removeItem(`${name}-credentials`)
+  },
+}
+
 export const useSupabaseStore = create<SupabaseStore>()(
   persist(
     (set) => ({
@@ -302,8 +339,10 @@ export const useSupabaseStore = create<SupabaseStore>()(
     }),
     {
       name: 'supabase-debug-storage',
+      storage: createJSONStorage(() => splitStorage),
       partialize: (state) => ({
-        connections: state.connections,
+        // Extension-sourced connections are never persisted — they live in memory only.
+        connections: state.connections.filter((c) => c.source !== 'extension'),
         activeConnectionId: state.activeConnectionId,
         activePanel: state.activePanel,
         sqlEditorContent: state.sqlEditorContent,

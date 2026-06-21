@@ -129,7 +129,7 @@ const LS_KEY = 'iceberg-settings'
 function readLsSettings() {
   if (typeof window === 'undefined') return {}
   try {
-    return JSON.parse(localStorage.getItem(LS_KEY) ?? '{}') as {
+    return JSON.parse(sessionStorage.getItem(LS_KEY) ?? '{}') as {
       s3KeyId?: string
       warehouse?: string
     }
@@ -140,7 +140,7 @@ function readLsSettings() {
 
 function saveLsSettings(vals: { s3KeyId: string; warehouse: string }) {
   try {
-    localStorage.setItem(LS_KEY, JSON.stringify(vals))
+    sessionStorage.setItem(LS_KEY, JSON.stringify(vals))
   } catch {}
 }
 

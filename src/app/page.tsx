@@ -114,6 +114,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { apiFetch } from '@/lib/api-auth'
+import { getExtensionCredentials } from '@/lib/extension-bridge'
 import {
   DEMO_CONNECTION,
   DEMO_CONNECTION_ID,
@@ -215,6 +216,9 @@ export default function Home() {
   const [newUrl, setNewUrl] = useState('')
   const [newAnonKey, setNewAnonKey] = useState('')
   const [newServiceRoleKey, setNewServiceRoleKey] = useState('')
+  const [newServiceRoleKeyAccepted, setNewServiceRoleKeyAccepted] = useState(false)
+  const [serviceRoleKeyWarningOpen, setServiceRoleKeyWarningOpen] = useState(false)
+  const newServiceRoleKeyRef = useRef<HTMLInputElement>(null)
   const [newAccessToken, setNewAccessToken] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
@@ -430,6 +434,40 @@ export default function Home() {
     setShowTipBanner(!dismissed)
   }, [])
 
+  // Auto-connect from the SupaAgent extension vault (credentials never touch localStorage)
+  useEffect(() => {
+    getExtensionCredentials().then((creds) => {
+      if (!creds?.accessToken) return
+      // Don't add a duplicate extension connection if one already exists in this session
+      const existing = useSupabaseStore.getState().connections.find(
+        (c) => c.source === 'extension'
+      )
+      if (existing) return
+      const now = new Date().toISOString()
+      const conn = {
+        id: `conn-ext-${Date.now()}`,
+        name: 'Extension (SupaAgent)',
+        supabaseUrl: '',
+        anonKey: creds.anonKey ?? '',
+        serviceRoleKey: null as null,
+        accessToken: creds.accessToken,
+        refreshToken: creds.refreshToken,
+        s3KeyId: null as null,
+        s3Secret: null as null,
+        s3Warehouse: null as null,
+        createdAt: now,
+        updatedAt: now,
+        source: 'extension' as const,
+      }
+      addConnection(conn)
+      setActiveConnectionId(conn.id)
+      toast.success('Connected via extension', {
+        description: 'Credentials loaded from SupaAgent vault — not stored locally',
+        duration: 4000,
+      })
+    })
+  }, [addConnection, setActiveConnectionId])
+
   // DB paused overlay
   const [dbPaused, setDbPaused] = useState(false)
   const [dbPausedVisible, setDbPausedVisible] = useState(false)
@@ -466,6 +504,7 @@ export default function Home() {
   const connectionIdsKey = connections.map((c) => c.id).join(',')
   // biome-ignore lint/correctness/useExhaustiveDependencies: connectionIdsKey is an intentional re-run key; the hook reads fresh connections via getState()
   useEffect(() => {
+    let cancelled = false
     const conns = useSupabaseStore.getState().connections
     const realConnections = conns.filter((c) => c.id !== DEMO_CONNECTION_ID)
     if (realConnections.length === 0) return
@@ -477,7 +516,9 @@ export default function Home() {
     realConnections.forEach(async (c) => {
       try {
         const res = await apiFetch(`/api/connections/${c.id}/health`, c)
+        if (cancelled) return
         const data = await res.json()
+        if (cancelled) return
         if (!data.error && data.status) {
           setConnectionHealthMap((prev) => ({
             ...prev,
@@ -486,10 +527,12 @@ export default function Home() {
         } else {
           setConnectionHealthMap((prev) => ({ ...prev, [c.id]: 'unhealthy' }))
         }
-      } catch {
+      } catch (err) {
+        if (cancelled || (err as Error).name === 'AbortError') return
         setConnectionHealthMap((prev) => ({ ...prev, [c.id]: 'unhealthy' }))
       }
     })
+    return () => { cancelled = true }
   }, [connectionIdsKey])
 
   const createConnection = useCallback(async () => {
@@ -1130,12 +1173,52 @@ export default function Home() {
                             Local only
                           </span>
                         </div>
-                        <Input
-                          value={newServiceRoleKey}
-                          onChange={(e) => setNewServiceRoleKey(e.target.value)}
-                          placeholder="Bypasses RLS — use with caution"
-                          type="password"
-                        />
+                        <AlertDialog open={serviceRoleKeyWarningOpen} onOpenChange={setServiceRoleKeyWarningOpen}>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle className="flex items-center gap-2">
+                                <ShieldAlert className="size-5 text-amber-500" />
+                                Service Role Key — High Risk
+                              </AlertDialogTitle>
+                              <AlertDialogDescription className="space-y-2 text-sm">
+                                <p>
+                                  The <strong>service role key</strong> bypasses all Row Level Security policies and grants unrestricted access to your database.
+                                </p>
+                                <p>
+                                  Only enter this key on a <strong>local development instance</strong> of this tool. Never paste it into a hosted or shared environment.
+                                </p>
+                                <p className="text-amber-600 dark:text-amber-400 font-medium">
+                                  If you are using the hosted version at supabasehire.me, close this dialog and use an anon key or OAuth instead.
+                                </p>
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-amber-600 hover:bg-amber-700 text-white"
+                                onClick={() => {
+                                  setNewServiceRoleKeyAccepted(true)
+                                  setTimeout(() => newServiceRoleKeyRef.current?.focus(), 50)
+                                }}
+                              >
+                                I understand — proceed
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                          <Input
+                            ref={newServiceRoleKeyRef}
+                            value={newServiceRoleKey}
+                            onChange={(e) => setNewServiceRoleKey(e.target.value)}
+                            placeholder="Bypasses RLS — use with caution"
+                            type="password"
+                            onFocus={() => {
+                              if (!newServiceRoleKeyAccepted) {
+                                setServiceRoleKeyWarningOpen(true)
+                                newServiceRoleKeyRef.current?.blur()
+                              }
+                            }}
+                          />
+                        </AlertDialog>
                       </div>
                       <Button onClick={createConnection} disabled={isCreating}>
                         {isCreating ? (
@@ -2502,6 +2585,9 @@ function SettingsPanel({
   const [supabaseUrl, setSupabaseUrl] = useState(connection?.supabaseUrl || '')
   const [publishableKey, setPublishableKey] = useState(connection?.anonKey || '')
   const [secretKey, setSecretKey] = useState(connection?.serviceRoleKey || '')
+  const [secretKeyAccepted, setSecretKeyAccepted] = useState(!!connection?.serviceRoleKey)
+  const [secretKeyWarningOpen, setSecretKeyWarningOpen] = useState(false)
+  const secretKeyRef = useRef<HTMLInputElement>(null)
   const [accessToken, _setAccessToken] = useState(connection?.accessToken || '')
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -2673,13 +2759,53 @@ function SettingsPanel({
             </div>
             <div className="flex flex-col gap-1.5">
               <Label>Secret Key</Label>
-              <Input
-                value={secretKey}
-                onChange={(e) => setSecretKey(e.target.value)}
-                type="password"
-                placeholder="Optional — bypasses RLS"
-                disabled={isDemoMode}
-              />
+              <AlertDialog open={secretKeyWarningOpen} onOpenChange={setSecretKeyWarningOpen}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2">
+                      <ShieldAlert className="size-5 text-amber-500" />
+                      Service Role Key — High Risk
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="space-y-2 text-sm">
+                      <p>
+                        The <strong>service role key</strong> bypasses all Row Level Security policies and grants unrestricted access to your database.
+                      </p>
+                      <p>
+                        Only enter this key on a <strong>local development instance</strong> of this tool. Never paste it into a hosted or shared environment.
+                      </p>
+                      <p className="text-amber-600 dark:text-amber-400 font-medium">
+                        If you are using the hosted version at supabasehire.me, close this dialog and use an anon key or OAuth instead.
+                      </p>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-amber-600 hover:bg-amber-700 text-white"
+                      onClick={() => {
+                        setSecretKeyAccepted(true)
+                        setTimeout(() => secretKeyRef.current?.focus(), 50)
+                      }}
+                    >
+                      I understand — proceed
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+                <Input
+                  ref={secretKeyRef}
+                  value={secretKey}
+                  onChange={(e) => setSecretKey(e.target.value)}
+                  type="password"
+                  placeholder="Optional — bypasses RLS"
+                  disabled={isDemoMode}
+                  onFocus={() => {
+                    if (!secretKeyAccepted && !isDemoMode) {
+                      setSecretKeyWarningOpen(true)
+                      secretKeyRef.current?.blur()
+                    }
+                  }}
+                />
+              </AlertDialog>
             </div>
             {!isDemoMode && (
               <div className="flex items-center gap-3 pt-2">

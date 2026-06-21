@@ -15,6 +15,8 @@ export interface SupabaseConnection {
   s3Warehouse: string | null
   createdAt: string
   updatedAt: string
+  // 'extension' = credentials came from the browser extension vault (never persisted)
+  source?: 'manual' | 'extension'
 }
 
 export interface CreateConnectionInput {

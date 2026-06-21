@@ -183,7 +183,7 @@ export function AgentSidebar() {
       window.PAGE_AGENT_EXT.stop()
       getAgentTraceBridge().stopListening()
     } else {
-      abortRef.current?.abort()
+      abortRef.current?.abort(new DOMException('User stopped generation', 'AbortError'))
     }
     setStreamingContent(null)
     setAgentStatus('idle')

@@ -115,8 +115,8 @@ async function tryRefresh(
 ): Promise<{ accessToken: string; refreshToken: string } | null> {
   if (!conn.refreshToken) return null
   try {
-    const clientId = localStorage.getItem('supabase_dcr_client_id')
-    const clientSecret = localStorage.getItem('supabase_dcr_client_secret')
+    const clientId = sessionStorage.getItem('supabase_dcr_client_id')
+    const clientSecret = sessionStorage.getItem('supabase_dcr_client_secret')
     if (!clientId) return null
 
     const params = new URLSearchParams({
@@ -134,8 +134,8 @@ async function tryRefresh(
     if (!refreshRes.ok) {
       const errData = await refreshRes.json().catch(() => ({})) as Record<string, string>
       if (/unrecognized.client/i.test(errData.error ?? '')) {
-        localStorage.removeItem('supabase_dcr_client_id')
-        localStorage.removeItem('supabase_dcr_client_secret')
+        sessionStorage.removeItem('supabase_dcr_client_id')
+        sessionStorage.removeItem('supabase_dcr_client_secret')
       }
       return null
     }

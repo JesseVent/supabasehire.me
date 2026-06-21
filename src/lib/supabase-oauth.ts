@@ -1,6 +1,6 @@
 // Supabase Management API OAuth (popup flow) using Dynamic Client Registration (RFC 7591).
 // No pre-registered app required — the client is registered at runtime and the client_id
-// is cached in localStorage. Token exchange is fully client-side (public client, no secret).
+// is cached in sessionStorage (cleared on tab close — no persistent credential exposure).
 
 const MGMT_API = 'https://api.supabase.com'
 const DCR_CACHE_KEY = 'supabase_dcr_client_id'
@@ -42,17 +42,17 @@ export interface DcrClient {
 
 /**
  * Register a public OAuth client via DCR. The client_id and client_secret are
- * cached in localStorage so we only register once.
+ * cached in sessionStorage so they're cleared on tab close.
  */
 export function clearDcrCache(): void {
-  localStorage.removeItem(DCR_CACHE_KEY)
-  localStorage.removeItem(DCR_SECRET_CACHE_KEY)
+  sessionStorage.removeItem(DCR_CACHE_KEY)
+  sessionStorage.removeItem(DCR_SECRET_CACHE_KEY)
 }
 
 export async function getOrRegisterDcrClient(redirectUri: string, force = false): Promise<DcrClient> {
   if (!force) {
-    const cachedId = localStorage.getItem(DCR_CACHE_KEY)
-    const cachedSecret = localStorage.getItem(DCR_SECRET_CACHE_KEY)
+    const cachedId = sessionStorage.getItem(DCR_CACHE_KEY)
+    const cachedSecret = sessionStorage.getItem(DCR_SECRET_CACHE_KEY)
     if (cachedId && cachedSecret) return { clientId: cachedId, clientSecret: cachedSecret }
   }
 
@@ -77,8 +77,8 @@ export async function getOrRegisterDcrClient(redirectUri: string, force = false)
   const data = await res.json()
   if (!data.client_id) throw new Error('DCR response missing client_id')
   const clientSecret = (data.client_secret as string) ?? ''
-  localStorage.setItem(DCR_CACHE_KEY, data.client_id as string)
-  localStorage.setItem(DCR_SECRET_CACHE_KEY, clientSecret)
+  sessionStorage.setItem(DCR_CACHE_KEY, data.client_id as string)
+  sessionStorage.setItem(DCR_SECRET_CACHE_KEY, clientSecret)
   return { clientId: data.client_id as string, clientSecret }
 }
 

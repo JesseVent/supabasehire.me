@@ -1,7 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
 
 // ─── LLM Provider Types ───
 
@@ -180,6 +180,7 @@ export const useAgentStore = create<AgentStore>()(
     }),
     {
       name: 'supabase-agent-config',
+      storage: createJSONStorage(() => (typeof window !== 'undefined' ? sessionStorage : localStorage)),
       partialize: (state) => ({
         agentEnabled: state.agentEnabled,
         llmConfig: state.llmConfig,
