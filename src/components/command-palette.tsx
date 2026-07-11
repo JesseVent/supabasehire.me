@@ -9,6 +9,7 @@ import {
   Keyboard,
   LayoutDashboard,
   RefreshCw,
+  ScrollText,
   Settings,
   Shield,
   Terminal,
@@ -59,8 +60,6 @@ export function CommandPalette() {
     setSelectedTable,
     setShowShortcutsDialog,
   } = useSupabaseStore()
-
-  const isDemoMode = activeConnectionId === DEMO_CONNECTION_ID
 
   // Listen for Ctrl+K globally
   useEffect(() => {
@@ -115,27 +114,33 @@ export function CommandPalette() {
       label: 'Dashboard',
       icon: LayoutDashboard,
       panel: 'dashboard' as ActivePanel,
-      shortcut: `modKey+0`,
+      shortcut: `${modKey}+0`,
     },
-    { label: 'Schema', icon: GitFork, panel: 'schema' as ActivePanel, shortcut: `modKey+1` },
-    { label: 'RLS', icon: Shield, panel: 'rls' as ActivePanel, shortcut: `modKey+2` },
+    { label: 'Schema', icon: GitFork, panel: 'schema' as ActivePanel, shortcut: `${modKey}+1` },
+    { label: 'RLS', icon: Shield, panel: 'rls' as ActivePanel, shortcut: `${modKey}+2` },
     {
       label: 'Functions',
       icon: Zap,
       panel: 'edge-functions' as ActivePanel,
-      shortcut: `modKey+3`,
+      shortcut: `${modKey}+3`,
     },
-    { label: 'SQL', icon: Terminal, panel: 'sql' as ActivePanel, shortcut: `modKey+4` },
+    { label: 'SQL', icon: Terminal, panel: 'sql' as ActivePanel, shortcut: `${modKey}+4` },
     {
       label: 'Settings',
       icon: Settings,
       panel: 'settings' as ActivePanel,
-      shortcut: `modKey+5`,
+      shortcut: `${modKey}+5`,
+    },
+    {
+      label: 'Logs',
+      icon: ScrollText,
+      panel: 'logs' as ActivePanel,
+      shortcut: `${modKey}+6`,
     },
   ]
 
   const actionItems = [
-    { label: 'Try Demo', icon: Eye, action: loadDemoData, shortcut: `modKey+D` },
+    { label: 'Try Demo', icon: Eye, action: loadDemoData, shortcut: `${modKey}+D` },
     { label: 'Export Report', icon: FileText, action: () => {}, shortcut: '' },
     {
       label: 'Run Health Check',
@@ -153,7 +158,7 @@ export function CommandPalette() {
       label: 'Keyboard Shortcuts',
       icon: Keyboard,
       action: () => setShowShortcutsDialog(true),
-      shortcut: `modKey/`,
+      shortcut: `${modKey}/`,
     },
   ]
 

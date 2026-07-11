@@ -2,6 +2,8 @@ import type {
   ColumnInfo,
   EdgeFunction,
   ForeignKeyInfo,
+  LogEntry,
+  LogService,
   RLSPolicy,
   SupabaseConnection,
   TableRLSInfo,
@@ -598,6 +600,134 @@ export const DEMO_RLS_STATUSES: TableRLSInfo[] = [
   { tableName: 'post_categories', rlsEnabled: false, policies: [] },
   { tableName: 'audit_logs', rlsEnabled: false, policies: [] },
   { tableName: 'notifications', rlsEnabled: true, policies: notificationsPolicies },
+]
+
+// ─── Demo Logs ───
+
+export const DEMO_LOGS_SERVICE: LogService = 'postgres'
+
+export const DEMO_LOGS: LogEntry[] = [
+  {
+    id: 'demo-log-1',
+    timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+    service: 'postgres',
+    severity: 'ERROR',
+    message:
+      'ERROR: 42501: new row violates row-level security policy for table "posts" (SQLSTATE 42501)',
+    metadata: {
+      command_tag: 'INSERT',
+      error_severity: 'ERROR',
+      sql_state_code: '42501',
+      table_name: 'posts',
+      detail: 'Policy: "Authors can update own posts"',
+    },
+    raw: {
+      event_message:
+        'ERROR: 42501: new row violates row-level security policy for table "posts" (SQLSTATE 42501)',
+      metadata: {
+        command_tag: 'INSERT',
+        error_severity: 'ERROR',
+        sql_state_code: '42501',
+        table_name: 'posts',
+      },
+    },
+  },
+  {
+    id: 'demo-log-2',
+    timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+    service: 'postgres',
+    severity: 'ERROR',
+    message: 'ERROR: 42P01: relation "public.missing_table" does not exist (SQLSTATE 42P01)',
+    metadata: {
+      command_tag: 'SELECT',
+      error_severity: 'ERROR',
+      sql_state_code: '42P01',
+      table_name: 'missing_table',
+    },
+    raw: {
+      event_message: 'ERROR: 42P01: relation "public.missing_table" does not exist (SQLSTATE 42P01)',
+      metadata: { command_tag: 'SELECT', error_severity: 'ERROR', sql_state_code: '42P01' },
+    },
+  },
+  {
+    id: 'demo-log-3',
+    timestamp: new Date(Date.now() - 8 * 60 * 1000).toISOString(),
+    service: 'postgres',
+    severity: 'WARN',
+    message: 'WARNING: 01000: too many connections for role "authenticated"',
+    metadata: { command_tag: 'CONNECT', error_severity: 'WARNING', sql_state_code: '01000' },
+    raw: {
+      event_message: 'WARNING: 01000: too many connections for role "authenticated"',
+      metadata: { command_tag: 'CONNECT', error_severity: 'WARNING', sql_state_code: '01000' },
+    },
+  },
+  {
+    id: 'demo-log-4',
+    timestamp: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
+    service: 'postgres',
+    severity: 'ERROR',
+    message: 'ERROR: 23505: duplicate key value violates unique constraint "users_email_key" (SQLSTATE 23505)',
+    metadata: {
+      command_tag: 'INSERT',
+      error_severity: 'ERROR',
+      sql_state_code: '23505',
+      constraint_name: 'users_email_key',
+    },
+    raw: {
+      event_message:
+        'ERROR: 23505: duplicate key value violates unique constraint "users_email_key" (SQLSTATE 23505)',
+      metadata: { command_tag: 'INSERT', error_severity: 'ERROR', sql_state_code: '23505' },
+    },
+  },
+  {
+    id: 'demo-log-5',
+    timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+    service: 'edge-functions',
+    severity: 'ERROR',
+    message: 'BOOT_ERROR: Worker failed to boot: relative import path "openai" not prefixed with /./ or /../',
+    metadata: { function_id: 'demo-ef-3', function_name: 'process-webhook', status: 'BOOT_ERROR' },
+    raw: {
+      event_message:
+        'BOOT_ERROR: Worker failed to boot: relative import path "openai" not prefixed with /./ or /../',
+      metadata: { function_id: 'demo-ef-3', function_name: 'process-webhook', status: 'BOOT_ERROR' },
+    },
+  },
+  {
+    id: 'demo-log-6',
+    timestamp: new Date(Date.now() - 18 * 60 * 1000).toISOString(),
+    service: 'auth',
+    severity: 'WARN',
+    message: 'GoTrue: Invalid JWT: token is expired by 120s',
+    metadata: { event_type: 'TOKEN_EXPIRED', component: 'gotrue' },
+    raw: {
+      event_message: 'GoTrue: Invalid JWT: token is expired by 120s',
+      metadata: { event_type: 'TOKEN_EXPIRED', component: 'gotrue' },
+    },
+  },
+  {
+    id: 'demo-log-7',
+    timestamp: new Date(Date.now() - 22 * 60 * 1000).toISOString(),
+    service: 'postgres',
+    severity: 'INFO',
+    message: 'LOG: 00000: checkpoint starting: time',
+    metadata: { command_tag: 'CHECKPOINT', error_severity: 'LOG', sql_state_code: '00000' },
+    raw: {
+      event_message: 'LOG: 00000: checkpoint starting: time',
+      metadata: { command_tag: 'CHECKPOINT', error_severity: 'LOG', sql_state_code: '00000' },
+    },
+  },
+  {
+    id: 'demo-log-8',
+    timestamp: new Date(Date.now() - 28 * 60 * 1000).toISOString(),
+    service: 'api',
+    severity: 'ERROR',
+    message: 'POST /rest/v1/posts 400: JSON parse error: unexpected token at line 1',
+    metadata: { method: 'POST', path: '/rest/v1/posts', status_code: 400 },
+    raw: {
+      event_message: 'POST /rest/v1/posts 400: JSON parse error: unexpected token at line 1',
+      metadata: { method: 'POST', path: '/rest/v1/posts', status_code: 400 },
+    },
+  },
 ]
 
 // ─── Demo Table Rows ───

@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { FilePreview } from '@/components/file-preview'
 import { ParquetViewer } from '@/components/parquet-viewer'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -337,6 +338,7 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
   const [isLoadingFiles, setIsLoadingFiles] = useState(false)
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null)
   const [previewFile, setPreviewFile] = useState<StorageFile | null>(null)
+  const [parquetFile, setParquetFile] = useState<StorageFile | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const fetchBuckets = useCallback(async () => {
@@ -570,6 +572,14 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
     },
     [connection]
   )
+
+  const openPreview = useCallback((file: StorageFile) => {
+    if (file.name.endsWith('.parquet')) {
+      setParquetFile(file)
+    } else {
+      setPreviewFile(file)
+    }
+  }, [])
 
   const totalSize = useMemo(() => {
     return files.filter((f) => !f.isFolder).reduce((acc, f) => acc + f.size, 0)
@@ -868,8 +878,20 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
                       {files.map((file) => (
                         <TableRow
                           key={file.id || file.name}
-                          className={file.isFolder ? 'cursor-pointer hover:bg-muted/50' : ''}
-                          onClick={file.isFolder ? () => handleEnterFolder(file) : undefined}
+                          className={
+                            file.isFolder
+                              ? 'cursor-pointer hover:bg-muted/50'
+                              : connection
+                                ? 'cursor-pointer hover:bg-muted/50'
+                                : ''
+                          }
+                          onClick={
+                            file.isFolder
+                              ? () => handleEnterFolder(file)
+                              : connection
+                                ? () => openPreview(file)
+                                : undefined
+                          }
                         >
                           <TableCell className="py-2">
                             <div className="flex items-center gap-2">
@@ -902,16 +924,20 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
                           </TableCell>
                           <TableCell className="py-2 text-right">
                             <div className="flex items-center justify-end gap-1">
-                              {!file.isFolder && file.name.endsWith('.parquet') && connection && (
+                              {!file.isFolder && connection && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   className="h-7 w-7 p-0 text-primary"
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    setPreviewFile(file)
+                                    openPreview(file)
                                   }}
-                                  title="Preview in DuckDB"
+                                  title={
+                                    file.name.endsWith('.parquet')
+                                      ? 'Preview in DuckDB'
+                                      : 'Preview file'
+                                  }
                                 >
                                   <Eye className="size-3.5" />
                                 </Button>
@@ -965,14 +991,29 @@ export function StorageBrowser({ connection, isDemoMode = false }: StorageBrowse
       )}
 
       {/* Parquet Viewer Modal */}
-      {previewFile && connection && selectedBucket && (
+      {parquetFile && connection && selectedBucket && (
         <ParquetViewer
+          open={!!parquetFile}
+          onClose={() => setParquetFile(null)}
+          connection={connection}
+          bucket={selectedBucket.name}
+          filePath={parquetFile.fullPath}
+          fileName={parquetFile.name}
+        />
+      )}
+
+      {/* File Preview Modal */}
+      {previewFile && connection && selectedBucket && (
+        <FilePreview
           open={!!previewFile}
           onClose={() => setPreviewFile(null)}
           connection={connection}
           bucket={selectedBucket.name}
           filePath={previewFile.fullPath}
           fileName={previewFile.name}
+          mimeType={previewFile.mimeType}
+          size={previewFile.size}
+          isDemoMode={isDemoMode}
         />
       )}
     </div>

@@ -4,6 +4,8 @@ import type { StateStorage } from 'zustand/middleware'
 import type {
   ActivePanel,
   EdgeFunction,
+  LogEntry,
+  LogService,
   RLSTestResult,
   SQLQueryResult,
   SupabaseConnection,
@@ -104,6 +106,15 @@ interface SupabaseStore {
   // Auth sessions — keyed by connectionId; transient (not persisted)
   sessions: Record<string, UserSession | null>
 
+  // Logs — transient (not persisted)
+  logs: LogEntry[]
+  logsLoading: boolean
+  logsError: string | null
+  logsService: LogService
+  logsStartTime: string
+  logsEndTime: string
+  logsSearch: string
+
   // Actions
   setConnections: (connections: SupabaseConnection[]) => void
   addConnection: (connection: SupabaseConnection) => void
@@ -134,6 +145,13 @@ interface SupabaseStore {
   clearLatencyHistory: () => void
   setFunctionNotes: (key: string, notes: string) => void
   setSession: (connectionId: string, session: UserSession | null) => void
+  setLogs: (logs: LogEntry[]) => void
+  setLogsLoading: (loading: boolean) => void
+  setLogsError: (error: string | null) => void
+  setLogsFilter: (
+    filter: Partial<Pick<SupabaseStore, 'logsService' | 'logsStartTime' | 'logsEndTime' | 'logsSearch'>>
+  ) => void
+  clearLogs: () => void
   reset: () => void
 }
 
@@ -158,6 +176,13 @@ const initialState = {
   latencyHistory: [] as LatencyRecord[],
   functionNotes: {} as Record<string, string>,
   sessions: {} as Record<string, UserSession | null>,
+  logs: [] as LogEntry[],
+  logsLoading: false,
+  logsError: null as string | null,
+  logsService: 'postgres' as LogService,
+  logsStartTime: '',
+  logsEndTime: '',
+  logsSearch: '',
 }
 
 // Credentials (connections) live in sessionStorage — cleared on tab close.
@@ -333,6 +358,18 @@ export const useSupabaseStore = create<SupabaseStore>()(
         set((state) => ({
           sessions: { ...state.sessions, [connectionId]: session },
         })),
+
+      // Logs (transient)
+      setLogs: (logs) => set({ logs }),
+      setLogsLoading: (logsLoading) => set({ logsLoading }),
+      setLogsError: (logsError) => set({ logsError }),
+      setLogsFilter: (filter) => set(filter),
+      clearLogs: () =>
+        set({
+          logs: [],
+          logsError: null,
+          logsSearch: '',
+        }),
 
       // Reset
       reset: () => set(initialState),

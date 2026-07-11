@@ -80,6 +80,11 @@ export function KeyboardShortcuts() {
           description: 'Switch to Settings tab',
           action: () => setActivePanel('settings'),
         },
+        {
+          keys: [modKey, '6'],
+          description: 'Switch to Logs tab',
+          action: () => setActivePanel('logs'),
+        },
       ],
     },
     {

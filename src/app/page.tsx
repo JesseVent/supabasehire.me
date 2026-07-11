@@ -30,6 +30,7 @@ import {
   Plug,
   Plus,
   RefreshCw,
+  ScrollText,
   Search,
   Server,
   Settings,
@@ -53,7 +54,9 @@ import { DbViewsFunctions } from '@/components/db-views-functions'
 import { EdgeFunctionsPanel } from '@/components/edge-functions-panel'
 import { ExportReport } from '@/components/export-report'
 import { KeyboardShortcuts } from '@/components/keyboard-shortcuts'
+import { LogsPanel } from '@/components/logs-panel'
 import { ProjectDashboard } from '@/components/project-dashboard'
+import { BackupPanel } from '@/components/backup-panel'
 import { RLSPanel } from '@/components/rls-panel'
 import { SchemaSnapshotPanel } from '@/components/schema-snapshot'
 import { SQLPanel } from '@/components/sql-panel'
@@ -114,7 +117,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { apiFetch } from '@/lib/api-auth'
-import { getExtensionCredentials } from '@/lib/extension-bridge'
+import { getExtensionCredentials, setSessionCredentials } from '@/lib/extension-bridge'
 import {
   DEMO_CONNECTION,
   DEMO_CONNECTION_ID,
@@ -210,6 +213,9 @@ export default function Home() {
   const [showNewDialog, setShowNewDialog] = useState(false)
   const [isLoadingSchema, setIsLoadingSchema] = useState(false)
   const [schemaError, setSchemaError] = useState<string | null>(null)
+  // True when the active extension connection can't reach the extension vault.
+  // Surfaces an actionable "Connect via OAuth" button in the schema error alert.
+  const [extensionOffline, setExtensionOffline] = useState(false)
 
   // New connection form
   const [newName, setNewName] = useState('')
@@ -434,24 +440,40 @@ export default function Home() {
     setShowTipBanner(!dismissed)
   }, [])
 
-  // Auto-connect from the SupaAgent extension vault (credentials never touch localStorage)
+  // Auto-connect from the SupaAgent extension vault. Credentials are read once
+  // into a session-only cache, then API calls route normally through /api/*.
+  // They are never persisted to localStorage.
   useEffect(() => {
     getExtensionCredentials().then((creds) => {
       if (!creds?.accessToken) return
-      // Don't add a duplicate extension connection if one already exists in this session
+      const projectRef = creds.projectRef ?? undefined
+      const supabaseUrl = creds.supabaseUrl ?? (projectRef ? `https://${projectRef}.supabase.co` : '')
+
+      // Patch an existing extension connection that may have been created with an empty URL.
       const existing = useSupabaseStore.getState().connections.find(
         (c) => c.source === 'extension'
       )
-      if (existing) return
+      if (existing) {
+        if (!existing.supabaseUrl && supabaseUrl) {
+          useSupabaseStore.getState().updateConnection(existing.id, { supabaseUrl, projectRef })
+        }
+        setSessionCredentials(existing.id, creds)
+        return
+      }
+
       const now = new Date().toISOString()
       const conn = {
         id: `conn-ext-${Date.now()}`,
         name: 'Extension (SupaAgent)',
-        supabaseUrl: '',
-        anonKey: creds.anonKey ?? '',
+        // supabaseUrl and projectRef are non-secret metadata; credentials stay in the vault
+        supabaseUrl,
+        projectRef,
+        // Credential fields deliberately blank in persisted state — real tokens live
+        // only in the session-only credential cache.
+        anonKey: '',
         serviceRoleKey: null as null,
-        accessToken: creds.accessToken,
-        refreshToken: creds.refreshToken,
+        accessToken: null as null,
+        refreshToken: null as null,
         s3KeyId: null as null,
         s3Secret: null as null,
         s3Warehouse: null as null,
@@ -461,8 +483,9 @@ export default function Home() {
       }
       addConnection(conn)
       setActiveConnectionId(conn.id)
+      setSessionCredentials(conn.id, creds)
       toast.success('Connected via extension', {
-        description: 'Credentials loaded from SupaAgent vault — not stored locally',
+        description: 'Credentials stay in SupaAgent vault — page JS never holds raw tokens',
         duration: 4000,
       })
     })
@@ -629,6 +652,7 @@ export default function Home() {
 
     setIsLoadingSchema(true)
     setSchemaError(null)
+    setExtensionOffline(false)
     try {
       // Fetch schema with exponential backoff — stops on 401/403/429
       const schemaRes = await fetchWithBackoff(() => apiFetch('/api/schema', activeConn), {
@@ -636,7 +660,20 @@ export default function Home() {
       })
       if (schemaRes.status === 401 || schemaRes.status === 403) {
         recordAuthFailure(activeConnectionId)
-        setSchemaError('Authentication failed. Reconnect this project via OAuth.')
+        // Distinguish extension-unavailable from a plain auth failure so the UI
+        // can show a one-click OAuth re-auth button instead of a dead-end error.
+        let body: { code?: string; error?: string } | null = null
+        try {
+          body = await schemaRes.clone().json()
+        } catch {}
+        if (body?.code === 'extension_unavailable' && activeConn.source === 'extension') {
+          setExtensionOffline(true)
+          setSchemaError(
+            'SupaAgent extension is offline. Reconnect by authenticating via OAuth below.'
+          )
+        } else {
+          setSchemaError('Authentication failed. Reconnect this project via OAuth.')
+        }
         return
       }
       recordSuccess(activeConnectionId)
@@ -710,6 +747,7 @@ export default function Home() {
 
   // Auto-fetch when connection changes
   useEffect(() => {
+    setExtensionOffline(false)
     if (activeConnectionId) {
       if (activeConnectionId === DEMO_CONNECTION_ID) {
         // Demo mode: if tables are empty (e.g., after page reload), reload demo data
@@ -1583,6 +1621,13 @@ export default function Home() {
                 delay={0.55}
                 index={8}
               />
+              <FeatureCard
+                icon={<ScrollText className="size-4.5" />}
+                title="Database Logs"
+                description="Fetch and triage Supabase service logs. Spot RLS errors, missing relations, function boot failures, and auth issues in seconds."
+                delay={0.55}
+                index={9}
+              />
             </div>
           </div>
         ) : (
@@ -1662,6 +1707,22 @@ export default function Home() {
                     >
                       <Activity className="size-3.5" />
                       <span className="hidden sm:inline">Traces</span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="logs"
+                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                      title="Database Logs"
+                    >
+                      <ScrollText className="size-3.5" />
+                      <span className="hidden sm:inline">Logs</span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="backup"
+                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                      title="Project Backup"
+                    >
+                      <DatabaseBackup className="size-3.5" />
+                      <span className="hidden sm:inline">Backup</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="iceberg"
@@ -1759,7 +1820,28 @@ export default function Home() {
                   >
                     {schemaError && (
                       <Alert variant="destructive" className="mb-4">
-                        <AlertDescription>{schemaError}</AlertDescription>
+                        <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                          <span>{schemaError}</span>
+                          {extensionOffline && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setShowNewDialog(true)
+                                void connectWithOAuth()
+                              }}
+                              disabled={isOAuthConnecting}
+                              className="gap-1.5 shrink-0 border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/30"
+                            >
+                              {isOAuthConnecting ? (
+                                <Loader2 className="size-3.5 animate-spin" />
+                              ) : (
+                                <Plug className="size-3.5" />
+                              )}
+                              Connect via OAuth
+                            </Button>
+                          )}
+                        </AlertDescription>
                       </Alert>
                     )}
 
@@ -2117,6 +2199,46 @@ export default function Home() {
                       connection={activeConnection || null}
                       isDemoMode={isDemoMode}
                     />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </TabsContent>
+
+            <TabsContent
+              value="logs"
+              className="mt-0"
+              forceMount={activePanel === 'logs' ? true : undefined}
+            >
+              <AnimatePresence mode="wait">
+                {activePanel === 'logs' && (
+                  <motion.div
+                    key="logs"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  >
+                    <LogsPanel connection={activeConnection || null} isDemoMode={isDemoMode} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </TabsContent>
+
+            <TabsContent
+              value="backup"
+              className="mt-0"
+              forceMount={activePanel === 'backup' ? true : undefined}
+            >
+              <AnimatePresence mode="wait">
+                {activePanel === 'backup' && (
+                  <motion.div
+                    key="backup"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  >
+                    <BackupPanel connection={activeConnection || null} isDemoMode={isDemoMode} />
                   </motion.div>
                 )}
               </AnimatePresence>
