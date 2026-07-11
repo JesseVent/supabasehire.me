@@ -23,9 +23,48 @@ export interface ExtensionCredentials {
   clientSecret: string | null
   projectRef: string | null
   anonKey: string | null
+  supabaseUrl: string | null
+  serviceRoleKey?: string | null
 }
 
-function sendRequest<T>(action: string): Promise<T | null> {
+export type CredentialType = 'access_token' | 'anon_key' | 'service_role_key'
+
+export interface ProxySpec {
+  url: string
+  method?: string
+  body?: unknown
+  credential: CredentialType
+}
+
+export interface ProxyResponse {
+  status: number
+  body: unknown
+  error?: string
+}
+
+// Session-only credential cache. Keys are connection IDs. Values are never
+// persisted to localStorage — they live only as long as the page/tab is open.
+// This lets extension connections route through normal /api/* calls without
+// needing the extension service worker to stay awake.
+const _sessionCredentials = new Map<string, ExtensionCredentials>()
+
+export function setSessionCredentials(connId: string, creds: ExtensionCredentials): void {
+  _sessionCredentials.set(connId, creds)
+}
+
+export function getSessionCredentials(connId: string): ExtensionCredentials | undefined {
+  return _sessionCredentials.get(connId)
+}
+
+export function clearSessionCredentials(connId: string): void {
+  _sessionCredentials.delete(connId)
+}
+
+export function hasSessionCredentials(connId: string): boolean {
+  return _sessionCredentials.has(connId)
+}
+
+function sendRequest<T>(action: string, payload?: unknown, timeoutMs = TIMEOUT_MS): Promise<T | null> {
   if (typeof window === 'undefined') return Promise.resolve(null)
 
   return new Promise((resolve) => {
@@ -34,7 +73,7 @@ function sendRequest<T>(action: string): Promise<T | null> {
     const timer = setTimeout(() => {
       window.removeEventListener('message', handler)
       resolve(null)
-    }, TIMEOUT_MS)
+    }, timeoutMs)
 
     function handler(e: MessageEvent) {
       if (e.source !== window) return
@@ -48,7 +87,7 @@ function sendRequest<T>(action: string): Promise<T | null> {
     }
 
     window.addEventListener('message', handler)
-    window.postMessage({ channel: CHANNEL_REQ, id, action }, window.location.origin)
+    window.postMessage({ channel: CHANNEL_REQ, id, action, payload }, window.location.origin)
   })
 }
 
@@ -64,4 +103,16 @@ export async function isExtensionPresent(): Promise<boolean> {
  */
 export async function getExtensionCredentials(): Promise<ExtensionCredentials | null> {
   return sendRequest<ExtensionCredentials>('get_credentials')
+}
+
+/**
+ * Route a Supabase API call through the extension.
+ * The extension injects credentials and returns only the response — page JS never sees raw tokens.
+ *
+ * NOTE: This requires the extension's service worker to be awake. For reliable
+ * access without keeping the extension open, prefer getExtensionCredentials()
+ * and then route through normal /api/* calls using session-only credentials.
+ */
+export async function proxyRequest(spec: ProxySpec): Promise<ProxyResponse | null> {
+  return sendRequest<ProxyResponse>('proxy_request', spec, 8000)
 }

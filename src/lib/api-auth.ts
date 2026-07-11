@@ -13,6 +13,7 @@
  */
 
 import type { NextRequest } from 'next/server'
+import { getExtensionCredentials, getSessionCredentials, setSessionCredentials } from '@/lib/extension-bridge'
 import type { SupabaseConnection } from '@/lib/supabase-types'
 
 // Header names — single source of truth for client and server
@@ -154,25 +155,60 @@ export async function apiFetch(
   conn: SupabaseConnection,
   data?: Record<string, unknown>
 ): Promise<Response> {
+  // Extension connections should use credentials extracted from the extension
+  // vault. The extension is only awake briefly (service workers are suspended),
+  // so we do NOT keep proxying every call through it. Instead we read the
+  // tokens once into a session-only cache, then route through normal /api/*
+  // calls like a regular OAuth connection.
+  let effectiveConn = conn
+  if (conn.source === 'extension') {
+    let creds = getSessionCredentials(conn.id)
+    if (!creds) {
+      creds = await getExtensionCredentials()
+      if (creds) {
+        setSessionCredentials(conn.id, creds)
+      }
+    }
+
+    if (!creds?.accessToken) {
+      return new Response(
+        JSON.stringify({
+          error: 'Extension is not responding. Open the extension once to reconnect, or switch to OAuth.',
+          // Distinguishable code so the UI can render an actionable OAuth button.
+          code: 'extension_unavailable',
+        }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+
+    effectiveConn = {
+      ...conn,
+      accessToken: creds.accessToken,
+      refreshToken: creds.refreshToken,
+      anonKey: creds.anonKey ?? conn.anonKey,
+      serviceRoleKey: creds.serviceRoleKey ?? conn.serviceRoleKey,
+    }
+  }
+
   const res = await fetch(path, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...connectionHeaders(conn),
+      ...connectionHeaders(effectiveConn),
     },
     body: JSON.stringify(data ?? {}),
   })
 
   // Case 1: Direct 401 from our API routes
-  if (res.status === 401 && conn.refreshToken) {
-    const tokens = await tryRefresh(conn)
+  if (res.status === 401 && effectiveConn.refreshToken) {
+    const tokens = await tryRefresh(effectiveConn)
     if (tokens) {
       await updateStoredConnection(conn.id, tokens)
       return fetch(path, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...connectionHeaders({ ...conn, ...tokens }),
+          ...connectionHeaders({ ...effectiveConn, ...tokens }),
         },
         body: JSON.stringify(data ?? {}),
       })
@@ -185,15 +221,15 @@ export async function apiFetch(
   const cloned = res.clone()
   try {
     const body = await cloned.json()
-    if (isAuthError(body) && conn.refreshToken) {
-      const tokens = await tryRefresh(conn)
+    if (isAuthError(body) && effectiveConn.refreshToken) {
+      const tokens = await tryRefresh(effectiveConn)
       if (tokens) {
         await updateStoredConnection(conn.id, tokens)
         return fetch(path, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...connectionHeaders({ ...conn, ...tokens }),
+            ...connectionHeaders({ ...effectiveConn, ...tokens }),
           },
           body: JSON.stringify(data ?? {}),
         })

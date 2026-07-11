@@ -15,8 +15,10 @@ export interface SupabaseConnection {
   s3Warehouse: string | null
   createdAt: string
   updatedAt: string
-  // 'extension' = credentials came from the browser extension vault (never persisted)
+  // 'extension' = credentials live in the extension vault; token fields are intentionally blank
   source?: 'manual' | 'extension'
+  // Supabase project ref (e.g. "abcxyz123"). Required for extension proxy routing.
+  projectRef?: string
 }
 
 export interface CreateConnectionInput {
@@ -159,6 +161,33 @@ export interface InvokeEdgeFunctionResult {
   status: number
 }
 
+// ─── Logs Types ───
+
+export type LogService = 'postgres' | 'api' | 'auth' | 'edge-functions' | 'storage' | 'realtime'
+
+export interface LogEntry {
+  id: string
+  timestamp: string
+  service: LogService
+  severity: 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'UNKNOWN'
+  message: string
+  metadata: Record<string, unknown>
+  raw: Record<string, unknown>
+}
+
+export interface LogsQueryInput {
+  service: LogService
+  startTime: string
+  endTime: string
+  filter?: string
+  limit?: number
+}
+
+export interface LogsQueryResult {
+  logs: LogEntry[]
+  error?: string
+}
+
 // ─── SQL Query Types ───
 
 export interface SQLQueryInput {
@@ -184,6 +213,8 @@ export type ActivePanel =
   | 'catalog'
   | 'iceberg'
   | 'traces'
+  | 'logs'
+  | 'backup'
   | 'settings'
 
 // ─── Data Catalog Types ───

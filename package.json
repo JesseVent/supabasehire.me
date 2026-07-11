@@ -70,6 +70,7 @@
     "d3-force": "^3.0.0",
     "date-fns": "^4.4.0",
     "embla-carousel-react": "^8.6.0",
+    "fflate": "^0.8.3",
     "framer-motion": "^12.40.0",
     "iceberg-js": "^1.0.0",
     "input-otp": "^1.4.2",

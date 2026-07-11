@@ -11,6 +11,7 @@ import {
   Clock,
   Columns3,
   Database,
+  Download,
   FileText,
   GitCompare,
   Link2,
@@ -18,9 +19,6 @@ import {
   Plus,
   PlusCircle,
   Shield,
-  ShieldAlert,
-  ShieldCheck,
-  TableIcon,
   Trash2,
 } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
@@ -253,6 +251,31 @@ function formatTimestamp(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+function sanitizeFilename(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80)
+}
+
+function downloadSnapshot(snapshot: SchemaSnapshot): void {
+  const payload = JSON.stringify(snapshot, null, 2)
+  const blob = new Blob([payload], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  const safeName = sanitizeFilename(snapshot.name) || 'snapshot'
+  const date = new Date(snapshot.timestamp).toISOString().split('T')[0]
+  a.href = url
+  a.download = `supabasehire-snapshot-${safeName}-${date}.json`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+  track('schema_snapshot_downloaded', { table_count: snapshot.tables.length })
+  toast.success('Snapshot downloaded', { description: `Saved as ${a.download}` })
+}
+
 function getColumnTypeColor(type: string): string {
   switch (type) {
     case 'uuid':
@@ -335,40 +358,49 @@ export function SchemaSnapshotPanel() {
   }, [])
 
   // Take snapshot
-  const handleTakeSnapshot = useCallback(() => {
-    if (!activeConnectionId || !activeConnection) return
+  const handleTakeSnapshot = useCallback(
+    (alsoDownload: boolean = false) => {
+      if (!activeConnectionId || !activeConnection) return
 
-    const now = new Date()
-    const pad = (n: number) => n.toString().padStart(2, '0')
-    const autoName = `Snapshot ${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`
+      const now = new Date()
+      const pad = (n: number) => n.toString().padStart(2, '0')
+      const autoName = `Snapshot ${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`
+      const finalName = snapshotName.trim() || autoName
 
-    addSnapshot({
-      name: snapshotName.trim() || autoName,
-      tables: JSON.parse(JSON.stringify(tables)),
-      rlsStatuses: JSON.parse(JSON.stringify(rlsStatuses)),
-      connectionId: activeConnectionId,
-      connectionName: activeConnection.name,
-    })
-    track('schema_snapshot_taken', { table_count: tables.length })
+      addSnapshot({
+        name: finalName,
+        tables: JSON.parse(JSON.stringify(tables)),
+        rlsStatuses: JSON.parse(JSON.stringify(rlsStatuses)),
+        connectionId: activeConnectionId,
+        connectionName: activeConnection.name,
+      })
+      track('schema_snapshot_taken', { table_count: tables.length })
 
-    addActivityLog({
-      type: 'schema',
-      action: 'Snapshot taken',
-      details: snapshotName.trim() || autoName,
-    })
+      addActivityLog({
+        type: 'schema',
+        action: alsoDownload ? 'Snapshot saved & downloaded' : 'Snapshot taken',
+        details: finalName,
+      })
 
-    toast.success('Snapshot saved', { description: snapshotName.trim() || autoName })
-    setSnapshotName('')
-    setShowSnapshotDialog(false)
-  }, [
-    activeConnectionId,
-    activeConnection,
-    tables,
-    rlsStatuses,
-    snapshotName,
-    addSnapshot,
-    addActivityLog,
-  ])
+      if (alsoDownload) {
+        const fresh = useSupabaseStore.getState().schemaSnapshots[0]
+        if (fresh) downloadSnapshot(fresh)
+      }
+
+      toast.success('Snapshot saved', { description: finalName })
+      setSnapshotName('')
+      setShowSnapshotDialog(false)
+    },
+    [
+      activeConnectionId,
+      activeConnection,
+      tables,
+      rlsStatuses,
+      snapshotName,
+      addSnapshot,
+      addActivityLog,
+    ]
+  )
 
   // Delete snapshot
   const handleDeleteSnapshot = useCallback(() => {
@@ -517,6 +549,21 @@ export function SchemaSnapshotPanel() {
                               )}
                             </div>
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0 text-muted-foreground hover:text-primary"
+                                      onClick={() => downloadSnapshot(snapshot)}
+                                    >
+                                      <Download className="size-3.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Download backup</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -736,10 +783,20 @@ export function SchemaSnapshotPanel() {
                 </Badge>
               </div>
             </div>
-            <Button onClick={handleTakeSnapshot} className="gap-1.5">
-              <Camera className="size-4" />
-              Save Snapshot
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button onClick={() => handleTakeSnapshot(false)} className="gap-1.5 flex-1">
+                <Camera className="size-4" />
+                Save Snapshot
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => handleTakeSnapshot(true)}
+                className="gap-1.5 flex-1"
+              >
+                <Download className="size-4" />
+                Save &amp; Download
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
