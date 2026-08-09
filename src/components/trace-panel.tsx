@@ -371,24 +371,35 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
                   Agent steps
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  {steps.map((step, i) => (
-                    <div
-                      key={step.name}
-                      className="flex items-center gap-3 rounded-lg border border-border bg-card p-3"
-                    >
-                      <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-950 text-violet-600 dark:text-violet-400 text-xs font-bold">
-                        {i + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium font-mono truncate">{step.name}</p>
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <Clock className="size-3 text-muted-foreground" />
-                          <span className="text-xs text-muted-foreground">{step.durationMs}ms</span>
+                  {(() => {
+                    const maxDurationMs = Math.max(...steps.map((s) => s.durationMs), 1)
+                    return steps.map((step, i) => (
+                      <div
+                        key={step.name}
+                        className="flex items-center gap-3 rounded-lg border border-border bg-card p-3"
+                      >
+                        <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-950 text-violet-600 dark:text-violet-400 text-xs font-bold">
+                          {i + 1}
                         </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium font-mono truncate">{step.name}</p>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <Clock className="size-3 text-muted-foreground shrink-0" />
+                            <span className="text-xs text-muted-foreground shrink-0">
+                              {step.durationMs}ms
+                            </span>
+                            <span className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                              <span
+                                className="block h-full rounded-full bg-violet-500 dark:bg-violet-400"
+                                style={{ width: `${(step.durationMs / maxDurationMs) * 100}%` }}
+                              />
+                            </span>
+                          </div>
+                        </div>
+                        <CheckCircle2 className="size-4 text-primary shrink-0" />
                       </div>
-                      <CheckCircle2 className="size-4 text-primary shrink-0" />
-                    </div>
-                  ))}
+                    ))
+                  })()}
                 </div>
               </div>
             )}

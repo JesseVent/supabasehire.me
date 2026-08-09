@@ -81,6 +81,7 @@ export class AgentTraceBridge {
   private renderedSteps: Set<number> = new Set()
   private isListening = false
   private spanSeq = 0
+  private lastStepTime = Date.now()
 
   static getInstance(): AgentTraceBridge {
     if (!bridgeInstance) bridgeInstance = new AgentTraceBridge()
@@ -141,6 +142,7 @@ export class AgentTraceBridge {
     this.pendingSpans.clear()
     this.renderedSteps.clear()
     this.spanSeq = 0
+    this.lastStepTime = this.trace.startTime
     this.emit()
   }
 
@@ -395,6 +397,8 @@ export class AgentTraceBridge {
 
   private buildStepSpan(step: AgentStepEvent): void {
     const now = Date.now()
+    const stepStart = this.lastStepTime
+    this.lastStepTime = now
     const children: TraceSpan[] = []
 
     // ── LLM request (prompt sent to the model) ────────────────────────────
@@ -491,15 +495,17 @@ export class AgentTraceBridge {
     )
 
     // ── Step root span ────────────────────────────────────────────────────
+    // startTime is the previous step's arrival time — steps stream in as they
+    // complete, so the gap between arrivals is the real wall-clock duration.
     this.trace.spans.push(
       this.makeSpan({
         id: `step-${step.stepIndex}`,
         title: `Step ${step.stepIndex + 1}${step.action.name === 'done' ? ' (done)' : ''}`,
         type: 'agent_invocation',
         status: 'success',
-        startTime: now,
+        startTime: stepStart,
         endTime: now,
-        duration: 0,
+        duration: now - stepStart,
         tokensCount: step.usage?.totalTokens,
         children,
       })
