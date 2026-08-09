@@ -215,7 +215,26 @@ export type ActivePanel =
   | 'traces'
   | 'logs'
   | 'backup'
+  | 'resource-warnings'
   | 'settings'
+
+// ─── Resource Warnings (platform API) ───
+
+export type ResourceSeverity = 'warning' | 'critical' | null
+
+export interface ResourceWarning {
+  project: string
+  is_readonly_mode_enabled: boolean
+  disk_io_exhaustion: ResourceSeverity
+  cpu_exhaustion: ResourceSeverity
+  memory_and_swap_exhaustion: ResourceSeverity
+  disk_space_exhaustion: ResourceSeverity
+  // Auth rate limit only ever returns 'warning' — never 'critical'.
+  auth_rate_limit_exhaustion: 'warning' | null
+  auth_email_offender: string | null
+  auth_restricted_email_sending: boolean | null
+  need_pitr: boolean | null
+}
 
 // ─── Data Catalog Types ───
 

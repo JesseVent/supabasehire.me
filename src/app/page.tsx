@@ -57,6 +57,7 @@ import { KeyboardShortcuts } from '@/components/keyboard-shortcuts'
 import { LogsPanel } from '@/components/logs-panel'
 import { ProjectDashboard } from '@/components/project-dashboard'
 import { BackupPanel } from '@/components/backup-panel'
+import { ResourceWarningsPanel } from '@/components/resource-warnings-panel'
 import { RLSPanel } from '@/components/rls-panel'
 import { SchemaSnapshotPanel } from '@/components/schema-snapshot'
 import { SQLPanel } from '@/components/sql-panel'
@@ -80,6 +81,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
   Dialog,
   DialogContent,
@@ -101,7 +103,9 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
@@ -114,7 +118,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { apiFetch } from '@/lib/api-auth'
 import { getExtensionCredentials, setSessionCredentials } from '@/lib/extension-bridge'
@@ -170,6 +174,46 @@ const SchemaDiagram = dynamic(
     ),
   }
 )
+
+type NavItem = { value: ActivePanel; icon: typeof LayoutDashboard; label: string; title: string }
+
+// Grouped nav for the left sidebar. 13 panels no longer fit a single
+// horizontal tab row, so they're bucketed by what you're doing with them.
+const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
+  {
+    label: 'Inspect',
+    items: [
+      { value: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', title: 'Dashboard' },
+      { value: 'schema', icon: GitFork, label: 'Schema', title: 'Schema' },
+      { value: 'rls', icon: Shield, label: 'RLS', title: 'Row Level Security' },
+      { value: 'storage', icon: HardDrive, label: 'Storage', title: 'Storage' },
+      { value: 'catalog', icon: BookOpen, label: 'Catalog', title: 'Data Catalog' },
+    ],
+  },
+  {
+    label: 'Run',
+    items: [
+      { value: 'sql', icon: Terminal, label: 'SQL', title: 'SQL Editor' },
+      { value: 'edge-functions', icon: Zap, label: 'Functions', title: 'Edge Functions' },
+    ],
+  },
+  {
+    label: 'Observe',
+    items: [
+      { value: 'logs', icon: ScrollText, label: 'Logs', title: 'Database Logs' },
+      { value: 'traces', icon: Activity, label: 'Traces', title: 'Traces' },
+      { value: 'resource-warnings', icon: ShieldAlert, label: 'Warnings', title: 'Resource Warnings' },
+    ],
+  },
+  {
+    label: 'Manage',
+    items: [
+      { value: 'backup', icon: DatabaseBackup, label: 'Backup', title: 'Project Backup' },
+      { value: 'iceberg', icon: Layers, label: 'Iceberg', title: 'Analytics' },
+      { value: 'settings', icon: Settings, label: 'Settings', title: 'Settings' },
+    ],
+  },
+]
 
 function AppLogo({ className }: { className?: string }) {
   return (
@@ -1638,149 +1682,109 @@ export default function Home() {
               setActivePanel(val as ActivePanel)
               track('feature_viewed', { feature: val })
             }}
-            className="w-full"
+            className="flex w-full flex-row items-start gap-6"
           >
-            <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 -mx-4 px-4 py-2 border-b border-border/50">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div className="w-full overflow-x-auto scrollbar-none">
-                  <TabsList className="flex w-max min-w-full sm:min-w-0 sm:w-auto">
-                    <TabsTrigger
-                      value="dashboard"
-                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
-                      title="Dashboard"
-                    >
-                      <LayoutDashboard className="size-3.5" />
-                      <span className="hidden sm:inline">Dashboard</span>
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="schema"
-                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
-                      title="Schema"
-                    >
-                      <GitFork className="size-3.5" />
-                      <span className="hidden sm:inline">Schema</span>
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="rls"
-                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
-                      title="Row Level Security"
-                    >
-                      <Shield className="size-3.5" />
-                      <span className="hidden sm:inline">RLS</span>
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="edge-functions"
-                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
-                      title="Edge Functions"
-                    >
-                      <Zap className="size-3.5" />
-                      <span className="hidden sm:inline">Functions</span>
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="sql"
-                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
-                      title="SQL Editor"
-                    >
-                      <Terminal className="size-3.5" />
-                      <span className="hidden sm:inline">SQL</span>
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="storage"
-                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
-                      title="Storage"
-                    >
-                      <HardDrive className="size-3.5" />
-                      <span className="hidden sm:inline">Storage</span>
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="catalog"
-                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
-                      title="Data Catalog"
-                    >
-                      <BookOpen className="size-3.5" />
-                      <span className="hidden sm:inline">Catalog</span>
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="traces"
-                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
-                      title="Traces"
-                    >
-                      <Activity className="size-3.5" />
-                      <span className="hidden sm:inline">Traces</span>
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="logs"
-                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
-                      title="Database Logs"
-                    >
-                      <ScrollText className="size-3.5" />
-                      <span className="hidden sm:inline">Logs</span>
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="backup"
-                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
-                      title="Project Backup"
-                    >
-                      <DatabaseBackup className="size-3.5" />
-                      <span className="hidden sm:inline">Backup</span>
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="iceberg"
-                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
-                      title="Analytics"
-                    >
-                      <Layers className="size-3.5" />
-                      <span className="hidden sm:inline">Iceberg</span>
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="settings"
-                      className="gap-1.5 transition-all duration-200 data-[state=active]:border-b-2 data-[state=active]:border-primary"
-                      title="Settings"
-                    >
-                      <Settings className="size-3.5" />
-                      <span className="hidden sm:inline">Settings</span>
-                    </TabsTrigger>
-                  </TabsList>
-                </div>
-
-                {/* Schema tab actions */}
-                {activePanel === 'schema' && (
-                  <div className="flex items-center gap-2">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setActivePanel('settings')}
-                            disabled={!activeConnectionId || tables.length === 0}
-                            className="gap-1.5"
+            {/* Left nav — grouped by workflow, sticky within the scrollable main. Hidden below lg; the Select below takes over. */}
+            <aside className="sticky top-0 hidden w-56 shrink-0 lg:block">
+              <nav className="space-y-3 py-1">
+                {NAV_GROUPS.map((group) => (
+                  <Collapsible key={group.label} defaultOpen>
+                    <CollapsibleTrigger className="group flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase hover:text-foreground">
+                      <ChevronDown className="size-3 transition-transform group-data-[state=closed]:-rotate-90" />
+                      {group.label}
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-1 mb-2 space-y-0.5 border-l border-border/60 pl-2">
+                      {group.items.map((item) => {
+                        const Icon = item.icon
+                        const active = activePanel === item.value
+                        return (
+                          <button
+                            key={item.value}
+                            type="button"
+                            title={item.title}
+                            onClick={() => {
+                              setActivePanel(item.value)
+                              track('feature_viewed', { feature: item.value })
+                            }}
+                            className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
+                              active
+                                ? 'bg-accent font-medium text-accent-foreground'
+                                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                            }`}
                           >
-                            <Camera className="size-3.5" />
-                            <span className="inline">Snapshot</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Take a schema snapshot</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={fetchSchemaAndRLS}
-                      disabled={isLoadingSchema}
-                      className="gap-1.5"
-                    >
-                      {isLoadingSchema ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <RefreshCw className="size-3.5" />
-                      )}
-                      Refresh
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
+                            <Icon className="size-3.5 shrink-0" />
+                            <span className="truncate">{item.label}</span>
+                          </button>
+                        )
+                      })}
+                    </CollapsibleContent>
+                  </Collapsible>
+                ))}
+              </nav>
+            </aside>
+
+            <div className="min-w-0 flex-1">
+              {/* Mobile/tablet panel switcher — sidebar is lg-and-up only */}
+              <Select
+                value={activePanel}
+                onValueChange={(v) => {
+                  setActivePanel(v as ActivePanel)
+                  track('feature_viewed', { feature: v })
+                }}
+              >
+                <SelectTrigger className="mb-3 h-9 w-full lg:hidden">
+                  <SelectValue placeholder="Panel" />
+                </SelectTrigger>
+                <SelectContent>
+                  {NAV_GROUPS.map((group) => (
+                    <SelectGroup key={group.label}>
+                      <SelectLabel>{group.label}</SelectLabel>
+                      {group.items.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Schema tab actions */}
+              {activePanel === 'schema' && (
+                <div className="mb-3 flex items-center justify-end gap-2">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setActivePanel('settings')}
+                          disabled={!activeConnectionId || tables.length === 0}
+                          className="gap-1.5"
+                        >
+                          <Camera className="size-3.5" />
+                          <span className="inline">Snapshot</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Take a schema snapshot</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={fetchSchemaAndRLS}
+                    disabled={isLoadingSchema}
+                    className="gap-1.5"
+                  >
+                    {isLoadingSchema ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="size-3.5" />
+                    )}
+                    Refresh
+                  </Button>
+                </div>
+              )}
 
             {/* Dashboard Tab */}
             <TabsContent
@@ -2225,6 +2229,26 @@ export default function Home() {
             </TabsContent>
 
             <TabsContent
+              value="resource-warnings"
+              className="mt-0"
+              forceMount={activePanel === 'resource-warnings' ? true : undefined}
+            >
+              <AnimatePresence mode="wait">
+                {activePanel === 'resource-warnings' && (
+                  <motion.div
+                    key="resource-warnings"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  >
+                    <ResourceWarningsPanel connection={activeConnection || null} isDemoMode={isDemoMode} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </TabsContent>
+
+            <TabsContent
               value="backup"
               className="mt-0"
               forceMount={activePanel === 'backup' ? true : undefined}
@@ -2314,6 +2338,7 @@ export default function Home() {
                 )}
               </AnimatePresence>
             </TabsContent>
+            </div>
           </Tabs>
         )}
       </main>

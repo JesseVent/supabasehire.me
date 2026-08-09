@@ -4,6 +4,7 @@ import type {
   ForeignKeyInfo,
   LogEntry,
   LogService,
+  ResourceWarning,
   RLSPolicy,
   SupabaseConnection,
   TableRLSInfo,
@@ -1037,3 +1038,16 @@ export const DEMO_TRACE_STEPS = [
   },
   { name: 'count_rows', durationMs: 145, result: { table: 'users', rowCount: 117482 } },
 ]
+
+export const DEMO_RESOURCE_WARNINGS: ResourceWarning = {
+  project: 'demo-project',
+  is_readonly_mode_enabled: false,
+  disk_io_exhaustion: 'warning',
+  cpu_exhaustion: null,
+  memory_and_swap_exhaustion: 'critical',
+  disk_space_exhaustion: null,
+  auth_rate_limit_exhaustion: 'warning',
+  auth_email_offender: null,
+  auth_restricted_email_sending: false,
+  need_pitr: true,
+}
