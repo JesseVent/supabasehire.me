@@ -680,7 +680,7 @@ function PlanTreeNode({
                     </code>
                   )}
                   {node['Hash Cond'] && (
-                    <code className="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-700 dark:text-sky-400 font-mono">
+                    <code className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">
                       Hash: {node['Hash Cond']}
                     </code>
                   )}
@@ -690,7 +690,7 @@ function PlanTreeNode({
               {/* Sort info */}
               {node['Sort Key'] && (
                 <div className="mt-1">
-                  <code className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-700 dark:text-violet-400 font-mono">
+                  <code className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">
                     Sort: {node['Sort Key'].join(', ')}
                   </code>
                   {node['Sort Method'] && (
@@ -744,23 +744,23 @@ function StatCard({
   label,
   value,
   subValue,
-  gradient,
+  valueClassName,
 }: {
   icon: React.ReactNode
   label: string
   value: string
   subValue?: string
-  gradient: string
+  valueClassName?: string
 }) {
   return (
-    <div className={`rounded-xl border p-4 ${gradient} transition-all hover:shadow-sm`}>
-      <div className="flex items-center gap-2 mb-2">
-        <div className="size-8 rounded-lg bg-white/20 dark:bg-black/20 flex items-center justify-center">
-          {icon}
-        </div>
-        <span className="text-xs font-medium text-muted-foreground">{label}</span>
+    <div className="rounded-xl border p-4 transition-all hover:shadow-sm">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
+          {label}
+        </span>
+        {icon}
       </div>
-      <div className="text-xl font-bold tracking-tight">{value}</div>
+      <div className={`text-xl font-bold tracking-tight ${valueClassName ?? ''}`}>{value}</div>
       {subValue && <div className="text-[11px] text-muted-foreground mt-0.5">{subValue}</div>}
     </div>
   )
@@ -1010,7 +1010,11 @@ export function QueryAnalyzer({ activeConnectionId, query: initialQuery }: Query
             {/* Stats Bar */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               <StatCard
-                icon={<Clock className="size-4 text-amber-700 dark:text-amber-300" />}
+                icon={
+                  <Clock
+                    className={`size-3.5 ${executionTime != null && executionTime < 10 ? 'text-primary' : executionTime != null && executionTime < 100 ? 'text-amber-500' : 'text-red-500'}`}
+                  />
+                }
                 label="Execution Time"
                 value={executionTime != null ? `${executionTime.toFixed(2)}ms` : '—'}
                 subValue={
@@ -1022,10 +1026,16 @@ export function QueryAnalyzer({ activeConnectionId, query: initialQuery }: Query
                         : '🐌 Slow'
                     : undefined
                 }
-                gradient="bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/20 border-amber-200/50 dark:border-amber-800/30"
+                valueClassName={
+                  executionTime != null && executionTime < 10
+                    ? 'text-primary'
+                    : executionTime != null && executionTime < 100
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-red-600 dark:text-red-400'
+                }
               />
               <StatCard
-                icon={<Timer className="size-4 text-sky-700 dark:text-sky-300" />}
+                icon={<Timer className="size-3.5 text-muted-foreground" />}
                 label="Planning Time"
                 value={planningTime != null ? `${planningTime.toFixed(2)}ms` : '—'}
                 subValue={
@@ -1033,24 +1043,36 @@ export function QueryAnalyzer({ activeConnectionId, query: initialQuery }: Query
                     ? `${((planningTime / (planningTime + executionTime)) * 100).toFixed(1)}% of total`
                     : undefined
                 }
-                gradient="bg-gradient-to-br from-sky-50 to-sky-100/50 dark:from-sky-950/30 dark:to-sky-900/20 border-sky-200/50 dark:border-sky-800/30"
               />
               <StatCard
-                icon={<Database className="size-4 text-primary dark:text-primary/70" />}
+                icon={<Database className="size-3.5 text-muted-foreground" />}
                 label="Rows Processed"
                 value={totalRows.toLocaleString()}
                 subValue={`${nodeCount} plan node${nodeCount !== 1 ? 's' : ''}`}
-                gradient="bg-gradient-to-br from-primary/10 to-primary/15/50 dark:from-primary/10/30 dark:to-primary/50/20 border-primary/30/50 dark:border-primary/30/30"
               />
               <StatCard
-                icon={<MemoryStick className="size-4 text-violet-700 dark:text-violet-300" />}
+                icon={
+                  <MemoryStick
+                    className={`size-3.5 ${hitRatio >= 99 ? 'text-primary' : hitRatio >= 90 ? 'text-amber-500' : 'text-red-500'}`}
+                  />
+                }
                 label="Buffer Hit Ratio"
                 value={`${hitRatio.toFixed(0)}%`}
                 subValue={`${buffers.hit.toLocaleString()} hits / ${buffers.read.toLocaleString()} reads`}
-                gradient={`bg-gradient-to-br ${hitRatio >= 99 ? 'from-primary/10 to-primary/15/50 dark:from-primary/10/30 dark:to-primary/50/20 border-primary/30/50 dark:border-primary/30/30' : hitRatio >= 90 ? 'from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/20 border-amber-200/50 dark:border-amber-800/30' : 'from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/20 border-red-200/50 dark:border-red-800/30'}`}
+                valueClassName={
+                  hitRatio >= 99
+                    ? 'text-primary'
+                    : hitRatio >= 90
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-red-600 dark:text-red-400'
+                }
               />
               <StatCard
-                icon={<AlertTriangle className="size-4 text-orange-700 dark:text-orange-300" />}
+                icon={
+                  <AlertTriangle
+                    className={`size-3.5 ${criticalCount > 0 ? 'text-red-500' : warningCount > 0 ? 'text-amber-500' : 'text-primary'}`}
+                  />
+                }
                 label="Warnings"
                 value={`${criticalCount + warningCount}`}
                 subValue={
@@ -1060,7 +1082,13 @@ export function QueryAnalyzer({ activeConnectionId, query: initialQuery }: Query
                       ? `${warningCount} warning`
                       : 'No issues detected'
                 }
-                gradient={`bg-gradient-to-br ${criticalCount > 0 ? 'from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/20 border-red-200/50 dark:border-red-800/30' : warningCount > 0 ? 'from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/20 border-amber-200/50 dark:border-amber-800/30' : 'from-primary/10 to-primary/15/50 dark:from-primary/10/30 dark:to-primary/50/20 border-primary/30/50 dark:border-primary/30/30'}`}
+                valueClassName={
+                  criticalCount > 0
+                    ? 'text-red-600 dark:text-red-400'
+                    : warningCount > 0
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-primary'
+                }
               />
             </div>
 

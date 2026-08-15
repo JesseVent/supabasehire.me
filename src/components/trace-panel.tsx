@@ -245,7 +245,7 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <Activity className="size-5 text-violet-500" />
+                  <Activity className="size-5 text-primary" />
                   <h2 className="text-lg font-semibold">Agent Traces</h2>
                   <Badge variant="secondary" className="text-xs">
                     AgentPrism
@@ -262,7 +262,7 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
                   {isLive && realtimeStatus === 'connected' && (
                     <Badge
                       variant="secondary"
-                      className="text-xs gap-1 text-sky-600 dark:text-sky-400 border-sky-500/30 bg-sky-500/10"
+                      className="text-xs gap-1 text-primary border-primary/30 bg-primary/10"
                       title={
                         agentOnline
                           ? 'Paired over Supabase Realtime -- agent currently running'
@@ -367,7 +367,7 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
             {/* Steps summary (static mode) */}
             {!isLive && steps && (
               <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide text-[11px]">
+                <p className="text-[11px] font-mono font-medium text-muted-foreground uppercase tracking-wider">
                   Agent steps
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -378,7 +378,7 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
                         key={step.name}
                         className="flex items-center gap-3 rounded-lg border border-border bg-card p-3"
                       >
-                        <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-950 text-violet-600 dark:text-violet-400 text-xs font-bold">
+                        <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
                           {i + 1}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -390,7 +390,7 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
                             </span>
                             <span className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
                               <span
-                                className="block h-full rounded-full bg-violet-500 dark:bg-violet-400"
+                                className="block h-full rounded-full bg-primary"
                                 style={{ width: `${(step.durationMs / maxDurationMs) * 100}%` }}
                               />
                             </span>
@@ -407,7 +407,7 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
             {/* Live activity feed */}
             {isLive && mergedSpans.length > 0 && (
               <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide text-[11px]">
+                <p className="text-[11px] font-mono font-medium text-muted-foreground uppercase tracking-wider">
                   Activity Log
                 </p>
                 <ScrollArea
@@ -428,7 +428,7 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
                                 ? 'bg-red-500'
                                 : span.status === 'warning'
                                   ? 'bg-orange-400'
-                                  : 'bg-emerald-500'
+                                  : 'bg-primary'
                           }`}
                         />
                         <span className="font-mono text-muted-foreground shrink-0">
@@ -463,7 +463,7 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
             {/* AgentPrism TraceViewer */}
             {hasAnyTrace && (
               <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide text-[11px]">
+                <p className="text-[11px] font-mono font-medium text-muted-foreground uppercase tracking-wider">
                   {isLive ? 'Live trace stream' : 'Agent traces -- visualized with AgentPrism'}
                 </p>
                 <div

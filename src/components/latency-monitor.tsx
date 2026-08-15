@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { StatTile } from '@/components/ui/stat-tile'
 import { Switch } from '@/components/ui/switch'
 import { apiFetch } from '@/lib/api-auth'
 import { DEMO_CONNECTION_ID } from '@/lib/demo-data'
@@ -420,122 +421,65 @@ export function LatencyMonitor() {
 
         {/* Stat Cards */}
         <div className="grid grid-cols-2 gap-4">
-          {/* Average */}
-          <Card className="overflow-hidden stat-card-enhanced group press-effect">
-            <div className="h-1 bg-gradient-to-r from-sky-400 to-sky-600" />
-            <div className="bg-gradient-to-b from-sky-500/5 to-transparent">
-              <CardContent className="pt-3 pb-3 px-3">
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <div className="size-6 rounded-md bg-sky-500/10 flex items-center justify-center">
-                    <Clock className="size-3 text-sky-500" />
-                  </div>
-                  <span className="text-[10px] font-medium text-muted-foreground">Average</span>
-                </div>
-                <p className="text-2xl font-bold tracking-tight">
-                  {stats ? `${stats.avg}` : '—'}
-                  <span className="text-xs text-muted-foreground font-normal ml-0.5">ms</span>
-                </p>
-              </CardContent>
-            </div>
-          </Card>
+          <StatTile
+            label="Average"
+            icon={Clock}
+            iconClassName={stats ? getStatusColor(getLatencyStatus(stats.avg)) : undefined}
+            valueClassName={stats ? getStatusColor(getLatencyStatus(stats.avg)) : undefined}
+            value={
+              <>
+                {stats ? stats.avg : '—'}
+                <span className="text-xs text-muted-foreground font-normal ml-0.5">ms</span>
+              </>
+            }
+          />
 
-          {/* Min */}
-          <Card className="overflow-hidden stat-card-enhanced group press-effect">
-            <div className="h-1 bg-gradient-to-r from-primary to-primary" />
-            <div className="bg-gradient-to-b from-primary/5 to-transparent">
-              <CardContent className="pt-3 pb-3 px-3">
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <div className="size-6 rounded-md bg-primary/10 flex items-center justify-center">
-                    <TrendingDown className="size-3 text-primary" />
-                  </div>
-                  <span className="text-[10px] font-medium text-muted-foreground">Min</span>
-                </div>
-                <p className="text-2xl font-bold tracking-tight text-primary dark:text-primary">
-                  {stats ? `${stats.min}` : '—'}
-                  <span className="text-xs text-muted-foreground font-normal ml-0.5">ms</span>
-                </p>
-              </CardContent>
-            </div>
-          </Card>
+          <StatTile
+            label="Min"
+            icon={TrendingDown}
+            iconClassName="text-primary"
+            valueClassName="text-primary"
+            value={
+              <>
+                {stats ? stats.min : '—'}
+                <span className="text-xs text-muted-foreground font-normal ml-0.5">ms</span>
+              </>
+            }
+          />
 
-          {/* Max */}
-          <Card className="overflow-hidden stat-card-enhanced group press-effect">
-            <div className="h-1 bg-gradient-to-r from-red-400 to-red-600" />
-            <div className="bg-gradient-to-b from-red-500/5 to-transparent">
-              <CardContent className="pt-3 pb-3 px-3">
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <div className="size-6 rounded-md bg-red-500/10 flex items-center justify-center">
-                    <TrendingUp className="size-3 text-red-500" />
-                  </div>
-                  <span className="text-[10px] font-medium text-muted-foreground">Max</span>
-                </div>
-                <p className="text-2xl font-bold tracking-tight text-red-600 dark:text-red-400">
-                  {stats ? `${stats.max}` : '—'}
-                  <span className="text-xs text-muted-foreground font-normal ml-0.5">ms</span>
-                </p>
-              </CardContent>
-            </div>
-          </Card>
+          <StatTile
+            label="Max"
+            icon={TrendingUp}
+            iconClassName={stats ? getStatusColor(getLatencyStatus(stats.max)) : undefined}
+            valueClassName={stats ? getStatusColor(getLatencyStatus(stats.max)) : undefined}
+            value={
+              <>
+                {stats ? stats.max : '—'}
+                <span className="text-xs text-muted-foreground font-normal ml-0.5">ms</span>
+              </>
+            }
+          />
 
-          {/* Trend */}
-          <Card className="overflow-hidden stat-card-enhanced group press-effect">
-            <div
-              className={cn(
-                'h-1 bg-gradient-to-r',
-                trend === 'improving'
-                  ? 'from-primary to-primary'
-                  : trend === 'degrading'
-                    ? 'from-amber-400 to-amber-600'
-                    : 'from-muted-foreground/40 to-muted-foreground/60'
-              )}
-            />
-            <div
-              className={cn(
-                'bg-gradient-to-b to-transparent',
-                trend === 'improving'
-                  ? 'from-primary/5'
-                  : trend === 'degrading'
-                    ? 'from-amber-500/5'
-                    : 'from-muted-foreground/5'
-              )}
-            >
-              <CardContent className="pt-3 pb-3 px-3">
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <div
-                    className={cn(
-                      'size-6 rounded-md flex items-center justify-center',
-                      trend === 'improving'
-                        ? 'bg-primary/10'
-                        : trend === 'degrading'
-                          ? 'bg-amber-500/10'
-                          : 'bg-muted-foreground/10'
-                    )}
-                  >
-                    {trend === 'improving' ? (
-                      <TrendingDown className="size-3 text-primary" />
-                    ) : trend === 'degrading' ? (
-                      <TrendingUp className="size-3 text-amber-500" />
-                    ) : (
-                      <Minus className="size-3 text-muted-foreground" />
-                    )}
-                  </div>
-                  <span className="text-[10px] font-medium text-muted-foreground">Trend</span>
-                </div>
-                <p
-                  className={cn(
-                    'text-lg font-bold tracking-tight capitalize',
-                    trend === 'improving'
-                      ? 'text-primary dark:text-primary'
-                      : trend === 'degrading'
-                        ? 'text-amber-600 dark:text-amber-400'
-                        : 'text-muted-foreground'
-                  )}
-                >
-                  {trend}
-                </p>
-              </CardContent>
-            </div>
-          </Card>
+          <StatTile
+            label="Trend"
+            icon={trend === 'improving' ? TrendingDown : trend === 'degrading' ? TrendingUp : Minus}
+            iconClassName={
+              trend === 'improving'
+                ? 'text-primary'
+                : trend === 'degrading'
+                  ? 'text-amber-500'
+                  : 'text-muted-foreground'
+            }
+            valueClassName={cn(
+              'text-lg capitalize',
+              trend === 'improving'
+                ? 'text-primary'
+                : trend === 'degrading'
+                  ? 'text-amber-600 dark:text-amber-400'
+                  : 'text-muted-foreground'
+            )}
+            value={trend}
+          />
         </div>
       </div>
 

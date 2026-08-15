@@ -28,6 +28,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { StatTile } from '@/components/ui/stat-tile'
 import {
   Select,
   SelectContent,
@@ -251,7 +252,7 @@ function getEventBadgeColor(event: TriggerEvent): string {
     case 'DELETE':
       return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800'
     case 'TRUNCATE':
-      return 'bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-950/40 dark:text-pink-400 dark:border-pink-800'
+      return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800'
     default:
       return 'bg-muted text-muted-foreground'
   }
@@ -264,7 +265,7 @@ function getTimingBorderColor(timing: TriggerTiming): string {
     case 'AFTER':
       return 'border-l-primary'
     case 'INSTEAD OF':
-      return 'border-l-violet-500'
+      return 'border-l-muted-foreground'
     default:
       return 'border-l-muted'
   }
@@ -277,7 +278,7 @@ function getTimingBgColor(timing: TriggerTiming): string {
     case 'AFTER':
       return 'bg-primary/10 text-primary dark:text-primary'
     case 'INSTEAD OF':
-      return 'bg-violet-500/10 text-violet-600 dark:text-violet-400'
+      return 'bg-muted text-muted-foreground'
     default:
       return 'bg-muted text-muted-foreground'
   }
@@ -571,9 +572,9 @@ export function TriggerViewer() {
 
       {/* Limited data info alert */}
       {isLimited && metaNote && !isLoading && activeConnectionId && (
-        <Alert className="border-sky-200 bg-sky-50/50 dark:border-sky-800 dark:bg-sky-950/20">
-          <Info className="size-4 text-sky-600 dark:text-sky-400" />
-          <AlertDescription className="text-sky-700 dark:text-sky-300">{metaNote}</AlertDescription>
+        <Alert>
+          <Info className="size-4 text-muted-foreground" />
+          <AlertDescription>{metaNote}</AlertDescription>
         </Alert>
       )}
 
@@ -582,58 +583,22 @@ export function TriggerViewer() {
         <>
           {/* Stats Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <Card className="overflow-hidden">
-              <div className="h-1.5 bg-gradient-to-r from-primary to-primary" />
-              <CardContent className="pt-3 pb-3 px-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="size-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Zap className="size-3.5 text-primary" />
-                  </div>
-                  <span className="text-xs font-medium text-muted-foreground">Total Triggers</span>
-                </div>
-                <p className="text-2xl font-bold tracking-tight">{totalTriggers}</p>
-              </CardContent>
-            </Card>
+            <StatTile label="Total Triggers" icon={Zap} iconClassName="text-primary" value={totalTriggers} />
 
-            <Card className="overflow-hidden">
-              <div className="h-1.5 bg-gradient-to-r from-cyan-400 to-cyan-600" />
-              <CardContent className="pt-3 pb-3 px-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="size-7 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-                    <ToggleRight className="size-3.5 text-cyan-500" />
-                  </div>
-                  <span className="text-xs font-medium text-muted-foreground">Active</span>
-                </div>
-                <p className="text-2xl font-bold tracking-tight text-cyan-600 dark:text-cyan-400">
-                  {activeTriggers}
-                </p>
-              </CardContent>
-            </Card>
+            <StatTile
+              label="Active"
+              icon={ToggleRight}
+              iconClassName="text-primary"
+              valueClassName="text-primary"
+              value={activeTriggers}
+            />
 
-            <Card className="overflow-hidden">
-              <div className="h-1.5 bg-gradient-to-r from-amber-400 to-amber-600" />
-              <CardContent className="pt-3 pb-3 px-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="size-7 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                    <Database className="size-3.5 text-amber-500" />
-                  </div>
-                  <span className="text-xs font-medium text-muted-foreground">
-                    Tables with Triggers
-                  </span>
-                </div>
-                <p className="text-2xl font-bold tracking-tight">{perTableCount.size}</p>
-              </CardContent>
-            </Card>
+            <StatTile label="Tables with Triggers" icon={Database} value={perTableCount.size} />
 
-            <Card className="overflow-hidden">
-              <div className="h-1.5 bg-gradient-to-r from-violet-400 to-violet-600" />
-              <CardContent className="pt-3 pb-3 px-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="size-7 rounded-lg bg-violet-500/10 flex items-center justify-center">
-                    <Activity className="size-3.5 text-violet-500" />
-                  </div>
-                  <span className="text-xs font-medium text-muted-foreground">Event Types</span>
-                </div>
+            <StatTile
+              label="Event Types"
+              icon={Activity}
+              value={
                 <div className="flex items-center gap-1 flex-wrap">
                   {(['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE'] as TriggerEvent[]).map(
                     (evt) =>
@@ -648,8 +613,8 @@ export function TriggerViewer() {
                       )
                   )}
                 </div>
-              </CardContent>
-            </Card>
+              }
+            />
           </div>
 
           {/* Limited data — empty state with helpful message */}

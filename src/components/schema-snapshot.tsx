@@ -277,35 +277,10 @@ function downloadSnapshot(snapshot: SchemaSnapshot): void {
 }
 
 function getColumnTypeColor(type: string): string {
-  switch (type) {
-    case 'uuid':
-      return 'bg-primary/15 text-primary dark:bg-primary/40 dark:text-primary'
-    case 'text':
-    case 'character varying':
-    case 'varchar':
-      return 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
-    case 'timestamptz':
-    case 'timestamp':
-    case 'date':
-    case 'time':
-    case 'timetz':
-      return 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
-    case 'boolean':
-    case 'bool':
-      return 'bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-400'
-    case 'integer':
-    case 'bigint':
-    case 'numeric':
-    case 'smallint':
-    case 'real':
-    case 'double precision':
-      return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-400'
-    case 'jsonb':
-    case 'json':
-      return 'bg-pink-100 text-pink-700 dark:bg-pink-950/40 dark:text-pink-400'
-    default:
-      return 'bg-muted text-muted-foreground'
-  }
+  // Type chips are metadata, not status — one flat neutral badge for every
+  // type, brand-green reserved for the identifier type only.
+  if (type === 'uuid') return 'bg-primary/15 text-primary dark:bg-primary/40 dark:text-primary'
+  return 'bg-muted text-muted-foreground'
 }
 
 // ─── Main Component ───
@@ -1021,7 +996,7 @@ function DiffTableRow({
               {/* Column Diffs */}
               {diff.columnDiffs.filter((c) => c.status !== 'unchanged').length > 0 && (
                 <div className="space-y-1.5">
-                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  <p className="text-[10px] font-mono font-medium text-muted-foreground uppercase tracking-wider">
                     Column changes
                   </p>
                   {diff.columnDiffs

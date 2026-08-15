@@ -689,7 +689,7 @@ export function LogsPanel({ connection, isDemoMode }: LogsPanelProps) {
 
                           {Object.keys(entry.metadata).length > 0 && (
                             <div className="space-y-1">
-                              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                              <p className="text-[10px] font-mono font-medium text-muted-foreground uppercase tracking-wider">
                                 Metadata
                               </p>
                               <div className="flex flex-wrap gap-1.5">
@@ -706,7 +706,7 @@ export function LogsPanel({ connection, isDemoMode }: LogsPanelProps) {
                           )}
 
                           <div className="space-y-1">
-                            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                            <p className="text-[10px] font-mono font-medium text-muted-foreground uppercase tracking-wider">
                               Raw JSON
                             </p>
                             <pre className="p-3 rounded-lg bg-muted/50 text-[10px] font-mono overflow-x-auto">

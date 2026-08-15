@@ -31,6 +31,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { StatTile } from '@/components/ui/stat-tile'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { apiFetch } from '@/lib/api-auth'
 // Types used indirectly via SecurityScore component
@@ -397,8 +398,8 @@ export function ProjectDashboard() {
 
               {/* Created */}
               <div className="flex items-start gap-3">
-                <div className="size-9 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <Calendar className="size-4 text-amber-500" />
+                <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                  <Calendar className="size-4 text-primary" />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
@@ -412,8 +413,8 @@ export function ProjectDashboard() {
 
               {/* Database Version */}
               <div className="flex items-start gap-3">
-                <div className="size-9 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <HardDrive className="size-4 text-red-500" />
+                <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                  <HardDrive className="size-4 text-primary" />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
@@ -427,8 +428,8 @@ export function ProjectDashboard() {
 
               {/* Plan */}
               <div className="flex items-start gap-3">
-                <div className="size-9 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <Zap className="size-4 text-violet-500" />
+                <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                  <Zap className="size-4 text-primary" />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
@@ -446,8 +447,8 @@ export function ProjectDashboard() {
 
               {/* Project URL */}
               <div className="flex items-start gap-3">
-                <div className="size-9 rounded-lg bg-cyan-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <ExternalLink className="size-4 text-cyan-500" />
+                <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                  <ExternalLink className="size-4 text-primary" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
@@ -475,57 +476,24 @@ export function ProjectDashboard() {
       {/* Quick Stats Grid */}
       <motion.div variants={itemVariants}>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Card>
-            <CardContent className="pt-4 pb-4 px-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Database className="size-3.5 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Tables</span>
-              </div>
-              <AnimatedNumber
-                value={displayStats.tables_count}
-                className="text-2xl font-bold tracking-tight"
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4 pb-4 px-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Shield className="size-3.5 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">RLS Policies</span>
-              </div>
-              <AnimatedNumber
-                value={displayStats.rls_policies_count}
-                className="text-2xl font-bold tracking-tight"
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4 pb-4 px-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Shield className="size-3.5 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Security Score</span>
-              </div>
-              <AnimatedNumber
-                value={securityScore}
-                className={`text-2xl font-bold tracking-tight ${getScoreColor(securityScore)}`}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4 pb-4 px-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Zap className="size-3.5 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Functions</span>
-              </div>
-              <AnimatedNumber
-                value={displayStats.edge_functions_count}
-                className="text-2xl font-bold tracking-tight"
-              />
-            </CardContent>
-          </Card>
+          <StatTile label="Tables" icon={Database} value={<AnimatedNumber value={displayStats.tables_count} />} />
+          <StatTile
+            label="RLS Policies"
+            icon={Shield}
+            value={<AnimatedNumber value={displayStats.rls_policies_count} />}
+          />
+          <StatTile
+            label="Security Score"
+            icon={Shield}
+            iconClassName={getScoreColor(securityScore)}
+            valueClassName={getScoreColor(securityScore)}
+            value={<AnimatedNumber value={securityScore} />}
+          />
+          <StatTile
+            label="Functions"
+            icon={Zap}
+            value={<AnimatedNumber value={displayStats.edge_functions_count} />}
+          />
         </div>
       </motion.div>
 

@@ -110,13 +110,9 @@ function formatCellValue(val: unknown, colType?: string): string {
   return String(val)
 }
 
-function inferTypeColor(type: string): string {
-  const t = type.toLowerCase()
-  if (t.includes('int') || t.includes('float') || t.includes('double') || t.includes('decimal'))
-    return 'text-blue-500'
-  if (t.includes('varchar') || t.includes('text') || t.includes('char')) return 'text-brand'
-  if (t.includes('bool')) return 'text-amber-500'
-  if (t.includes('date') || t.includes('time') || t.includes('timestamp')) return 'text-violet-500'
+function inferTypeColor(_type: string): string {
+  // Column type name already conveys the type; no status/risk meaning here,
+  // so one neutral tone rather than a rainbow of decorative per-type colors.
   return 'text-muted-foreground'
 }
 

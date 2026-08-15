@@ -129,9 +129,9 @@ const CATEGORY_STYLES: Record<string, { bg: string; text: string; border: string
     border: 'border-amber-500/20 dark:border-amber-500/30',
   },
   security: {
-    bg: 'bg-sky-500/10 dark:bg-sky-500/20',
-    text: 'text-sky-600 dark:text-sky-400',
-    border: 'border-sky-500/20 dark:border-sky-500/30',
+    bg: 'bg-muted-foreground/10',
+    text: 'text-muted-foreground',
+    border: 'border-muted-foreground/20',
   },
 }
 

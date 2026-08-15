@@ -291,13 +291,15 @@ function formatDate(dateStr: string): string {
 }
 
 function getFileIcon(mimeType: string) {
-  if (mimeType.startsWith('image/')) return <ImageIcon className="size-4 text-violet-500" />
-  if (mimeType.startsWith('video/')) return <Video className="size-4 text-amber-500" />
-  if (mimeType.startsWith('audio/')) return <Music className="size-4 text-pink-500" />
+  // Icon shape already conveys file type; keep color neutral rather than a
+  // decorative rainbow with no status/risk meaning.
+  if (mimeType.startsWith('image/')) return <ImageIcon className="size-4 text-muted-foreground" />
+  if (mimeType.startsWith('video/')) return <Video className="size-4 text-muted-foreground" />
+  if (mimeType.startsWith('audio/')) return <Music className="size-4 text-muted-foreground" />
   if (mimeType.includes('pdf') || mimeType.includes('document') || mimeType.includes('text'))
-    return <FileText className="size-4 text-blue-500" />
+    return <FileText className="size-4 text-muted-foreground" />
   if (mimeType.includes('zip') || mimeType.includes('archive') || mimeType.includes('compressed'))
-    return <Archive className="size-4 text-orange-500" />
+    return <Archive className="size-4 text-muted-foreground" />
   if (
     mimeType.includes('javascript') ||
     mimeType.includes('json') ||

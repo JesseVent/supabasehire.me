@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { StatTile } from '@/components/ui/stat-tile'
 import {
   Select,
   SelectContent,
@@ -377,26 +378,9 @@ END;`,
 
 function getTypeBadgeColor(type: string): string {
   const t = type.toLowerCase()
-  if (t.includes('uuid'))
-    return 'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950/40 dark:text-violet-400 dark:border-violet-800'
   if (t.includes('text') || t.includes('char') || t.includes('varchar'))
     return 'bg-primary/15 text-primary border-primary/30 dark:bg-primary/40 dark:text-primary dark:border-primary/30'
-  if (t.includes('int') || t.includes('serial') || t.includes('bigint'))
-    return 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-800'
-  if (t.includes('timestamp') || t.includes('date') || t.includes('time'))
-    return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800'
-  if (t.includes('bool'))
-    return 'bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-950/40 dark:text-pink-400 dark:border-pink-800'
-  if (
-    t.includes('numeric') ||
-    t.includes('decimal') ||
-    t.includes('float') ||
-    t.includes('double') ||
-    t.includes('real')
-  )
-    return 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-800'
-  if (t.includes('json'))
-    return 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800'
+  // Data type has no risk/status meaning — one neutral badge style, not a rainbow per type.
   return 'bg-muted text-muted-foreground'
 }
 
@@ -404,9 +388,8 @@ function getVolatilityBadge(volatility: FunctionVolatility): string {
   switch (volatility) {
     case 'IMMUTABLE':
       return 'bg-primary/15 text-primary border-primary/30 dark:bg-primary/40 dark:text-primary dark:border-primary/30'
-    case 'STABLE':
-      return 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-800'
     case 'VOLATILE':
+      // Genuinely cautionary: not safely cacheable/parallelizable — warrants the warning color.
       return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800'
     default:
       return 'bg-muted text-muted-foreground'
@@ -417,12 +400,6 @@ function getLanguageBadge(lang: FunctionLanguage): string {
   switch (lang) {
     case 'plpgsql':
       return 'bg-primary/15 text-primary border-primary/30 dark:bg-primary/40 dark:text-primary dark:border-primary/30'
-    case 'sql':
-      return 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-800'
-    case 'c':
-      return 'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950/40 dark:text-violet-400 dark:border-violet-800'
-    case 'internal':
-      return 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-800'
     default:
       return 'bg-muted text-muted-foreground'
   }
@@ -876,61 +853,10 @@ export function DbViewsFunctions() {
 
       {/* Stats Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card className="overflow-hidden">
-          <div className="h-1.5 bg-gradient-to-r from-primary to-primary" />
-          <CardContent className="pt-3 pb-3 px-4">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="size-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Eye className="size-3.5 text-primary" />
-              </div>
-              <span className="text-xs font-medium text-muted-foreground">Total Views</span>
-            </div>
-            <p className="text-2xl font-bold tracking-tight">{totalViews}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="overflow-hidden">
-          <div className="h-1.5 bg-gradient-to-r from-cyan-400 to-cyan-600" />
-          <CardContent className="pt-3 pb-3 px-4">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="size-7 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-                <FunctionSquare className="size-3.5 text-cyan-500" />
-              </div>
-              <span className="text-xs font-medium text-muted-foreground">Total Functions</span>
-            </div>
-            <p className="text-2xl font-bold tracking-tight text-cyan-600 dark:text-cyan-400">
-              {totalFunctions}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="overflow-hidden">
-          <div className="h-1.5 bg-gradient-to-r from-amber-400 to-amber-600" />
-          <CardContent className="pt-3 pb-3 px-4">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="size-7 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                <FileCode2 className="size-3.5 text-amber-500" />
-              </div>
-              <span className="text-xs font-medium text-muted-foreground">Languages</span>
-            </div>
-            <p className="text-2xl font-bold tracking-tight">{uniqueLanguages.length}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="overflow-hidden">
-          <div className="h-1.5 bg-gradient-to-r from-violet-400 to-violet-600" />
-          <CardContent className="pt-3 pb-3 px-4">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="size-7 rounded-lg bg-violet-500/10 flex items-center justify-center">
-                <Braces className="size-3.5 text-violet-500" />
-              </div>
-              <span className="text-xs font-medium text-muted-foreground">Total Parameters</span>
-            </div>
-            <p className="text-2xl font-bold tracking-tight text-violet-600 dark:text-violet-400">
-              {totalParams}
-            </p>
-          </CardContent>
-        </Card>
+        <StatTile label="Total Views" icon={Eye} iconClassName="text-primary" value={totalViews} />
+        <StatTile label="Total Functions" icon={FunctionSquare} value={totalFunctions} />
+        <StatTile label="Languages" icon={FileCode2} value={uniqueLanguages.length} />
+        <StatTile label="Total Parameters" icon={Braces} value={totalParams} />
       </div>
 
       {/* Sub-tabs: Views / Functions */}

@@ -541,9 +541,7 @@ export function EdgeFunctionsPanel() {
                         {parsedSchema.params.map((p) => (
                           <Fragment key={p.name}>
                             <code className="font-mono text-primary">{p.name}</code>
-                            <code className="font-mono text-blue-600 dark:text-blue-400">
-                              {p.type}
-                            </code>
+                            <code className="font-mono text-muted-foreground">{p.type}</code>
                             <span
                               className={
                                 p.required

@@ -25,6 +25,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import type { ChartConfig } from '@/components/ui/chart'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Input } from '@/components/ui/input'
+import { StatTile } from '@/components/ui/stat-tile'
 import {
   Select,
   SelectContent,
@@ -636,9 +637,9 @@ export function IndexViewer() {
 
       {/* Limited data info alert */}
       {isLimited && metaNote && !isLoading && activeConnectionId && (
-        <Alert className="border-sky-200 bg-sky-50/50 dark:border-sky-800 dark:bg-sky-950/20">
-          <Info className="size-4 text-sky-600 dark:text-sky-400" />
-          <AlertDescription className="text-sky-700 dark:text-sky-300">{metaNote}</AlertDescription>
+        <Alert>
+          <Info className="size-4 text-muted-foreground" />
+          <AlertDescription>{metaNote}</AlertDescription>
         </Alert>
       )}
 
@@ -647,61 +648,23 @@ export function IndexViewer() {
         <>
           {/* Stats Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <Card className="overflow-hidden">
-              <div className="h-1.5 bg-gradient-to-r from-primary to-primary" />
-              <CardContent className="pt-3 pb-3 px-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="size-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Database className="size-3.5 text-primary" />
-                  </div>
-                  <span className="text-xs font-medium text-muted-foreground">Total Indexes</span>
-                </div>
-                <p className="text-2xl font-bold tracking-tight">{totalIndexes}</p>
-              </CardContent>
-            </Card>
+            <StatTile label="Total Indexes" icon={Database} value={totalIndexes} />
 
-            <Card className="overflow-hidden">
-              <div className="h-1.5 bg-gradient-to-r from-amber-400 to-amber-600" />
-              <CardContent className="pt-3 pb-3 px-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="size-7 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                    <AlertTriangle className="size-3.5 text-amber-500" />
-                  </div>
-                  <span className="text-xs font-medium text-muted-foreground">Unused</span>
-                </div>
-                <p className="text-2xl font-bold tracking-tight text-amber-600 dark:text-amber-400">
-                  {unusedCount}
-                </p>
-              </CardContent>
-            </Card>
+            <StatTile
+              label="Unused"
+              icon={AlertTriangle}
+              iconClassName={unusedCount > 0 ? 'text-amber-500' : 'text-primary'}
+              valueClassName={unusedCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-primary'}
+              value={unusedCount}
+            />
 
-            <Card className="overflow-hidden">
-              <div className="h-1.5 bg-gradient-to-r from-cyan-400 to-cyan-600" />
-              <CardContent className="pt-3 pb-3 px-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="size-7 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-                    <Activity className="size-3.5 text-cyan-500" />
-                  </div>
-                  <span className="text-xs font-medium text-muted-foreground">Total Scans</span>
-                </div>
-                <p className="text-2xl font-bold tracking-tight">
-                  {formatNumber(filteredIndexes.reduce((a, i) => a + i.scans, 0))}
-                </p>
-              </CardContent>
-            </Card>
+            <StatTile
+              label="Total Scans"
+              icon={Activity}
+              value={formatNumber(filteredIndexes.reduce((a, i) => a + i.scans, 0))}
+            />
 
-            <Card className="overflow-hidden">
-              <div className="h-1.5 bg-gradient-to-r from-red-400 to-orange-500" />
-              <CardContent className="pt-3 pb-3 px-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="size-7 rounded-lg bg-red-500/10 flex items-center justify-center">
-                    <HardDrive className="size-3.5 text-red-500" />
-                  </div>
-                  <span className="text-xs font-medium text-muted-foreground">Total Size</span>
-                </div>
-                <p className="text-2xl font-bold tracking-tight">{totalSizeFormatted}</p>
-              </CardContent>
-            </Card>
+            <StatTile label="Total Size" icon={HardDrive} value={totalSizeFormatted} />
           </div>
 
           {/* Usage Chart — Top 10 Most-Scanned Indexes */}

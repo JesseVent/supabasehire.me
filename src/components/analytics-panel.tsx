@@ -111,17 +111,6 @@ function formatCell(val: unknown): string {
   return String(val)
 }
 
-function typeColor(type: string) {
-  const t = type.toLowerCase()
-  if (t.includes('int') || t.includes('float') || t.includes('double') || t.includes('decimal'))
-    return 'text-blue-500'
-  if (t.includes('varchar') || t.includes('text') || t.includes('char') || t.includes('string'))
-    return 'text-brand'
-  if (t.includes('bool')) return 'text-amber-500'
-  if (t.includes('date') || t.includes('time') || t.includes('timestamp')) return 'text-violet-500'
-  return 'text-muted-foreground'
-}
-
 // ─── Component ───
 
 const LS_KEY = 'iceberg-settings'
@@ -761,10 +750,7 @@ export function AnalyticsPanel({
                           {profileData.rows.map((row, i) => (
                             <TableRow key={i}>
                               {profileData.columns.map((c) => (
-                                <TableCell
-                                  key={c}
-                                  className={`text-xs font-mono ${c === 'type' ? typeColor(String(row[c])) : ''}`}
-                                >
+                                <TableCell key={c} className="text-xs font-mono">
                                   {formatCell(row[c])}
                                 </TableCell>
                               ))}
@@ -971,7 +957,7 @@ export function AnalyticsPanel({
                                   {pgWins && (
                                     <Badge
                                       variant="outline"
-                                      className="text-[10px] text-blue-500 border-blue-500/30"
+                                      className="text-[10px] text-muted-foreground border-border"
                                     >
                                       PG
                                     </Badge>
@@ -1028,7 +1014,7 @@ export function AnalyticsPanel({
                                 <span className="text-muted-foreground">Overall winner</span>
                                 <p className="font-semibold mt-0.5">
                                   {pgWins > iceWins ? (
-                                    <span className="text-blue-500">
+                                    <span className="text-foreground">
                                       Postgres ({pgWins}/{validResults.length})
                                     </span>
                                   ) : iceWins > pgWins ? (

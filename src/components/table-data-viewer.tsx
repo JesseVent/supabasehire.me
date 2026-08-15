@@ -41,7 +41,7 @@ function CellValue({ value }: { value: unknown }) {
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="font-mono text-xs text-blue-600 dark:text-blue-400 cursor-default">
+            <span className="font-mono text-xs text-muted-foreground cursor-default">
               {json.length > 50 ? json.slice(0, 50) + '...' : json}
             </span>
           </TooltipTrigger>

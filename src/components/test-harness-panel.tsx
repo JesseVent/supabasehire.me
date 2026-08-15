@@ -681,14 +681,14 @@ export function TestHarnessPanel() {
                                   <div className="mt-0.5 shrink-0">
                                     {isRls ? (
                                       <div
-                                        className="p-1 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20"
+                                        className="p-1 rounded bg-primary/10 text-primary border border-primary/20"
                                         title="RLS Policy Test"
                                       >
                                         <Shield className="size-3.5" />
                                       </div>
                                     ) : (
                                       <div
-                                        className="p-1 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                                        className="p-1 rounded bg-muted text-muted-foreground border border-border"
                                         title="Edge Function Test"
                                       >
                                         <Zap className="size-3.5" />

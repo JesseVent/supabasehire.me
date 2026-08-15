@@ -209,7 +209,7 @@ export function AgentSidebar() {
         {extensionAvailable && (
           <Badge
             variant="secondary"
-            className="text-[10px] gap-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
+            className="text-[10px] gap-1 text-primary border-primary/30 bg-primary/10"
             title="Supa Agent extension detected — tasks will run via the browser agent"
           >
             <Cpu className="size-2.5" />
@@ -219,7 +219,7 @@ export function AgentSidebar() {
         {realtimeStatus === 'connected' ? (
           <Badge
             variant="secondary"
-            className="text-[10px] gap-1 text-sky-600 dark:text-sky-400 border-sky-500/30 bg-sky-500/10"
+            className="text-[10px] gap-1 text-primary border-primary/30 bg-primary/10"
             title={
               agentOnline
                 ? 'Live trace over Supabase Realtime — agent currently running'
