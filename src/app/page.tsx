@@ -1826,7 +1826,7 @@ export default function Home() {
                       <Alert variant="destructive" className="mb-4">
                         <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
                           <span>{schemaError}</span>
-                          {extensionOffline && (
+                          <div className="flex gap-2 shrink-0">
                             <Button
                               size="sm"
                               variant="outline"
@@ -1835,16 +1835,19 @@ export default function Home() {
                                 void connectWithOAuth()
                               }}
                               disabled={isOAuthConnecting}
-                              className="gap-1.5 shrink-0 border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/30"
+                              className="gap-1.5 border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/30"
                             >
                               {isOAuthConnecting ? (
                                 <Loader2 className="size-3.5 animate-spin" />
                               ) : (
                                 <Plug className="size-3.5" />
                               )}
-                              Connect via OAuth
+                              {extensionOffline ? 'Connect via OAuth' : 'Reconnect via OAuth'}
                             </Button>
-                          )}
+                            <Button size="sm" variant="outline" onClick={loadDemoData} className="gap-1.5">
+                              View Demo
+                            </Button>
+                          </div>
                         </AlertDescription>
                       </Alert>
                     )}
