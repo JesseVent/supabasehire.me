@@ -18,6 +18,8 @@ const nextConfig: NextConfig = {
       },
     ]
   },
+  // Ships as TypeScript source (its `main` points at src/index.ts), so Next has to compile it.
+  transpilePackages: ['@jessevent/supalite-snapshot'],
   skipTrailingSlashRedirect: true,
   typescript: {
     ignoreBuildErrors: true,
