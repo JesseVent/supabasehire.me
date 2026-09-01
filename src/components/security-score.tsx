@@ -29,7 +29,7 @@ interface SecurityScoreProps {
   tables: TableSchema[]
 }
 
-interface ScoreBreakdown {
+export interface ScoreBreakdown {
   score: number
   tablesWithoutRLS: TableRLSInfo[]
   tablesWithRLSNoPolicies: TableRLSInfo[]
@@ -40,7 +40,7 @@ interface ScoreBreakdown {
   criticalTables: TableRLSInfo[]
 }
 
-function calculateScore(rlsStatuses: TableRLSInfo[], tables: TableSchema[]): ScoreBreakdown {
+export function calculateScore(rlsStatuses: TableRLSInfo[], tables: TableSchema[]): ScoreBreakdown {
   let score = 100
   let restrictivePolicies = 0
 
