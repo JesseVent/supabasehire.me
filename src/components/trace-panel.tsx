@@ -12,9 +12,10 @@ import {
   Grid3x3,
   Play,
   Radio,
+  RefreshCw,
   Square,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { TraceViewer } from '@/components/agent-prism/TraceViewer/TraceViewer'
 import { SkillCoverageMatrix } from '@/components/skill-coverage-matrix'
 import { Badge } from '@/components/ui/badge'
@@ -23,10 +24,16 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useRealtimeTrace } from '@/hooks/use-realtime-trace'
 import { apiFetch } from '@/lib/api-auth'
-import { DEMO_CONNECTION_ID, DEMO_OTLP_TRACE, DEMO_TRACE_STEPS } from '@/lib/demo-data'
+import {
+  DEMO_CONNECTION_ID,
+  DEMO_CORRELATED_LOGS,
+  DEMO_OTLP_TRACE,
+  DEMO_TRACE_ID,
+  DEMO_TRACE_STEPS,
+} from '@/lib/demo-data'
 import { getAgentTraceBridge, type LiveTrace } from '@/lib/agent-trace-bridge'
 import type { TraceEvent } from '@/lib/server-trace-bus'
-import type { SupabaseConnection } from '@/lib/supabase-types'
+import type { LogEntry, LogsQueryResult, SupabaseConnection } from '@/lib/supabase-types'
 import { useSupabaseStore } from '@/store/supabase-store'
 
 interface Step {
@@ -107,6 +114,12 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
   // Remote pairing over Supabase Realtime (in addition to tab-local postMessage)
   const { status: realtimeStatus, agentOnline } = useRealtimeTrace()
 
+  // Correlated server logs (W3C trace id propagation)
+  const [staticTraceId, setStaticTraceId] = useState<string | null>(null)
+  const [correlatedLogs, setCorrelatedLogs] = useState<LogEntry[]>([])
+  const [correlatedError, setCorrelatedError] = useState<string | null>(null)
+  const [correlatedLoading, setCorrelatedLoading] = useState(false)
+
   // Derive current (most-recent) trace for status checks and the activity log.
   const currentTrace = allBridgeTraces[allBridgeTraces.length - 1] ?? null
 
@@ -129,6 +142,7 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
       const { steps: newSteps, otlpTrace } = json.data as AgentQueryResponse
       setSteps(newSteps)
       setTraceData(buildTraceData(otlpTrace, newSteps))
+      setStaticTraceId(typeof json.traceId === 'string' ? json.traceId : null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
@@ -220,6 +234,55 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
   }, [traceData, bridgeTraceDataList])
 
   const hasAnyTrace = allTraceViewerData.length > 0
+
+  // ── Correlated server logs ──────────────────────────────────────────────
+  // Only a trace id that actually left the browser can appear in server logs: a
+  // live trace whose traceparent apiFetch stamped, else the static run's invoke
+  // id. Extension-driven runs make their requests elsewhere, so they have none.
+  const propagatedLiveTraceId = currentTrace?.propagated ? currentTrace.otlpTraceId : null
+  const logsTraceId = isDemoMode ? DEMO_TRACE_ID : propagatedLiveTraceId ?? staticTraceId
+
+  const fetchCorrelatedLogs = useCallback(async () => {
+    if (!logsTraceId || isDemoMode || !connection) return
+    setCorrelatedLoading(true)
+    setCorrelatedError(null)
+    try {
+      const res = await apiFetch('/api/logs', connection, {
+        traceId: logsTraceId,
+        limit: 200,
+      })
+      const json = (await res.json()) as LogsQueryResult
+      // The route answers 401/403/502 with { logs: [], error } — without this the
+      // failure would render as "no logs carry this trace id".
+      if (!res.ok || json.error) {
+        setCorrelatedLogs([])
+        setCorrelatedError(json.error ?? `Log query failed (${res.status})`)
+        return
+      }
+      setCorrelatedLogs(json.logs ?? [])
+    } catch (err) {
+      setCorrelatedLogs([])
+      setCorrelatedError(err instanceof Error ? err.message : 'Failed to fetch server logs')
+    } finally {
+      setCorrelatedLoading(false)
+    }
+  }, [logsTraceId, isDemoMode, connection])
+
+  useEffect(() => {
+    if (isDemoMode) {
+      setCorrelatedLogs(DEMO_CORRELATED_LOGS)
+      setCorrelatedError(null)
+      return
+    }
+    if (!logsTraceId || !connection) {
+      setCorrelatedLogs([])
+      setCorrelatedError(null)
+      return
+    }
+    // Gateway log ingest lags a few seconds behind the request — fetch on a delay.
+    const timer = setTimeout(fetchCorrelatedLogs, 2000)
+    return () => clearTimeout(timer)
+  }, [logsTraceId, isDemoMode, connection, fetchCorrelatedLogs])
 
   return (
     <div className="p-4">
@@ -487,6 +550,17 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
               </div>
             )}
 
+            {/* Correlated server logs */}
+            {hasAnyTrace && logsTraceId && (connection || isDemoMode) && (
+              <CorrelatedLogsSection
+                traceId={logsTraceId}
+                logs={correlatedLogs}
+                loading={correlatedLoading}
+                error={correlatedError}
+                onRefresh={fetchCorrelatedLogs}
+              />
+            )}
+
             {/* Empty state */}
             {!hasAnyTrace && !error && !isDemoMode && (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center space-y-3">
@@ -502,6 +576,92 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
           </div>
         </TabsContent>
       </Tabs>
+    </div>
+  )
+}
+
+const LOG_DOT_CLASS: Record<LogEntry['severity'], string> = {
+  ERROR: 'bg-red-500',
+  WARN: 'bg-amber-400',
+  INFO: 'bg-blue-400',
+  DEBUG: 'bg-zinc-400',
+  UNKNOWN: 'bg-muted-foreground/50',
+}
+
+/** Server-side (API gateway + edge function) log rows carrying the trace's W3C trace id. */
+function CorrelatedLogsSection({
+  traceId,
+  logs,
+  loading,
+  error,
+  onRefresh,
+}: {
+  traceId: string
+  logs: LogEntry[]
+  loading: boolean
+  error: string | null
+  onRefresh: () => void
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <p className="text-[11px] font-mono font-medium text-muted-foreground uppercase tracking-wider">
+          Correlated server logs
+        </p>
+        <Badge
+          variant="secondary"
+          className="text-[10px] font-mono"
+          title="W3C trace id propagated with these requests — Supabase gateway and edge-function logs stamp the same trace_id"
+        >
+          {traceId.slice(0, 8)}…{traceId.slice(-6)}
+        </Badge>
+        <Badge variant="secondary" className="text-xs">
+          {logs.length}
+        </Badge>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="ml-auto h-6 gap-1.5 text-xs"
+          onClick={onRefresh}
+          disabled={loading}
+        >
+          <RefreshCw className={`size-3 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
+      <ScrollArea className="h-40 rounded-lg border border-border bg-card">
+        <div className="flex flex-col gap-1 p-2">
+          {error && <p className="text-xs text-red-500 p-2">{error}</p>}
+          {!error && logs.length === 0 && !loading && (
+            <p className="text-xs text-muted-foreground p-2">
+              No server logs carry this trace id (yet). Requests made while the trace runs appear
+              here once their gateway/edge logs land.
+            </p>
+          )}
+          {logs.map((log) => (
+            <div
+              key={log.id}
+              className="flex items-center gap-2 text-xs py-1 px-2 rounded hover:bg-accent/50"
+            >
+              <span
+                className={`size-2 rounded-full shrink-0 ${LOG_DOT_CLASS[log.severity] ?? 'bg-muted-foreground/50'}`}
+              />
+              <span className="font-mono text-muted-foreground shrink-0">
+                {new Date(log.timestamp).toLocaleTimeString([], {
+                  hour12: false,
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                })}
+              </span>
+              <Badge variant="secondary" className="text-[10px] shrink-0">
+                {log.service}
+              </Badge>
+              <span className="truncate">{log.message}</span>
+            </div>
+          ))}
+        </div>
+      </ScrollArea>
     </div>
   )
 }

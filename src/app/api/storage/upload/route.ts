@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
-import { getConnectionFromHeaders } from '@/lib/api-auth'
+import { forwardableTraceHeaders, getConnectionFromHeaders } from '@/lib/api-auth'
 import { parseMcpSqlRows } from '@/lib/mcp-response-parser'
 import { projectRefFromUrl, SupabaseMcpClient } from '@/lib/supabase-mcp-client'
 
@@ -77,6 +77,7 @@ export async function POST(request: NextRequest) {
         apikey: serviceRoleKey,
         'Content-Type': mimeType || 'application/octet-stream',
         'x-upsert': 'true',
+        ...forwardableTraceHeaders(request),
       },
       body: buffer,
     })

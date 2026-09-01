@@ -52,6 +52,10 @@ let bridgeInstance: AgentTraceBridge | null = null
 
 export interface LiveTrace {
   id: string
+  /** 32-hex W3C trace id — stamped as `traceparent` on project-host requests so gateway/edge logs join by it. */
+  otlpTraceId: string
+  /** True once `otlpTraceId` has actually gone out on a request. Extension-driven runs never set it. */
+  propagated: boolean
   name: string
   startTime: number
   spans: TraceSpan[]
@@ -96,6 +100,8 @@ export class AgentTraceBridge {
   private makeEmptyTrace(): LiveTrace {
     return {
       id: `live-trace-${Date.now()}`,
+      otlpTraceId: crypto.randomUUID().replaceAll('-', ''),
+      propagated: false,
       name: 'Live Agent Execution',
       startTime: Date.now(),
       spans: [],
@@ -152,6 +158,18 @@ export class AgentTraceBridge {
       return [...this.completedTraces, this.trace]
     }
     return [...this.completedTraces]
+  }
+
+  /** W3C trace id of the currently running trace (null when idle). */
+  getActiveTraceId(): string | null {
+    return this.trace.status === 'running' ? this.trace.otlpTraceId : null
+  }
+
+  /** Record that the running trace's id was stamped on an outgoing request. */
+  markPropagated(): void {
+    if (this.trace.propagated) return
+    this.trace.propagated = true
+    this.emit()
   }
 
   complete(): void {

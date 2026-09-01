@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
-import { getConnectionFromHeaders } from '@/lib/api-auth'
+import { forwardableTraceHeaders, getConnectionFromHeaders } from '@/lib/api-auth'
 import { mcpClientFromRequest } from '@/lib/mcp-server-client'
 import { getValidApiKey } from '@/lib/supabase-helpers'
 import type { SupabaseConnection } from '@/lib/supabase-types'
@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
         headers: {
           apikey: anonKey,
           Authorization: `Bearer ${validAnonKey}`,
+          ...forwardableTraceHeaders(request),
         },
         signal: AbortSignal.timeout(10000), // 10s timeout
       })
@@ -141,6 +142,7 @@ export async function POST(request: NextRequest) {
             headers: {
               apikey: serviceRoleKey,
               Authorization: `Bearer ${serviceRoleKey}`,
+              ...forwardableTraceHeaders(request),
             },
             signal: AbortSignal.timeout(10000),
           })

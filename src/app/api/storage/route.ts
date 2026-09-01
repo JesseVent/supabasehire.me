@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
-import { getConnectionFromHeaders } from '@/lib/api-auth'
+import { forwardableTraceHeaders, getConnectionFromHeaders } from '@/lib/api-auth'
 import { parseMcpSqlRows } from '@/lib/mcp-response-parser'
 import { mcpClientFromRequest } from '@/lib/mcp-server-client'
 
@@ -108,6 +108,7 @@ ORDER BY name;`
         headers: {
           Authorization: `Bearer ${serviceRoleKey}`,
           apikey: serviceRoleKey,
+          ...forwardableTraceHeaders(request),
         },
       })
       if (!res.ok) {
@@ -131,6 +132,7 @@ ORDER BY name;`
           Authorization: `Bearer ${serviceRoleKey}`,
           apikey: serviceRoleKey,
           'Content-Type': 'application/json',
+          ...forwardableTraceHeaders(request),
         },
         body: JSON.stringify({ prefix, limit: 200, offset: 0 }),
       })
@@ -163,6 +165,7 @@ ORDER BY name;`
         headers: {
           Authorization: `Bearer ${connection.serviceRoleKey}`,
           apikey: connection.serviceRoleKey,
+          ...forwardableTraceHeaders(request),
         },
       })
       if (!res.ok) {
