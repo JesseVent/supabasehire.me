@@ -360,6 +360,22 @@ interface QueryTab {
 type AiProvider = 'openai' | 'supabase'
 type AiDemoButton = { label: string; description: string; sql: string }
 
+/**
+ * `provider => 'supabase'` routes the AI functions at AI_INFERENCE_API_HOST, which
+ * only exists when the project itself runs locally under `supabase functions serve`.
+ * On a hosted project the call reaches the database and fails there, so the option is
+ * gated on the *project* URL — where the AI runs — not on where this app is served.
+ */
+export function supportsLocalInference(supabaseUrl: string | undefined | null): boolean {
+  if (!supabaseUrl) return false
+  try {
+    const { hostname } = new URL(supabaseUrl)
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]'
+  } catch {
+    return false
+  }
+}
+
 function getAiDemoButtons(provider: AiProvider): AiDemoButton[] {
   // provider arg is only emitted when non-default (openai is the SQL default)
   const p = provider === 'supabase' ? `, provider => 'supabase'` : ''
@@ -807,6 +823,12 @@ export function SQLPanel() {
   const [showHistory, setShowHistory] = useState(false)
   const [showVisualization, setShowVisualization] = useState(false)
   const [aiProvider, setAiProvider] = useState<AiProvider>('openai')
+
+  // Switching to a hosted project must not leave a stale 'supabase' selection behind,
+  // so the effective provider is derived rather than corrected in an effect.
+  const canUseSupabaseAi = supportsLocalInference(activeConnection?.supabaseUrl)
+  const effectiveProvider: AiProvider = canUseSupabaseAi ? aiProvider : 'openai'
+
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const highlightRef = useRef<HTMLPreElement>(null)
   const gutterRef = useRef<HTMLDivElement>(null)
@@ -1203,7 +1225,7 @@ export function SQLPanel() {
                         type="button"
                         className={cn(
                           'px-2 py-0.5 transition-colors',
-                          aiProvider === 'openai'
+                          effectiveProvider === 'openai'
                             ? 'bg-primary text-primary-foreground'
                             : 'text-muted-foreground hover:text-foreground'
                         )}
@@ -1216,11 +1238,19 @@ export function SQLPanel() {
                       </button>
                       <button
                         type="button"
+                        disabled={!canUseSupabaseAi}
+                        title={
+                          canUseSupabaseAi
+                            ? 'Route the AI functions at AI_INFERENCE_API_HOST'
+                            : 'Supabase AI needs a local project running `supabase functions serve` with AI_INFERENCE_API_HOST set'
+                        }
                         className={cn(
                           'px-2 py-0.5 transition-colors',
-                          aiProvider === 'supabase'
+                          effectiveProvider === 'supabase'
                             ? 'bg-primary text-primary-foreground'
-                            : 'text-muted-foreground hover:text-foreground'
+                            : 'text-muted-foreground hover:text-foreground',
+                          !canUseSupabaseAi &&
+                            'cursor-not-allowed opacity-40 hover:text-muted-foreground'
                         )}
                         onClick={(e) => {
                           e.preventDefault()
@@ -1231,8 +1261,13 @@ export function SQLPanel() {
                       </button>
                     </span>
                   </DropdownMenuLabel>
+                  {!canUseSupabaseAi && (
+                    <p className="px-2 pb-1 text-[10px] leading-snug text-muted-foreground">
+                      Supabase AI is local-only — this project is hosted, so demos run on OpenAI.
+                    </p>
+                  )}
                   <DropdownMenuSeparator />
-                  {getAiDemoButtons(aiProvider).map((demo) => (
+                  {getAiDemoButtons(effectiveProvider).map((demo) => (
                     <DropdownMenuItem
                       key={demo.label}
                       disabled={isExecuting}

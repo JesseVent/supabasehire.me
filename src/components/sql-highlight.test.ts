@@ -1,6 +1,6 @@
 /// <reference types="bun-types" />
 import { expect, test } from 'bun:test'
-import { formatSql, highlightSql } from './sql-panel'
+import { formatSql, highlightSql, supportsLocalInference } from './sql-panel'
 
 const TABLES = new Set(['person', 'concept'])
 
@@ -31,9 +31,7 @@ test('a line comment runs to the end of the line only', () => {
 })
 
 test('format uppercases keywords and breaks major clauses onto their own lines', () => {
-  expect(formatSql('select a from person where b = 1')).toBe(
-    'SELECT a\nFROM person\nWHERE b = 1'
-  )
+  expect(formatSql('select a from person where b = 1')).toBe('SELECT a\nFROM person\nWHERE b = 1')
 })
 
 test('format leaves string literals untouched', () => {
@@ -45,4 +43,15 @@ test('format hangs AND under its clause', () => {
   expect(formatSql('select a from t where b = 1 and c = 2')).toBe(
     'SELECT a\nFROM t\nWHERE b = 1\n  AND c = 2'
   )
+})
+
+test('local inference is offered only for a local project URL', () => {
+  expect(supportsLocalInference('http://localhost:54321')).toBe(true)
+  expect(supportsLocalInference('http://127.0.0.1:54321')).toBe(true)
+  // A hosted project cannot reach AI_INFERENCE_API_HOST, even from a local browser.
+  expect(supportsLocalInference('https://jqjaisrrpoemnrnevmvf.supabase.co')).toBe(false)
+  // A host that merely contains "localhost" is not local.
+  expect(supportsLocalInference('https://localhost.evil.example')).toBe(false)
+  expect(supportsLocalInference(undefined)).toBe(false)
+  expect(supportsLocalInference('not a url')).toBe(false)
 })
