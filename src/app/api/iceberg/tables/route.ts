@@ -1,5 +1,6 @@
 import { IcebergRestCatalog } from 'iceberg-js'
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
+import { extractStats, type IcebergTableStats } from './metadata'
 
 interface IcebergField {
   id: number
@@ -24,6 +25,7 @@ interface IcebergTableEntry {
   name: string
   metadataLocation: string
   schema: Array<{ name: string; type: string; nullable: boolean }>
+  stats: IcebergTableStats
 }
 
 function resolveType(t: unknown): string {
@@ -31,7 +33,8 @@ function resolveType(t: unknown): string {
   if (t && typeof t === 'object') {
     const obj = t as Record<string, unknown>
     if (obj.type === 'list') return `LIST<${resolveType(obj['element-type'] ?? obj.element)}>`
-    if (obj.type === 'map') return `MAP<${resolveType(obj['key-type'])}, ${resolveType(obj['value-type'])}>`
+    if (obj.type === 'map')
+      return `MAP<${resolveType(obj['key-type'])}, ${resolveType(obj['value-type'])}>`
     if (obj.type === 'struct') return 'STRUCT'
     if (typeof obj.type === 'string') return obj.type
   }
@@ -132,7 +135,10 @@ export async function POST(req: NextRequest) {
 
   const validation = validateAndExtractRef(supabaseUrl)
   if (!validation.ok) {
-    return NextResponse.json({ error: `Invalid supabaseUrl: ${validation.reason}` }, { status: 400 })
+    return NextResponse.json(
+      { error: `Invalid supabaseUrl: ${validation.reason}` },
+      { status: 400 }
+    )
   }
 
   const jwt = await resolveServiceJwt({
@@ -197,6 +203,7 @@ export async function POST(req: NextRequest) {
               name: id.name,
               metadataLocation,
               schema: extractSchema(raw),
+              stats: extractStats(raw),
             })
           }
         } catch {
