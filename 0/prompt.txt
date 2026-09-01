@@ -1,0 +1,5 @@
+Did yoy verify it was working
+
+---
+
+we should make this disabled if its not localhost provider=supabase
