@@ -1,10 +1,10 @@
 import type {
+  AdvisorLint,
   ColumnInfo,
   EdgeFunction,
   ForeignKeyInfo,
   LogEntry,
   LogService,
-  ResourceWarning,
   RLSPolicy,
   SupabaseConnection,
   TableRLSInfo,
@@ -646,7 +646,8 @@ export const DEMO_LOGS: LogEntry[] = [
       table_name: 'missing_table',
     },
     raw: {
-      event_message: 'ERROR: 42P01: relation "public.missing_table" does not exist (SQLSTATE 42P01)',
+      event_message:
+        'ERROR: 42P01: relation "public.missing_table" does not exist (SQLSTATE 42P01)',
       metadata: { command_tag: 'SELECT', error_severity: 'ERROR', sql_state_code: '42P01' },
     },
   },
@@ -667,7 +668,8 @@ export const DEMO_LOGS: LogEntry[] = [
     timestamp: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
     service: 'postgres',
     severity: 'ERROR',
-    message: 'ERROR: 23505: duplicate key value violates unique constraint "users_email_key" (SQLSTATE 23505)',
+    message:
+      'ERROR: 23505: duplicate key value violates unique constraint "users_email_key" (SQLSTATE 23505)',
     metadata: {
       command_tag: 'INSERT',
       error_severity: 'ERROR',
@@ -685,12 +687,17 @@ export const DEMO_LOGS: LogEntry[] = [
     timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
     service: 'edge-functions',
     severity: 'ERROR',
-    message: 'BOOT_ERROR: Worker failed to boot: relative import path "openai" not prefixed with /./ or /../',
+    message:
+      'BOOT_ERROR: Worker failed to boot: relative import path "openai" not prefixed with /./ or /../',
     metadata: { function_id: 'demo-ef-3', function_name: 'process-webhook', status: 'BOOT_ERROR' },
     raw: {
       event_message:
         'BOOT_ERROR: Worker failed to boot: relative import path "openai" not prefixed with /./ or /../',
-      metadata: { function_id: 'demo-ef-3', function_name: 'process-webhook', status: 'BOOT_ERROR' },
+      metadata: {
+        function_id: 'demo-ef-3',
+        function_name: 'process-webhook',
+        status: 'BOOT_ERROR',
+      },
     },
   },
   {
@@ -918,6 +925,9 @@ const T290 = '1717200000290000000' // 290ms
 const T435 = '1717200000435000000' // 435ms
 const T440 = '1717200000440000000' // 440ms
 
+/** W3C trace id shared by the demo OTLP trace and its correlated demo logs. */
+export const DEMO_TRACE_ID = 'aabbccdd001122334455667788990011'
+
 export const DEMO_OTLP_TRACE = {
   resourceSpans: [
     {
@@ -929,7 +939,7 @@ export const DEMO_OTLP_TRACE = {
           scope: { name: 'agent-query', version: '1.0.0' },
           spans: [
             {
-              traceId: 'aabbccdd001122334455667788990011',
+              traceId: DEMO_TRACE_ID,
               spanId: 'aabb001122334455',
               name: 'agent_query',
               kind: 'SPAN_KIND_INTERNAL' as const,
@@ -943,7 +953,7 @@ export const DEMO_OTLP_TRACE = {
               flags: 1,
             },
             {
-              traceId: 'aabbccdd001122334455667788990011',
+              traceId: DEMO_TRACE_ID,
               spanId: 'bbcc001122334455',
               parentSpanId: 'aabb001122334455',
               name: 'discover_tables',
@@ -966,7 +976,7 @@ export const DEMO_OTLP_TRACE = {
               flags: 1,
             },
             {
-              traceId: 'aabbccdd001122334455667788990011',
+              traceId: DEMO_TRACE_ID,
               spanId: 'ccdd001122334455',
               parentSpanId: 'aabb001122334455',
               name: 'inspect_columns',
@@ -990,7 +1000,7 @@ export const DEMO_OTLP_TRACE = {
               flags: 1,
             },
             {
-              traceId: 'aabbccdd001122334455667788990011',
+              traceId: DEMO_TRACE_ID,
               spanId: 'ddee001122334455',
               parentSpanId: 'aabb001122334455',
               name: 'count_rows',
@@ -1013,6 +1023,53 @@ export const DEMO_OTLP_TRACE = {
     },
   ],
 }
+
+// ─── Demo Correlated Server Logs ───
+// Server-side log entries carrying DEMO_TRACE_ID, as Supabase's gateway +
+// edge-function logs would when the client request propagated traceparent.
+
+export const DEMO_CORRELATED_LOGS: LogEntry[] = [
+  {
+    id: 'demo-trace-log-1',
+    timestamp: new Date(Date.now() - 40 * 1000).toISOString(),
+    service: 'api',
+    severity: 'INFO',
+    message: 'POST https://demo-project.supabase.co/functions/v1/agent-query 200',
+    metadata: {
+      trace_id: DEMO_TRACE_ID,
+      request: { method: 'POST', path: '/functions/v1/agent-query' },
+      response: { status_code: 200 },
+    },
+    raw: {
+      event_message: 'POST https://demo-project.supabase.co/functions/v1/agent-query 200',
+      metadata: { trace_id: DEMO_TRACE_ID },
+    },
+  },
+  {
+    id: 'demo-trace-log-2',
+    timestamp: new Date(Date.now() - 35 * 1000).toISOString(),
+    service: 'edge-functions',
+    severity: 'INFO',
+    message: 'Function executing: agent-query',
+    metadata: { projectref: 'demo-project', trace_id: DEMO_TRACE_ID },
+    raw: {
+      event_message: 'Function executing: agent-query',
+      metadata: { trace_id: DEMO_TRACE_ID },
+    },
+  },
+  {
+    id: 'demo-trace-log-3',
+    timestamp: new Date(Date.now() - 30 * 1000).toISOString(),
+    service: 'edge-functions',
+    severity: 'INFO',
+    message: 'agent-query: 3 steps completed in 438ms',
+    metadata: { projectref: 'demo-project', trace_id: DEMO_TRACE_ID },
+    raw: {
+      event_message: 'agent-query: 3 steps completed in 438ms',
+      metadata: { trace_id: DEMO_TRACE_ID },
+    },
+  },
+]
 
 export const DEMO_TRACE_STEPS = [
   {
@@ -1039,15 +1096,75 @@ export const DEMO_TRACE_STEPS = [
   { name: 'count_rows', durationMs: 145, result: { table: 'users', rowCount: 117482 } },
 ]
 
-export const DEMO_RESOURCE_WARNINGS: ResourceWarning = {
-  project: 'demo-project',
-  is_readonly_mode_enabled: false,
-  disk_io_exhaustion: 'warning',
-  cpu_exhaustion: null,
-  memory_and_swap_exhaustion: 'critical',
-  disk_space_exhaustion: null,
-  auth_rate_limit_exhaustion: 'warning',
-  auth_email_offender: null,
-  auth_restricted_email_sending: false,
-  need_pitr: true,
-}
+export const DEMO_ADVISOR_LINTS: AdvisorLint[] = [
+  {
+    type: 'security',
+    name: 'rls_enabled_no_policy',
+    title: 'RLS Enabled No Policy',
+    level: 'INFO',
+    facing: 'EXTERNAL',
+    categories: ['SECURITY'],
+    description:
+      'Detects cases where row level security (RLS) has been enabled on a table but no RLS policies have been created.',
+    detail: 'Table `public.audit_logs` has RLS enabled, but no policies exist',
+    remediation:
+      'https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy',
+    cacheKey: 'rls_enabled_no_policy_public_audit_logs',
+  },
+  {
+    type: 'security',
+    name: 'rls_disabled_in_public',
+    title: 'RLS Disabled in Public',
+    level: 'ERROR',
+    facing: 'EXTERNAL',
+    categories: ['SECURITY'],
+    description: 'Detects cases where row level security has not been enabled on a public table.',
+    detail: 'Table `public.likes` is public, but RLS has not been enabled',
+    remediation:
+      'https://supabase.com/docs/guides/database/database-linter?lint=0013_rls_disabled_in_public',
+    cacheKey: 'rls_disabled_in_public_public_likes',
+  },
+  {
+    type: 'security',
+    name: 'function_search_path_mutable',
+    title: 'Function Search Path Mutable',
+    level: 'WARN',
+    facing: 'EXTERNAL',
+    categories: ['SECURITY'],
+    description: 'Detects functions where the search_path parameter is not set.',
+    detail: 'Function `public.handle_new_user` has a role mutable search_path',
+    remediation:
+      'https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable',
+    cacheKey: 'function_search_path_mutable_public_handle_new_user',
+  },
+  {
+    type: 'performance',
+    name: 'unindexed_foreign_keys',
+    title: 'Unindexed foreign keys',
+    level: 'INFO',
+    facing: 'EXTERNAL',
+    categories: ['PERFORMANCE'],
+    description:
+      'Identifies foreign key constraints without a covering index, which can impact database performance.',
+    detail:
+      'Table `public.comments` has a foreign key `comments_post_id_fkey` without a covering index',
+    remediation:
+      'https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys',
+    cacheKey: 'unindexed_foreign_keys_public_comments',
+  },
+  {
+    type: 'performance',
+    name: 'auth_rls_initplan',
+    title: 'Auth RLS Initialization Plan',
+    level: 'WARN',
+    facing: 'EXTERNAL',
+    categories: ['PERFORMANCE'],
+    description:
+      'Detects RLS policies that re-evaluate auth functions per row instead of once per query.',
+    detail:
+      'Table `public.posts` has a row level security policy `posts_owner` that re-evaluates auth.uid() for each row',
+    remediation:
+      'https://supabase.com/docs/guides/database/database-linter?lint=0003_auth_rls_initplan',
+    cacheKey: 'auth_rls_initplan_public_posts',
+  },
+]

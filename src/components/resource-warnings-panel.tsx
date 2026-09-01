@@ -3,275 +3,280 @@
 import {
   AlertTriangle,
   CheckCircle2,
-  Database,
-  HardDrive,
+  ChevronDown,
+  ChevronRight,
+  ExternalLink,
+  Info,
   Loader2,
-  Lock,
-  Mail,
-  MemoryStick,
   RefreshCw,
   ShieldAlert,
-  Timer,
   Zap,
 } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
-import { toast } from 'sonner'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { apiFetch } from '@/lib/api-auth'
-import { DEMO_RESOURCE_WARNINGS } from '@/lib/demo-data'
-import type { ResourceSeverity, ResourceWarning, SupabaseConnection } from '@/lib/supabase-types'
+import { Card, CardContent } from '@/components/ui/card'
+import { StatTile } from '@/components/ui/stat-tile'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { track } from '@/lib/analytics'
+import { apiFetch } from '@/lib/api-auth'
+import { DEMO_ADVISOR_LINTS } from '@/lib/demo-data'
+import type {
+  AdvisorLint,
+  AdvisorsResult,
+  AdvisorType,
+  SupabaseConnection,
+} from '@/lib/supabase-types'
 
 interface ResourceWarningsPanelProps {
   connection: SupabaseConnection | null
   isDemoMode: boolean
 }
 
-// Exhaustion metrics that report a severity. auth_rate_limit_exhaustion is
-// handled separately because the API never returns 'critical' for it.
-interface MetricDef {
-  key: keyof ResourceWarning
-  label: string
-  description: string
-  icon: typeof HardDrive
-}
+const LEVEL_ORDER: AdvisorLint['level'][] = ['ERROR', 'WARN', 'INFO']
 
-const METRICS: MetricDef[] = [
-  {
-    key: 'disk_io_exhaustion',
-    label: 'Disk IO',
-    description: 'Sustained IOPS at the volume limit — queries are queuing on disk.',
-    icon: HardDrive,
-  },
-  {
-    key: 'cpu_exhaustion',
-    label: 'CPU',
-    description: 'Compute is maxed out; consider scaling up the instance.',
-    icon: Zap,
-  },
-  {
-    key: 'memory_and_swap_exhaustion',
-    label: 'Memory & Swap',
-    description: 'Available memory exhausted and swapping is heavy.',
-    icon: MemoryStick,
-  },
-  {
-    key: 'disk_space_exhaustion',
-    label: 'Disk Space',
-    description: 'Disk is running out of space; auto-grow may be disabled.',
-    icon: Database,
-  },
-]
-
-function severityBadge(sev: ResourceSeverity) {
-  if (!sev) {
+function levelBadge(level: AdvisorLint['level']) {
+  if (level === 'ERROR') {
     return (
-      <Badge variant="outline" className="gap-1 border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
-        <CheckCircle2 className="size-3" /> Healthy
+      <Badge variant="destructive" className="gap-1">
+        <AlertTriangle className="size-3" /> Error
       </Badge>
     )
   }
-  if (sev === 'critical') {
+  if (level === 'WARN') {
     return (
-      <Badge variant="destructive" className="gap-1">
-        <AlertTriangle className="size-3" /> Critical
+      <Badge variant="default" className="gap-1 bg-amber-500/90 hover:bg-amber-500">
+        <AlertTriangle className="size-3" /> Warning
       </Badge>
     )
   }
   return (
-    <Badge variant="default" className="gap-1 bg-amber-500/90 hover:bg-amber-500">
-      <AlertTriangle className="size-3" /> Warning
+    <Badge variant="outline" className="gap-1">
+      <Info className="size-3" /> Info
     </Badge>
   )
 }
 
+/** Advisor prose wraps object and keyword names in backticks — render them as code. */
+function Ticked({ text, className }: { text: string; className?: string }) {
+  return (
+    <span className={className ?? 'text-xs text-muted-foreground leading-relaxed'}>
+      {text.split(/`([^`]+)`/).map((part, i) =>
+        i % 2 === 1 ? (
+          // biome-ignore lint/suspicious/noArrayIndexKey: split output, index is the identity
+          <code key={i} className="font-mono text-[11px] text-foreground/90">
+            {part}
+          </code>
+        ) : (
+          // biome-ignore lint/suspicious/noArrayIndexKey: split output, index is the identity
+          <span key={i}>{part}</span>
+        )
+      )}
+    </span>
+  )
+}
+
 export function ResourceWarningsPanel({ connection, isDemoMode }: ResourceWarningsPanelProps) {
-  const [data, setData] = useState<ResourceWarning | null>(null)
+  const [lints, setLints] = useState<AdvisorLint[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [type, setType] = useState<AdvisorType>('security')
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
-  const fetchWarnings = useCallback(async () => {
+  const fetchAdvisors = useCallback(async () => {
     if (!connection && !isDemoMode) return
     setLoading(true)
     setError(null)
-    track('resource_warnings_fetch', { is_demo: isDemoMode })
+    track('advisors_fetch', { is_demo: isDemoMode })
     try {
       if (isDemoMode) {
-        setData(DEMO_RESOURCE_WARNINGS)
+        setLints(DEMO_ADVISOR_LINTS)
         return
       }
-      const res = await apiFetch('/api/resource-warnings', connection!)
-      const json = await res.json()
-      if (!res.ok) {
+      const res = await apiFetch('/api/advisors', connection!)
+      const json = (await res.json()) as AdvisorsResult
+      if (!res.ok || json.error) {
         setError(json.error ?? `Fetch failed (${res.status})`)
+        setLints([])
         return
       }
-      setData(json as ResourceWarning)
+      setLints(json.lints ?? [])
     } catch {
-      setError('Failed to fetch resource warnings')
+      setError('Failed to fetch advisors')
+      setLints([])
     } finally {
       setLoading(false)
     }
   }, [connection, isDemoMode])
 
   useEffect(() => {
-    fetchWarnings()
-  }, [fetchWarnings])
+    fetchAdvisors()
+  }, [fetchAdvisors])
 
-  const activeMetricCount = METRICS.filter((m) => data?.[m.key] as ResourceSeverity).length
-  const readonlyMode = data?.is_readonly_mode_enabled
-  const needPitr = data?.need_pitr
-  const authRateLimit = data?.auth_rate_limit_exhaustion
-  const authEmailOffender = data?.auth_email_offender
-  const authRestricted = data?.auth_restricted_email_sending
+  const shown = useMemo(() => lints.filter((l) => l.type === type), [lints, type])
+
+  // Group by lint name: one rule fires once per offending object, so 136 findings are
+  // usually a dozen rules — the rule is the unit worth reading.
+  const groups = useMemo(() => {
+    const byName = new Map<string, AdvisorLint[]>()
+    for (const lint of shown) {
+      const existing = byName.get(lint.name)
+      if (existing) existing.push(lint)
+      else byName.set(lint.name, [lint])
+    }
+    return [...byName.values()].sort(
+      (a, b) =>
+        LEVEL_ORDER.indexOf(a[0].level) - LEVEL_ORDER.indexOf(b[0].level) || b.length - a.length
+    )
+  }, [shown])
+
+  const counts = useMemo(
+    () => ({
+      ERROR: shown.filter((l) => l.level === 'ERROR').length,
+      WARN: shown.filter((l) => l.level === 'WARN').length,
+      INFO: shown.filter((l) => l.level === 'INFO').length,
+    }),
+    [shown]
+  )
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">Resource Warnings</h2>
+          <h2 className="text-lg font-semibold">Advisors</h2>
           <p className="text-sm text-muted-foreground">
-            Platform-level health issues reported by Supabase for this project.
+            Security and performance findings from the Supabase database linter.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchWarnings} disabled={loading} className="gap-1.5">
-          {loading ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Tabs value={type} onValueChange={(v) => setType(v as AdvisorType)}>
+            <TabsList className="h-8">
+              <TabsTrigger value="security" className="text-xs gap-1.5 h-7">
+                <ShieldAlert className="size-3.5" />
+                Security
+              </TabsTrigger>
+              <TabsTrigger value="performance" className="text-xs gap-1.5 h-7">
+                <Zap className="size-3.5" />
+                Performance
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchAdvisors}
+            disabled={loading}
+            className="gap-1.5"
+          >
+            {loading ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="size-3.5" />
+            )}
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {error && (
         <Alert variant="destructive">
           <AlertTriangle className="size-4" />
-          <AlertTitle>Could not load warnings</AlertTitle>
-          <AlertDescription>
-            {error}
-            {error.includes('access token') && ' — reconnect this project via OAuth.'}
-          </AlertDescription>
+          <AlertTitle>Could not load advisors</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      {!error && data && (
+      {!error && (
         <>
-          {/* Critical banner: read-only mode */}
-          {readonlyMode && (
-            <Alert variant="destructive">
-              <Lock className="size-4" />
-              <AlertTitle>Project is in read-only mode</AlertTitle>
-              <AlertDescription>
-                The database has been placed in read-only mode, likely due to disk space exhaustion.
-                Writes are blocked until the issue is resolved.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Summary */}
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            {activeMetricCount === 0 && !readonlyMode && !authRateLimit && !needPitr ? (
-              <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                <CheckCircle2 className="size-4" /> No active resource warnings.
-              </span>
-            ) : (
-              <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
-                <ShieldAlert className="size-4" />
-                {activeMetricCount + (authRateLimit ? 1 : 0) + (readonlyMode ? 1 : 0)} active
-                warning{activeMetricCount + (authRateLimit ? 1 : 0) + (readonlyMode ? 1 : 0) !== 1 ? 's' : ''}.
-              </span>
-            )}
+          <div className="grid grid-cols-3 gap-3">
+            <StatTile
+              label="Errors"
+              value={counts.ERROR}
+              icon={AlertTriangle}
+              iconClassName={counts.ERROR > 0 ? 'text-destructive' : undefined}
+              valueClassName={counts.ERROR > 0 ? 'text-destructive' : undefined}
+            />
+            <StatTile
+              label="Warnings"
+              value={counts.WARN}
+              icon={AlertTriangle}
+              iconClassName={counts.WARN > 0 ? 'text-amber-500' : undefined}
+              valueClassName={counts.WARN > 0 ? 'text-amber-500' : undefined}
+            />
+            <StatTile label="Info" value={counts.INFO} icon={Info} />
           </div>
 
-          {/* Metric cards */}
-          <div className="grid gap-3 sm:grid-cols-2">
-            {METRICS.map((m) => {
-              const sev = data[m.key] as ResourceSeverity
-              const Icon = m.icon
-              return (
-                <Card key={m.key} className={sev ? 'border-amber-500/40' : undefined}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Icon className="size-4 text-muted-foreground" />
-                        <CardTitle className="text-sm font-medium">{m.label}</CardTitle>
-                      </div>
-                      {severityBadge(sev)}
+          {shown.length === 0 && !loading && (
+            <div className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="size-4" /> No {type} findings for this project.
+            </div>
+          )}
+
+          {groups.map((group) => {
+            const head = group[0]
+            const open = expanded.has(head.name)
+            return (
+              <Card key={head.name} className="gap-0 py-0 overflow-hidden">
+                <button
+                  type="button"
+                  className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors"
+                  onClick={() => {
+                    const next = new Set(expanded)
+                    open ? next.delete(head.name) : next.add(head.name)
+                    setExpanded(next)
+                  }}
+                >
+                  {open ? (
+                    <ChevronDown className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium">{head.title}</span>
+                      {levelBadge(head.level)}
+                      <Badge variant="secondary" className="text-[10px] h-5">
+                        {group.length} {group.length === 1 ? 'object' : 'objects'}
+                      </Badge>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="text-xs leading-relaxed">
-                      {sev ? m.description : 'No issues detected.'}
-                    </CardDescription>
+                    <Ticked
+                      text={head.description}
+                      className="block text-xs text-muted-foreground mt-1 leading-relaxed"
+                    />
+                  </div>
+                </button>
+
+                {open && (
+                  <CardContent className="px-4 pb-3 pt-0">
+                    <div className="border-t pt-2 flex flex-col gap-1.5">
+                      {group.map((lint) => (
+                        <Ticked key={lint.cacheKey} text={lint.detail} />
+                      ))}
+                      {head.remediation && (
+                        <a
+                          href={head.remediation}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1.5 w-fit"
+                        >
+                          How to fix this
+                          <ExternalLink className="size-3" />
+                        </a>
+                      )}
+                    </div>
                   </CardContent>
-                </Card>
-              )
-            })}
-          </div>
-
-          {/* Auth rate limit — warning only */}
-          <Card className={authRateLimit ? 'border-amber-500/40' : undefined}>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Zap className="size-4 text-muted-foreground" />
-                  <CardTitle className="text-sm font-medium">Auth Rate Limit</CardTitle>
-                </div>
-                {authRateLimit ? (
-                  <Badge variant="default" className="gap-1 bg-amber-500/90 hover:bg-amber-500">
-                    <AlertTriangle className="size-3" /> Warning
-                  </Badge>
-                ) : (
-                  severityBadge(null)
                 )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <CardDescription className="text-xs leading-relaxed">
-                {authRateLimit
-                  ? 'Auth endpoints are being rate-limited. A spike in auth traffic or a misbehaving client may be the cause.'
-                  : 'No issues detected.'}
-              </CardDescription>
-            </CardContent>
-          </Card>
-
-          {/* PITR recommendation */}
-          {needPitr && (
-            <Alert>
-              <Timer className="size-4" />
-              <AlertTitle>Point-in-time recovery recommended</AlertTitle>
-              <AlertDescription>
-                Supabase recommends enabling PITR for this project so the database can be restored to a
-                specific point in time.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Auth email restrictions */}
-          {(authEmailOffender || authRestricted) && (
-            <Alert>
-              <Mail className="size-4" />
-              <AlertTitle>Auth email sending restricted</AlertTitle>
-              <AlertDescription className="space-y-1">
-                {authEmailOffender && (
-                  <p>
-                    A project on this account (<code className="text-xs">{authEmailOffender}</code>) is
-                    sending high volumes of auth emails and restricting delivery for others.
-                  </p>
-                )}
-                {authRestricted && (
-                  <p>Outgoing auth emails from this project are currently restricted.</p>
-                )}
-              </AlertDescription>
-            </Alert>
-          )}
+              </Card>
+            )
+          })}
         </>
       )}
 
-      {!error && !data && loading && (
+      {loading && lints.length === 0 && (
         <div className="flex items-center justify-center py-12 text-muted-foreground">
           <Loader2 className="mr-2 size-5 animate-spin" />
-          Loading resource warnings…
+          Loading advisors…
         </div>
       )}
     </div>
