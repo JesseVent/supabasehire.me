@@ -121,6 +121,8 @@ interface SupabaseStore {
   updateConnection: (id: string, updates: Partial<SupabaseConnection>) => void
   removeConnection: (id: string) => void
   setActiveConnectionId: (id: string | null) => void
+  /** True once the user has opened any connection. Gates the extension's silent auto-connect. */
+  hasOnboarded: boolean
   setTables: (tables: TableSchema[]) => void
   setRlsStatuses: (statuses: TableRLSInfo[]) => void
   setEdgeFunctions: (functions: EdgeFunction[]) => void
@@ -181,6 +183,7 @@ const initialState = {
   logs: [] as LogEntry[],
   logsLoading: false,
   logsError: null as string | null,
+  hasOnboarded: false,
   logsService: 'all' as LogService,
   logsStartTime: '',
   logsEndTime: '',
@@ -249,7 +252,8 @@ export const useSupabaseStore = create<SupabaseStore>()(
           activeConnectionId: state.activeConnectionId === id ? null : state.activeConnectionId,
         })),
 
-      setActiveConnectionId: (id) => set({ activeConnectionId: id }),
+      setActiveConnectionId: (id) =>
+        set(id ? { activeConnectionId: id, hasOnboarded: true } : { activeConnectionId: id }),
 
       // Schema actions
       setTables: (tables) => set({ tables }),
@@ -383,6 +387,7 @@ export const useSupabaseStore = create<SupabaseStore>()(
         // Extension-sourced connections are never persisted — they live in memory only.
         connections: state.connections.filter((c) => c.source !== 'extension'),
         activeConnectionId: state.activeConnectionId,
+        hasOnboarded: state.hasOnboarded,
         activePanel: state.activePanel,
         sqlEditorContent: state.sqlEditorContent,
         sqlHistory: state.sqlHistory,

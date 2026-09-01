@@ -44,9 +44,7 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: 'Jesse Vent', url: 'https://github.com/JesseVent' }],
   alternates: { canonical: '/' },
-  icons: {
-    icon: '/logo.svg',
-  },
+  // Favicon comes from src/app/icon.svg — the App Router emits the <link> itself.
   openGraph: {
     type: 'website',
     url: SITE_URL,

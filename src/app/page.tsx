@@ -476,8 +476,19 @@ export default function Home() {
         source: 'extension' as const,
       }
       addConnection(conn)
-      setActiveConnectionId(conn.id)
       setSessionCredentials(conn.id, creds)
+
+      // A first-time visitor gets the landing page, not somebody else's project shell.
+      // The connection is registered either way, so it is one click away in the picker.
+      if (!useSupabaseStore.getState().hasOnboarded) {
+        toast('SupaAgent extension detected', {
+          description: 'Pick "Extension (SupaAgent)" in the connection menu to open your project.',
+          duration: 6000,
+        })
+        return
+      }
+
+      setActiveConnectionId(conn.id)
       toast.success('Connected via extension', {
         description: 'Credentials stay in SupaAgent vault — page JS never holds raw tokens',
         duration: 4000,
@@ -670,6 +681,14 @@ export default function Home() {
           setExtensionOffline(true)
           setSchemaError(
             'SupaAgent extension is offline. Reconnect by authenticating via OAuth below.'
+          )
+        } else if (activeConn.source === 'extension') {
+          // An extension connection always persists accessToken: null — the real token
+          // comes out of the vault at request time — so a missing field here proves
+          // nothing. Reaching this point means a token was sent and rejected.
+          recordAuthFailure(activeConnectionId)
+          setSchemaError(
+            "SupaAgent's Supabase token was rejected. Reopen the extension to re-authorise, or connect this project via OAuth."
           )
         } else if (body?.code === 'oauth_required' || !activeConn.accessToken) {
           // Nothing failed — this connection has no Management API token yet.

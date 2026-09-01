@@ -13,7 +13,11 @@
  */
 
 import type { NextRequest } from 'next/server'
-import { getExtensionCredentials, getSessionCredentials, setSessionCredentials } from '@/lib/extension-bridge'
+import {
+  getExtensionCredentials,
+  getSessionCredentials,
+  setSessionCredentials,
+} from '@/lib/extension-bridge'
 import type { SupabaseConnection } from '@/lib/supabase-types'
 
 // Header names — single source of truth for client and server
@@ -122,6 +126,31 @@ async function updateStoredConnection(
   }
 }
 
+/**
+ * Persist refreshed tokens where the next request will actually read them.
+ *
+ * An extension connection keeps `accessToken: null` in the store on purpose and takes its
+ * credentials from the session vault cache on every call, so writing a refreshed token to the
+ * store alone leaves the stale one in play and the 401 repeats forever.
+ */
+async function persistRefreshedTokens(
+  conn: SupabaseConnection,
+  tokens: { accessToken: string; refreshToken: string }
+): Promise<void> {
+  if (conn.source === 'extension') {
+    const creds = getSessionCredentials(conn.id)
+    if (creds) {
+      setSessionCredentials(conn.id, {
+        ...creds,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+      })
+      return
+    }
+  }
+  await updateStoredConnection(conn.id, tokens)
+}
+
 const AUTH_ERROR_PATTERNS = [
   /jwt expired/i,
   /invalid token/i,
@@ -138,12 +167,16 @@ function isAuthError(body: unknown): boolean {
 }
 
 async function tryRefresh(
-  conn: SupabaseConnection
+  conn: SupabaseConnection,
+  // Extension tokens are minted by the extension's own OAuth client, so refreshing them with
+  // the page's DCR client id is rejected. The vault hands us the right client alongside them.
+  client?: { clientId: string | null; clientSecret: string | null }
 ): Promise<{ accessToken: string; refreshToken: string } | null> {
   if (!conn.refreshToken) return null
   try {
-    const clientId = sessionStorage.getItem('supabase_dcr_client_id')
-    const clientSecret = sessionStorage.getItem('supabase_dcr_client_secret')
+    const clientId = client?.clientId ?? sessionStorage.getItem('supabase_dcr_client_id')
+    const clientSecret =
+      client?.clientSecret ?? sessionStorage.getItem('supabase_dcr_client_secret')
     if (!clientId) return null
 
     const params = new URLSearchParams({
@@ -159,7 +192,7 @@ async function tryRefresh(
       body: params,
     })
     if (!refreshRes.ok) {
-      const errData = await refreshRes.json().catch(() => ({})) as Record<string, string>
+      const errData = (await refreshRes.json().catch(() => ({}))) as Record<string, string>
       if (/unrecognized.client/i.test(errData.error ?? '')) {
         sessionStorage.removeItem('supabase_dcr_client_id')
         sessionStorage.removeItem('supabase_dcr_client_secret')
@@ -174,6 +207,38 @@ async function tryRefresh(
   } catch {
     return null
   }
+}
+
+/**
+ * Recover an extension connection whose vault token was rejected. The extension refreshes its
+ * own tokens, so ask it for current ones first; only mint a new pair ourselves if it handed
+ * back the same stale token. Either way the result goes to the session cache, which is what
+ * the next request reads.
+ */
+async function recoverExtensionAuth(
+  conn: SupabaseConnection,
+  staleToken: string | null
+): Promise<{ accessToken: string; refreshToken: string } | null> {
+  const fresh = (await getExtensionCredentials()) ?? getSessionCredentials(conn.id) ?? null
+  if (!fresh) return null
+
+  if (fresh.accessToken && fresh.accessToken !== staleToken) {
+    setSessionCredentials(conn.id, fresh)
+    return { accessToken: fresh.accessToken, refreshToken: fresh.refreshToken ?? '' }
+  }
+
+  const tokens = await tryRefresh(
+    { ...conn, refreshToken: fresh.refreshToken },
+    { clientId: fresh.clientId, clientSecret: fresh.clientSecret }
+  )
+  if (tokens) {
+    setSessionCredentials(conn.id, {
+      ...fresh,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    })
+  }
+  return tokens
 }
 
 export async function apiFetch(
@@ -199,7 +264,8 @@ export async function apiFetch(
     if (!creds?.accessToken) {
       return new Response(
         JSON.stringify({
-          error: 'Extension is not responding. Open the extension once to reconnect, or switch to OAuth.',
+          error:
+            'Extension is not responding. Open the extension once to reconnect, or switch to OAuth.',
           // Distinguishable code so the UI can render an actionable OAuth button.
           code: 'extension_unavailable',
         }),
@@ -234,10 +300,13 @@ export async function apiFetch(
   })
 
   // Case 1: Direct 401 from our API routes
-  if (res.status === 401 && effectiveConn.refreshToken) {
-    const tokens = await tryRefresh(effectiveConn)
+  if (res.status === 401 && (effectiveConn.refreshToken || conn.source === 'extension')) {
+    const tokens =
+      conn.source === 'extension'
+        ? await recoverExtensionAuth(conn, effectiveConn.accessToken)
+        : await tryRefresh(effectiveConn)
     if (tokens) {
-      await updateStoredConnection(conn.id, tokens)
+      await persistRefreshedTokens(conn, tokens)
       return fetch(path, {
         method: 'POST',
         headers: {
@@ -255,10 +324,13 @@ export async function apiFetch(
   const cloned = res.clone()
   try {
     const body = await cloned.json()
-    if (isAuthError(body) && effectiveConn.refreshToken) {
-      const tokens = await tryRefresh(effectiveConn)
+    if (isAuthError(body) && (effectiveConn.refreshToken || conn.source === 'extension')) {
+      const tokens =
+        conn.source === 'extension'
+          ? await recoverExtensionAuth(conn, effectiveConn.accessToken)
+          : await tryRefresh(effectiveConn)
       if (tokens) {
-        await updateStoredConnection(conn.id, tokens)
+        await persistRefreshedTokens(conn, tokens)
         return fetch(path, {
           method: 'POST',
           headers: {
