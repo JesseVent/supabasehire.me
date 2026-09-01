@@ -25,7 +25,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import type { ChartConfig } from '@/components/ui/chart'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Input } from '@/components/ui/input'
-import { StatTile } from '@/components/ui/stat-tile'
 import {
   Select,
   SelectContent,
@@ -33,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { StatTile } from '@/components/ui/stat-tile'
 import {
   Table,
   TableBody,
@@ -48,7 +48,7 @@ import { useSupabaseStore } from '@/store/supabase-store'
 
 // ─── Types ───
 
-interface IndexInfo {
+export interface IndexInfo {
   tableName: string
   indexName: string
   columns: string[]
@@ -86,7 +86,7 @@ interface ApiIndexesResponse {
 
 // ─── Demo Data ───
 
-const DEMO_INDEXES: IndexInfo[] = [
+export const DEMO_INDEXES: IndexInfo[] = [
   {
     tableName: 'users',
     indexName: 'users_pkey',
@@ -654,7 +654,9 @@ export function IndexViewer() {
               label="Unused"
               icon={AlertTriangle}
               iconClassName={unusedCount > 0 ? 'text-amber-500' : 'text-primary'}
-              valueClassName={unusedCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-primary'}
+              valueClassName={
+                unusedCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-primary'
+              }
               value={unusedCount}
             />
 

@@ -12,7 +12,6 @@ import {
   TrendingUp,
   Wifi,
   WifiOff,
-  Zap,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
@@ -33,6 +32,57 @@ function getLatencyStatus(duration: number): LatencyRecord['status'] {
   if (duration < 100) return 'good'
   if (duration <= 500) return 'warning'
   return 'critical'
+}
+
+/**
+ * One ping against the active connection, recorded into the store.
+ * Shared so the dashboard's Latency card and this panel measure the same way.
+ */
+export function useLatencyPing() {
+  const { activeConnectionId, connections, addLatencyRecord } = useSupabaseStore()
+  const activeConnection = connections.find((c) => c.id === activeConnectionId) || null
+  const isDemoMode = activeConnectionId === DEMO_CONNECTION_ID
+  const [isPinging, setIsPinging] = useState(false)
+
+  const ping = useCallback(async () => {
+    if (!activeConnectionId || isPinging) return
+    setIsPinging(true)
+
+    try {
+      let duration: number
+
+      if (isDemoMode) {
+        // Simulate latency for demo mode
+        await new Promise((r) => setTimeout(r, 50))
+        const spike = Math.random() < 0.1
+        duration = spike
+          ? Math.round(500 + Math.random() * 500)
+          : Math.round(30 + Math.random() * 170)
+      } else {
+        // Real connection — ping /api/project
+        const start = performance.now()
+        await apiFetch('/api/project', activeConnection)
+        duration = Math.round(performance.now() - start)
+      }
+
+      addLatencyRecord({
+        timestamp: new Date().toISOString(),
+        duration,
+        status: getLatencyStatus(duration),
+      })
+    } catch {
+      // If ping fails, record a critical measurement
+      addLatencyRecord({
+        timestamp: new Date().toISOString(),
+        duration: 9999,
+        status: 'critical',
+      })
+    } finally {
+      setIsPinging(false)
+    }
+  }, [activeConnectionId, activeConnection, isDemoMode, isPinging, addLatencyRecord])
+
+  return { ping, isPinging }
 }
 
 function getStatusColor(status: LatencyRecord['status']) {
@@ -148,12 +198,10 @@ function Sparkline({ data, maxPoints = 20 }: { data: number[]; maxPoints?: numbe
 // ─── Main Component ───
 
 export function LatencyMonitor() {
-  const { activeConnectionId, connections, latencyHistory, addLatencyRecord, clearLatencyHistory } =
+  const { activeConnectionId, latencyHistory, addLatencyRecord, clearLatencyHistory } =
     useSupabaseStore()
-  const activeConnection = connections.find((c) => c.id === activeConnectionId) || null
 
   const isDemoMode = activeConnectionId === DEMO_CONNECTION_ID
-  const [isPinging, setIsPinging] = useState(false)
   const [autoPing, setAutoPing] = useState(false)
   const autoPingRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const demoInitialized = useRef(false)
@@ -185,45 +233,7 @@ export function LatencyMonitor() {
     [latencyHistory]
   )
 
-  // Measure latency
-  const measureLatency = useCallback(async () => {
-    if (!activeConnectionId || isPinging) return
-    setIsPinging(true)
-
-    try {
-      let duration: number
-
-      if (isDemoMode) {
-        // Simulate latency for demo mode
-        await new Promise((r) => setTimeout(r, 50))
-        const spike = Math.random() < 0.1
-        duration = spike
-          ? Math.round(500 + Math.random() * 500)
-          : Math.round(30 + Math.random() * 170)
-      } else {
-        // Real connection — ping /api/project
-        const start = performance.now()
-        await apiFetch('/api/project', activeConnection)
-        duration = Math.round(performance.now() - start)
-      }
-
-      const status = getLatencyStatus(duration)
-      addLatencyRecord({
-        timestamp: new Date().toISOString(),
-        duration,
-        status,
-      })
-    } catch {
-      // If ping fails, record a critical measurement
-      addLatencyRecord({
-        timestamp: new Date().toISOString(),
-        duration: 9999,
-        status: 'critical',
-      })
-    } finally {
-      setIsPinging(false)
-    }
-  }, [activeConnectionId, isDemoMode, isPinging, addLatencyRecord])
+  const { ping: measureLatency, isPinging } = useLatencyPing()
 
   // Auto-ping every 30 seconds
   useEffect(() => {

@@ -4,40 +4,32 @@ import { motion } from 'framer-motion'
 import {
   Activity,
   AlertTriangle,
-  Calendar,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
   Clock,
-  Database,
-  ExternalLink,
-  Globe,
   HardDrive,
   HeartPulse,
   Info,
   Loader2,
   Server,
   Shield,
-  TableIcon,
-  TrendingUp,
   XCircle,
-  Zap,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { IndexViewer } from '@/components/index-viewer'
-import { LatencyMonitor } from '@/components/latency-monitor'
-import { SecurityScore } from '@/components/security-score'
+import { DEMO_INDEXES, IndexViewer } from '@/components/index-viewer'
+import { LatencyMonitor, useLatencyPing } from '@/components/latency-monitor'
+import { calculateScore, SecurityScore } from '@/components/security-score'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { StatTile } from '@/components/ui/stat-tile'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { apiFetch } from '@/lib/api-auth'
 // Types used indirectly via SecurityScore component
 import { DEMO_CONNECTION_ID } from '@/lib/demo-data'
 import { cn } from '@/lib/utils'
-import { type ActivityLogEntry, type ActivityType, useSupabaseStore } from '@/store/supabase-store'
+import { type ActivityType, useSupabaseStore } from '@/store/supabase-store'
 
 interface ProjectInfo {
   id: string
@@ -63,21 +55,138 @@ interface HealthCheck {
   message: string
 }
 
-function getPlanBadge(plan: string) {
-  switch (plan.toLowerCase()) {
-    case 'free':
-      return (
-        <Badge variant="outline" className="text-xs bg-muted/50">
-          Free
-        </Badge>
-      )
-    case 'pro':
-      return <Badge className="text-xs bg-primary hover:bg-primary">Pro</Badge>
-    case 'enterprise':
-      return <Badge className="text-xs bg-amber-500 hover:bg-amber-600">Enterprise</Badge>
-    default:
-      return <span className="text-sm font-semibold">—</span>
+// ─── Index summary (aggregates of /api/database/indexes) ───
+
+interface ApiIndexRow {
+  indexname: string
+  scans: number
+  size: string
+}
+
+interface IndexSummary {
+  count: number
+  bytes: number
+  scans: number
+  unused: number
+  unusedBytes: number
+  top: { name: string; scans: number }[]
+}
+
+const SIZE_UNITS: Record<string, number> = {
+  bytes: 1,
+  kb: 1024,
+  mb: 1024 ** 2,
+  gb: 1024 ** 3,
+  tb: 1024 ** 4,
+}
+
+/** pg_size_pretty output ("856 kB", "7.8 GB") back to bytes. */
+function parseSize(size: string): number {
+  const match = /^([\d.]+)\s*(bytes|kB|MB|GB|TB)$/i.exec(size.trim())
+  if (!match) return 0
+  return Number(match[1]) * (SIZE_UNITS[match[2].toLowerCase()] ?? 1)
+}
+
+function formatBytes(bytes: number): [string, string] {
+  if (bytes >= 1024 ** 3) return [(bytes / 1024 ** 3).toFixed(1), 'GB']
+  if (bytes >= 1024 ** 2) return [(bytes / 1024 ** 2).toFixed(1), 'MB']
+  if (bytes >= 1024) return [(bytes / 1024).toFixed(0), 'kB']
+  return [String(bytes), 'B']
+}
+
+/** 14_400_000 → ["14.4", "M"] so the number and its unit can be sized apart. */
+function formatCount(n: number): [string, string] {
+  if (n >= 1e9) return [(n / 1e9).toFixed(1), 'B']
+  if (n >= 1e6) return [(n / 1e6).toFixed(1), 'M']
+  if (n >= 1e3) return [(n / 1e3).toFixed(0), 'K']
+  return [String(n), '']
+}
+
+function summarizeIndexes(rows: ApiIndexRow[]): IndexSummary {
+  const unused = rows.filter((r) => (Number(r.scans) || 0) === 0)
+  return {
+    count: rows.length,
+    bytes: rows.reduce((a, r) => a + parseSize(r.size || ''), 0),
+    scans: rows.reduce((a, r) => a + (Number(r.scans) || 0), 0),
+    unused: unused.length,
+    unusedBytes: unused.reduce((a, r) => a + parseSize(r.size || ''), 0),
+    top: [...rows]
+      .sort((a, b) => (Number(b.scans) || 0) - (Number(a.scans) || 0))
+      .slice(0, 3)
+      .map((r) => ({ name: r.indexname, scans: Number(r.scans) || 0 })),
   }
+}
+
+/** Mono number + small unit + caption, the metric shape used across the grid. */
+function Metric({
+  value,
+  unit,
+  label,
+  size = 'md',
+  className,
+}: {
+  value: React.ReactNode
+  unit?: string
+  label: string
+  size?: 'sm' | 'md'
+  className?: string
+}) {
+  return (
+    <div className="min-w-0">
+      <div
+        className={cn(
+          'font-mono font-semibold tracking-tight truncate',
+          size === 'sm' ? 'text-[15px]' : 'text-[22px]',
+          className
+        )}
+      >
+        {value}
+        {unit && (
+          <span
+            className={cn(
+              'font-normal text-muted-foreground',
+              size === 'sm' ? 'text-[11px]' : 'text-[13px]'
+            )}
+          >
+            {unit === '%' ? '' : ' '}
+            {unit}
+          </span>
+        )}
+      </div>
+      <div className="truncate text-[11px] text-muted-foreground">{label}</div>
+    </div>
+  )
+}
+
+/** Card chrome shared by every tile in the overview grid. */
+function GridCard({ className, children }: { className?: string; children: React.ReactNode }) {
+  return (
+    <div className={cn('flex flex-col rounded-lg border border-border bg-card', className)}>
+      {children}
+    </div>
+  )
+}
+
+function CardTop({ title, action }: { title: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between px-[18px] pt-4">
+      <span className="text-[13px] font-medium">{title}</span>
+      {action}
+    </div>
+  )
+}
+
+/** Text link with the design's trailing arrow. */
+function CardLink({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-[12px] text-primary transition-colors hover:text-primary/80"
+    >
+      {children} →
+    </button>
+  )
 }
 
 function getHealthIcon(status: string) {
@@ -211,11 +320,20 @@ function AnimatedNumber({ value, className }: { value: number; className?: strin
 }
 
 export function ProjectDashboard() {
-  const { activeConnectionId, connections, tables, rlsStatuses, edgeFunctions, activityLog } =
-    useSupabaseStore()
+  const {
+    activeConnectionId,
+    connections,
+    tables,
+    rlsStatuses,
+    edgeFunctions,
+    activityLog,
+    latencyHistory,
+    setActivePanel,
+  } = useSupabaseStore()
 
   const activeConnection = connections.find((c) => c.id === activeConnectionId)
   const isDemoMode = activeConnectionId === DEMO_CONNECTION_ID
+  const { ping, isPinging } = useLatencyPing()
 
   const [projectInfo, setProjectInfo] = useState<ProjectInfo | null>(null)
   const [projectStats, setProjectStats] = useState<ProjectStats | null>(null)
@@ -229,11 +347,23 @@ export function ProjectDashboard() {
   } | null>(null)
   const [isLoadingHealth, setIsLoadingHealth] = useState(false)
 
-  // Collapsible section states
-  const [latencyOpen, setLatencyOpen] = useState(true)
-  const [securityOpen, setSecurityOpen] = useState(true)
-  const [indexOpen, setIndexOpen] = useState(true)
-  const [activityOpen, setActivityOpen] = useState(true)
+  // Aggregates for the Indexes card. IndexViewer fetches the same endpoint for
+  // its own table — one extra call on this panel, no shared state to thread.
+  const [indexSummary, setIndexSummary] = useState<IndexSummary | null>(null)
+
+  // Detail sections below the grid — collapsed until a grid card links into one.
+  const [latencyOpen, setLatencyOpen] = useState(false)
+  const [securityOpen, setSecurityOpen] = useState(false)
+  const [indexOpen, setIndexOpen] = useState(false)
+  const [activityOpen, setActivityOpen] = useState(false)
+  const indexSectionRef = useRef<HTMLDivElement>(null)
+  const activitySectionRef = useRef<HTMLDivElement>(null)
+
+  const reveal = (open: (v: boolean) => void, ref: React.RefObject<HTMLDivElement | null>) => {
+    open(true)
+    // Wait for the collapsible to lay out before scrolling to it.
+    requestAnimationFrame(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
 
   // Computed stats from store
   const computedStats = useMemo(() => {
@@ -267,7 +397,7 @@ export function ProjectDashboard() {
     } finally {
       setIsLoadingProject(false)
     }
-  }, [activeConnectionId])
+  }, [activeConnectionId, activeConnection])
 
   // Fetch health check
   const fetchHealthCheck = useCallback(async () => {
@@ -284,12 +414,36 @@ export function ProjectDashboard() {
     } finally {
       setIsLoadingHealth(false)
     }
-  }, [activeConnectionId, isDemoMode])
+  }, [activeConnectionId, isDemoMode, activeConnection])
+
+  // Fetch index aggregates
+  const fetchIndexSummary = useCallback(async () => {
+    if (isDemoMode) {
+      // Same sample set the Index viewer below renders, so the two agree.
+      setIndexSummary(
+        summarizeIndexes(
+          DEMO_INDEXES.map((i) => ({ indexname: i.indexName, scans: i.scans, size: i.size }))
+        )
+      )
+      return
+    }
+    if (!activeConnection) return
+    try {
+      const res = await apiFetch('/api/database/indexes', activeConnection)
+      const data = await res.json()
+      if (Array.isArray(data.indexes)) {
+        setIndexSummary(summarizeIndexes(data.indexes as ApiIndexRow[]))
+      }
+    } catch {
+      // The Indexes card degrades to em-dashes; the Index viewer below reports the error.
+    }
+  }, [isDemoMode, activeConnection])
 
   useEffect(() => {
     fetchProjectInfo()
     fetchHealthCheck()
-  }, [fetchProjectInfo, fetchHealthCheck])
+    fetchIndexSummary()
+  }, [fetchProjectInfo, fetchHealthCheck, fetchIndexSummary])
 
   // Use computed stats (from store) which are always accurate,
   // falling back to API stats if needed
@@ -300,14 +454,24 @@ export function ProjectDashboard() {
       computedStats.edge_functions_count || projectStats?.edge_functions_count || 0,
   }
 
-  // Security score from rlsStatuses
-  const securityScore = useMemo(() => {
-    if (rlsStatuses.length === 0) return 0
-    let score = 100
-    score -= rlsStatuses.filter((r) => !r.rlsEnabled).length * 20
-    score -= rlsStatuses.filter((r) => r.rlsEnabled && r.policies.length === 0).length * 5
-    return Math.max(0, score)
-  }, [rlsStatuses])
+  // Same breakdown the SecurityScore card below renders, so the two never disagree.
+  const security = useMemo(() => calculateScore(rlsStatuses, tables), [rlsStatuses, tables])
+  const securityScore = rlsStatuses.length === 0 ? 0 : security.score
+
+  const latency = useMemo(() => {
+    if (latencyHistory.length === 0) return null
+    const durations = latencyHistory.map((r) => r.duration)
+    return {
+      avg: Math.round(durations.reduce((a, b) => a + b, 0) / durations.length),
+      min: Math.min(...durations),
+      max: Math.max(...durations),
+      // Oldest → newest, capped at 20 points, for the sparkline.
+      series: latencyHistory
+        .slice(0, 20)
+        .map((r) => r.duration)
+        .reverse(),
+    }
+  }, [latencyHistory])
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-primary'
@@ -328,6 +492,15 @@ export function ProjectDashboard() {
   const displayPlan =
     projectInfo?.plan_type && projectInfo.plan_type !== 'unknown' ? projectInfo.plan_type : '—'
 
+  // The header prints only what the project API actually knows — an "unknown"
+  // region or a missing Postgres version is left out, not shown as a dash.
+  const headerFacts = [
+    displayDbVersion !== '—' && `Postgres ${displayDbVersion}`,
+    displayPlan !== '—' && displayPlan,
+    displayRegion !== '—' && displayRegion !== 'unknown' && displayRegion,
+    displayCreatedAt && `Created ${formatDate(displayCreatedAt)}`,
+  ].filter((fact): fact is string => Boolean(fact))
+
   return (
     <motion.div
       variants={containerVariants}
@@ -335,165 +508,426 @@ export function ProjectDashboard() {
       animate="visible"
       className="flex flex-col gap-6"
     >
-      {/* Project Info Card */}
+      {/* Project header — name, status, and the facts that fit on one line */}
       <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Server className="size-5 text-primary" />
-                <CardTitle>Project Overview</CardTitle>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={fetchProjectInfo}
-                disabled={isLoadingProject}
-                className="gap-1.5"
-              >
-                {isLoadingProject ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <Activity className="size-3.5" />
-                )}
-                Refresh
-              </Button>
-            </div>
-            {projectError && (
-              <CardDescription className="text-amber-600 dark:text-amber-400">
-                {projectError}
-              </CardDescription>
-            )}
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Project Name */}
-              <div className="flex items-start gap-3">
-                <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <Database className="size-4 text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                    Project
-                  </p>
-                  <p className="text-sm font-semibold truncate">{displayName}</p>
-                  {displayRef && (
-                    <p className="text-xs text-muted-foreground font-mono">{displayRef}</p>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-2.5">
+              <span className="text-[18px] font-medium tracking-tight">{displayName}</span>
+              {isDemoMode ? (
+                <Badge variant="outline" className="gap-1.5 text-[11px]">
+                  <span className="size-1.5 rounded-full bg-amber-500" />
+                  Demo
+                </Badge>
+              ) : healthStatus ? (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    'gap-1.5 text-[11px] capitalize',
+                    healthStatus.status === 'healthy' && 'border-primary/40 text-primary',
+                    healthStatus.status === 'degraded' && 'border-amber-500/40 text-amber-500',
+                    healthStatus.status === 'unhealthy' && 'border-red-500/40 text-red-500'
                   )}
-                </div>
-              </div>
-
-              {/* Region */}
-              <div className="flex items-start gap-3">
-                <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <Globe className="size-4 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                    Region
-                  </p>
-                  <p className="text-sm font-semibold">{displayRegion}</p>
-                </div>
-              </div>
-
-              {/* Created */}
-              <div className="flex items-start gap-3">
-                <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <Calendar className="size-4 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                    Created
-                  </p>
-                  <p className="text-sm font-semibold">
-                    {displayCreatedAt ? formatDate(displayCreatedAt) : '—'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Database Version */}
-              <div className="flex items-start gap-3">
-                <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <HardDrive className="size-4 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                    Database
-                  </p>
-                  <p className="text-sm font-semibold">
-                    {displayDbVersion !== '—' ? `PostgreSQL ${displayDbVersion}` : '—'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Plan */}
-              <div className="flex items-start gap-3">
-                <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <Zap className="size-4 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                    Plan
-                  </p>
-                  <div className="mt-0.5">
-                    {displayPlan !== '—' ? (
-                      getPlanBadge(displayPlan)
-                    ) : (
-                      <span className="text-sm font-semibold">—</span>
+                >
+                  <span
+                    className={cn(
+                      'size-1.5 rounded-full',
+                      healthStatus.status === 'healthy' && 'bg-primary',
+                      healthStatus.status === 'degraded' && 'bg-amber-500',
+                      healthStatus.status === 'unhealthy' && 'bg-red-500'
                     )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Project URL */}
-              <div className="flex items-start gap-3">
-                <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <ExternalLink className="size-4 text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                    URL
-                  </p>
-                  {displayUrl ? (
-                    <a
-                      href={displayUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm font-medium text-primary hover:underline truncate block"
-                    >
-                      {displayUrl.replace('https://', '')}
-                    </a>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">—</p>
-                  )}
-                </div>
-              </div>
+                  />
+                  {healthStatus.status}
+                </Badge>
+              ) : null}
             </div>
-          </CardContent>
-        </Card>
+            {displayRef && (
+              <span className="font-mono text-[11px] text-muted-foreground">{displayRef}</span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-6">
+            <div className="hidden items-center gap-6 text-[12px] whitespace-nowrap text-muted-foreground lg:flex">
+              {headerFacts.map((fact) => (
+                <span key={fact} className="capitalize">
+                  {fact}
+                </span>
+              ))}
+              {displayUrl && (
+                <a
+                  href={displayUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary transition-colors hover:text-primary/80"
+                >
+                  {displayUrl.replace(/^https?:\/\//, '')}
+                </a>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                fetchProjectInfo()
+                fetchIndexSummary()
+              }}
+              disabled={isLoadingProject}
+              className="h-[26px] gap-1.5 text-xs"
+            >
+              {isLoadingProject ? (
+                <Loader2 className="size-3 animate-spin" />
+              ) : (
+                <Activity className="size-3" />
+              )}
+              Refresh
+            </Button>
+          </div>
+        </div>
+        {projectError && (
+          <p className="pt-2 text-xs text-amber-600 dark:text-amber-400">{projectError}</p>
+        )}
       </motion.div>
 
-      {/* Quick Stats Grid */}
+      {/* At-a-glance grid */}
       <motion.div variants={itemVariants}>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatTile label="Tables" icon={Database} value={<AnimatedNumber value={displayStats.tables_count} />} />
-          <StatTile
-            label="RLS Policies"
-            icon={Shield}
-            value={<AnimatedNumber value={displayStats.rls_policies_count} />}
-          />
-          <StatTile
-            label="Security Score"
-            icon={Shield}
-            iconClassName={getScoreColor(securityScore)}
-            valueClassName={getScoreColor(securityScore)}
-            value={<AnimatedNumber value={securityScore} />}
-          />
-          <StatTile
-            label="Functions"
-            icon={Zap}
-            value={<AnimatedNumber value={displayStats.edge_functions_count} />}
-          />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-12">
+          {/* ── Security ── */}
+          <GridCard className="xl:col-span-5">
+            <CardTop
+              title="Security"
+              action={<CardLink onClick={() => setActivePanel('rls')}>Open RLS</CardLink>}
+            />
+            <div className="flex items-baseline gap-2 px-[18px] pt-3.5">
+              <span
+                className={cn(
+                  'text-[40px] font-extrabold leading-none tracking-tight',
+                  getScoreColor(securityScore)
+                )}
+              >
+                <AnimatedNumber value={securityScore} />
+              </span>
+              <span className="text-[13px] text-muted-foreground">/ 100 security score</span>
+            </div>
+            <div className="px-[18px] pt-3.5 pb-1">
+              <div className="mb-1.5 flex justify-between text-[11px] text-muted-foreground">
+                <span>Policy coverage</span>
+                <span className="text-foreground/70">{security.policyCoverage}%</span>
+              </div>
+              <div className="h-1 rounded-sm bg-muted">
+                <div
+                  className="h-1 rounded-sm bg-primary transition-[width] duration-500"
+                  style={{ width: `${security.policyCoverage}%` }}
+                />
+              </div>
+            </div>
+            <div className="mt-auto flex flex-col px-2 pt-2.5 pb-2">
+              <div className="flex items-center gap-2.5 rounded-md px-2.5 py-2.5">
+                <span className="size-1.5 shrink-0 rounded-full bg-primary" />
+                <span className="flex-1 text-[13px] text-foreground/70">
+                  {security.tablesFullyProtected.length} tables fully protected
+                </span>
+              </div>
+              <div
+                className={cn(
+                  'flex items-center gap-2.5 rounded-md px-2.5 py-2.5',
+                  security.tablesWithRLSNoPolicies.length > 0 && 'bg-amber-500/10'
+                )}
+              >
+                <span
+                  className={cn(
+                    'size-1.5 shrink-0 rounded-full',
+                    security.tablesWithRLSNoPolicies.length > 0
+                      ? 'bg-amber-500'
+                      : 'bg-muted-foreground/40'
+                  )}
+                />
+                <span
+                  className={cn(
+                    'flex-1 text-[13px]',
+                    security.tablesWithRLSNoPolicies.length > 0
+                      ? 'text-foreground'
+                      : 'text-muted-foreground'
+                  )}
+                >
+                  {security.tablesWithRLSNoPolicies.length} tables have RLS enabled but no policies
+                </span>
+                {security.tablesWithRLSNoPolicies.length > 0 && (
+                  <Button
+                    size="sm"
+                    onClick={() => setActivePanel('rls')}
+                    className="h-[26px] bg-amber-500 text-[12px] text-black hover:bg-amber-500/90"
+                  >
+                    Add policies
+                  </Button>
+                )}
+              </div>
+              <div className="flex items-center gap-2.5 rounded-md px-2.5 py-2.5">
+                <span
+                  className={cn(
+                    'size-1.5 shrink-0 rounded-full',
+                    security.tablesWithoutRLS.length > 0 ? 'bg-red-500' : 'bg-muted-foreground/40'
+                  )}
+                />
+                <span
+                  className={cn(
+                    'flex-1 text-[13px]',
+                    security.tablesWithoutRLS.length > 0
+                      ? 'text-foreground'
+                      : 'text-muted-foreground'
+                  )}
+                >
+                  {security.tablesWithoutRLS.length} tables without RLS
+                </span>
+              </div>
+            </div>
+          </GridCard>
+
+          {/* ── Indexes ── */}
+          <GridCard className="xl:col-span-4">
+            <CardTop
+              title="Indexes"
+              action={
+                <CardLink onClick={() => reveal(setIndexOpen, indexSectionRef)}>
+                  Open viewer
+                </CardLink>
+              }
+            />
+            <div className="grid grid-cols-3 gap-2 px-[18px] pt-3.5 pb-1.5">
+              <Metric value={indexSummary?.count ?? '—'} label="indexes" />
+              <Metric
+                value={indexSummary ? formatBytes(indexSummary.bytes)[0] : '—'}
+                unit={indexSummary ? formatBytes(indexSummary.bytes)[1] : undefined}
+                label="total size"
+              />
+              <Metric
+                value={indexSummary ? formatCount(indexSummary.scans)[0] : '—'}
+                unit={indexSummary ? formatCount(indexSummary.scans)[1] : undefined}
+                label="scans"
+              />
+            </div>
+            {indexSummary && indexSummary.unused > 0 && (
+              <button
+                type="button"
+                onClick={() => reveal(setIndexOpen, indexSectionRef)}
+                className="mx-3 mt-2 flex items-center gap-2.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-left transition-colors hover:bg-amber-500/15"
+              >
+                <AlertTriangle className="size-3.5 shrink-0 text-amber-500" />
+                <span className="flex-1">
+                  <span className="block text-[13px] font-medium">
+                    {indexSummary.unused} unused indexes
+                  </span>
+                  <span className="block text-[11px] text-muted-foreground">
+                    0 scans — removing them reclaims ~
+                    {formatBytes(indexSummary.unusedBytes).join(' ')}
+                  </span>
+                </span>
+                <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
+              </button>
+            )}
+            <div className="mt-auto px-[18px] pt-3.5 pb-4">
+              <div className="mb-2 text-[11px] text-muted-foreground">Most scanned</div>
+              <div className="flex flex-col gap-[7px]">
+                {indexSummary?.top.length ? (
+                  indexSummary.top.map((idx) => {
+                    const max = indexSummary.top[0].scans || 1
+                    return (
+                      <div key={idx.name} className="flex items-center gap-2">
+                        <span className="w-[150px] truncate font-mono text-[11px] text-foreground/70">
+                          {idx.name}
+                        </span>
+                        <div className="h-1.5 flex-1 rounded-sm bg-muted">
+                          <div
+                            className="h-1.5 rounded-sm bg-primary"
+                            style={{ width: `${Math.max(2, (idx.scans / max) * 100)}%` }}
+                          />
+                        </div>
+                        <span className="font-mono text-[11px] text-muted-foreground">
+                          {formatCount(idx.scans).join('')}
+                        </span>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <span className="text-[11px] text-muted-foreground">
+                    {isDemoMode ? 'Not available in demo mode' : 'No index statistics yet'}
+                  </span>
+                )}
+              </div>
+            </div>
+          </GridCard>
+
+          {/* ── Latency ── */}
+          <GridCard className="xl:col-span-3">
+            <CardTop
+              title="Latency"
+              action={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={ping}
+                  disabled={isPinging || !activeConnectionId}
+                  className="h-[26px] text-xs"
+                >
+                  {isPinging ? <Loader2 className="size-3 animate-spin" /> : 'Ping'}
+                </Button>
+              }
+            />
+            <div className="px-[18px] pt-3">
+              {latency && latency.series.length > 1 ? (
+                <svg
+                  width="100%"
+                  height="44"
+                  viewBox="0 0 220 44"
+                  preserveAspectRatio="none"
+                  role="img"
+                  aria-label={`Latency trend, ${latency.series.length} samples`}
+                >
+                  <polyline
+                    points={latency.series
+                      .map((d, i) => {
+                        const x = (i / (latency.series.length - 1)) * 220
+                        // Clamp the plot to 4–40 so a flat series still reads as a line.
+                        const y = 40 - Math.min(1, d / Math.max(latency.max, 1)) * 36
+                        return `${x.toFixed(1)},${y.toFixed(1)}`
+                      })
+                      .join(' ')}
+                    fill="none"
+                    stroke="var(--brand-supabase)"
+                    strokeWidth="1.5"
+                  />
+                </svg>
+              ) : (
+                <div className="flex h-[44px] items-center text-[11px] text-muted-foreground">
+                  Ping to start measuring
+                </div>
+              )}
+            </div>
+            <div className="mt-auto grid grid-cols-3 gap-2 px-[18px] pt-2.5 pb-4">
+              <Metric
+                size="sm"
+                value={latency?.avg ?? '—'}
+                unit={latency ? 'ms' : undefined}
+                label="avg"
+              />
+              <Metric
+                size="sm"
+                value={latency?.min ?? '—'}
+                unit={latency ? 'ms' : undefined}
+                label="min"
+              />
+              <Metric
+                size="sm"
+                value={latency?.max ?? '—'}
+                unit={latency ? 'ms' : undefined}
+                label="max"
+              />
+            </div>
+          </GridCard>
+
+          {/* ── Connection health ── */}
+          <GridCard className="xl:col-span-7">
+            <CardTop
+              title="Connection health"
+              action={
+                !isDemoMode && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={fetchHealthCheck}
+                    disabled={isLoadingHealth}
+                    className="h-[26px] text-xs"
+                  >
+                    {isLoadingHealth ? <Loader2 className="size-3 animate-spin" /> : 'Check'}
+                  </Button>
+                )
+              }
+            />
+            {isDemoMode ? (
+              <p className="px-[18px] py-5 text-[13px] text-muted-foreground">
+                Health checks need a real project — demo mode has no credentials to verify.
+              </p>
+            ) : healthStatus ? (
+              <div className="grid grid-cols-1 gap-x-4 px-2 pt-3 pb-2.5 sm:grid-cols-2">
+                {healthStatus.checks.map((check) => (
+                  <div key={check.name} className="flex items-center gap-2.5 px-2.5 py-2">
+                    {check.status === 'pass' ? (
+                      <CheckCircle2 className="size-3.5 shrink-0 text-primary" />
+                    ) : check.status === 'warn' ? (
+                      <AlertTriangle className="size-3.5 shrink-0 text-amber-500" />
+                    ) : (
+                      <XCircle className="size-3.5 shrink-0 text-red-500" />
+                    )}
+                    <div className="min-w-0">
+                      <div className="text-[13px] text-foreground/70">{check.name}</div>
+                      <div className="truncate text-[11px] text-muted-foreground">
+                        {check.message}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 px-[18px] py-5">
+                {isLoadingHealth ? (
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                ) : (
+                  <>
+                    <span className="text-[13px] text-muted-foreground">No health check yet</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={fetchHealthCheck}
+                      className="h-[26px] text-xs"
+                    >
+                      Run check
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
+          </GridCard>
+
+          {/* ── Database ── */}
+          <GridCard className="xl:col-span-5">
+            <CardTop
+              title="Database"
+              action={
+                <CardLink onClick={() => reveal(setActivityOpen, activitySectionRef)}>
+                  Activity log
+                </CardLink>
+              }
+            />
+            <div className="grid grid-cols-3 gap-2 px-[18px] pt-3 pb-4">
+              <Metric value={<AnimatedNumber value={displayStats.tables_count} />} label="tables" />
+              <Metric
+                value={<AnimatedNumber value={displayStats.rls_policies_count} />}
+                label="RLS policies"
+              />
+              <Metric
+                value={<AnimatedNumber value={displayStats.edge_functions_count} />}
+                label="functions"
+              />
+            </div>
+            <div className="mt-auto flex gap-2 border-t border-border px-[18px] py-2.5 text-[11px] text-muted-foreground">
+              {activityLog.length > 0 ? (
+                <>
+                  <span
+                    className={cn(
+                      'mt-1 size-1.5 shrink-0 rounded-full',
+                      getActivityDotColor(activityLog[0].type)
+                    )}
+                  />
+                  <span className="truncate">
+                    {activityLog[0].action}
+                    {activityLog[0].details ? ` · ${activityLog[0].details}` : ''} ·{' '}
+                    {formatRelativeTime(activityLog[0].timestamp)}
+                  </span>
+                </>
+              ) : (
+                <span>No activity recorded yet</span>
+              )}
+            </div>
+          </GridCard>
         </div>
       </motion.div>
 
@@ -650,7 +1084,7 @@ export function ProjectDashboard() {
       </motion.div>
 
       {/* Database Index Viewer — Collapsible */}
-      <motion.div variants={itemVariants}>
+      <motion.div variants={itemVariants} ref={indexSectionRef}>
         <Collapsible open={indexOpen} onOpenChange={setIndexOpen}>
           <div className="flex items-center gap-2 mb-3">
             <CollapsibleTrigger asChild>
@@ -746,7 +1180,7 @@ export function ProjectDashboard() {
       </motion.div>
 
       {/* Recent Activity — Activity Timeline — Collapsible */}
-      <motion.div variants={itemVariants}>
+      <motion.div variants={itemVariants} ref={activitySectionRef}>
         <Collapsible open={activityOpen} onOpenChange={setActivityOpen}>
           <div className="flex items-center gap-2 mb-3">
             <CollapsibleTrigger asChild>

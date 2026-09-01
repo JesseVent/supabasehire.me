@@ -279,6 +279,13 @@
   --warning-300: 44.3deg 100% 91.8%;
   --warning-200: 40deg 81.8% 97.8%;
 
+  /* DS syntax colours — light (used by .sql-hl in the SQL editor) */
+  --code-block-1: 170.6deg 43.2% 51%;
+  --code-block-2: 33.1deg 80% 52.9%;
+  --code-block-3: 83.8deg 61.6% 48%;
+  --code-block-4: 276.3deg 60% 52.9%;
+  --code-block-5: 14deg 80.4% 58%;
+
   /* DS shorthand vars (used by DS component tokens) */
   --fg: hsl(var(--foreground-default));
   --fg-light: hsl(var(--foreground-light));
@@ -577,6 +584,13 @@
   --warning-400: 33.2deg 100% 14.5%;
   --warning-300: 32.3deg 100% 10.2%;
   --warning-200: 36.6deg 100% 8%;
+
+  /* DS syntax colours — dark (used by .sql-hl in the SQL editor) */
+  --code-block-1: 170.8deg 43.1% 61.4%;
+  --code-block-2: 33.2deg 90.3% 75.7%;
+  --code-block-3: 83.8deg 61.7% 63.1%;
+  --code-block-4: 276.1deg 67.7% 74.5%;
+  --code-block-5: 13.8deg 89.7% 69.6%;
 
   /* DS shorthand vars (dark) */
   --fg: hsl(var(--foreground-default));
@@ -1890,6 +1904,26 @@ a,
 }
 .code-block .cm {
   color: var(--text-faint);
+  font-style: italic;
+}
+
+/* ─── SQL editor highlight layer (DS code-block palette) ─── */
+/* Sits behind a transparent textarea, so metrics must match it exactly. */
+.sql-hl .kw {
+  color: hsl(var(--code-block-4));
+}
+.sql-hl .fn {
+  color: hsl(var(--code-block-3));
+}
+.sql-hl .tbl {
+  color: hsl(var(--code-block-1));
+}
+.sql-hl .str,
+.sql-hl .num {
+  color: hsl(var(--code-block-2));
+}
+.sql-hl .cm {
+  color: hsl(var(--foreground-muted));
   font-style: italic;
 }
 
