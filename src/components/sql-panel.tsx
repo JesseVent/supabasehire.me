@@ -8,29 +8,35 @@ import {
   ChevronDown,
   ChevronUp,
   Copy,
-  Database,
-  Eye,
   FileJson,
   FileText,
-  Gauge,
   History,
   Loader2,
   Play,
+  Plus,
   Sparkles,
   Terminal,
   Trash2,
+  X,
   XCircle,
 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { MigrationRunner } from '@/components/migration-runner'
 import { QueryAnalyzer } from '@/components/query-analyzer'
 import { QueryChart } from '@/components/query-chart'
+import { SqlSchemaBrowser } from '@/components/sql-schema-browser'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import { Card, CardContent } from '@/components/ui/card'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   Select,
   SelectContent,
@@ -38,21 +44,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Textarea } from '@/components/ui/textarea'
+import { track } from '@/lib/analytics'
 import { apiFetch } from '@/lib/api-auth'
 import { DEMO_CONNECTION_ID } from '@/lib/demo-data'
 import type { SQLQueryResult } from '@/lib/supabase-types'
+import { cn } from '@/lib/utils'
 import { useSupabaseStore } from '@/store/supabase-store'
-import { track } from '@/lib/analytics'
 
 // ─── Demo SQL Results ───
 
@@ -353,8 +351,30 @@ const QUICK_TEMPLATES: Record<string, string> = {
 
 // ─── AI Demo Buttons ───
 
+interface QueryTab {
+  id: string
+  name: string
+  sql: string
+}
+
 type AiProvider = 'openai' | 'supabase'
 type AiDemoButton = { label: string; description: string; sql: string }
+
+/**
+ * `provider => 'supabase'` routes the AI functions at AI_INFERENCE_API_HOST, which
+ * only exists when the project itself runs locally under `supabase functions serve`.
+ * On a hosted project the call reaches the database and fails there, so the option is
+ * gated on the *project* URL — where the AI runs — not on where this app is served.
+ */
+export function supportsLocalInference(supabaseUrl: string | undefined | null): boolean {
+  if (!supabaseUrl) return false
+  try {
+    const { hostname } = new URL(supabaseUrl)
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]'
+  } catch {
+    return false
+  }
+}
 
 function getAiDemoButtons(provider: AiProvider): AiDemoButton[] {
   // provider arg is only emitted when non-default (openai is the SQL default)
@@ -542,14 +562,8 @@ const AI_DEMO_MOCK: Record<string, Array<Record<string, unknown>>> = {
         'He built the tool he wished existed, then used it to apply for the job. This is either deranged or genius. Supabase, of all companies, should recognise the difference is small.',
     },
   ],
-  'AI: Classify': [
-    { category: 'praise' },
-    { category: 'complaint' },
-    { category: 'neutral' },
-  ],
-  'AI: Sentiment': [
-    { sentiment: 'positive' },
-  ],
+  'AI: Classify': [{ category: 'praise' }, { category: 'complaint' }, { category: 'neutral' }],
+  'AI: Sentiment': [{ sentiment: 'positive' }],
   'AI: Extract': [
     {
       extracted: {
@@ -562,9 +576,7 @@ const AI_DEMO_MOCK: Record<string, Array<Record<string, unknown>>> = {
       },
     },
   ],
-  'AI: Embed': [
-    { dimensions: 1536 },
-  ],
+  'AI: Embed': [{ dimensions: 1536 }],
   'AI: Translate': [
     {
       translation:
@@ -573,8 +585,7 @@ const AI_DEMO_MOCK: Record<string, Array<Record<string, unknown>>> = {
   ],
   'AI: Redact': [
     {
-      redacted:
-        'Logged in as [REDACTED] from [REDACTED]. [REDACTED] verified identity.',
+      redacted: 'Logged in as [REDACTED] from [REDACTED]. [REDACTED] verified identity.',
     },
   ],
   'AI: Summarize agg': [
@@ -594,8 +605,19 @@ const AI_DEMO_MOCK: Record<string, Array<Record<string, unknown>>> = {
       channel: 'sales',
       entities: {
         contacts: [
-          { name: 'Dana', email: 'dana@acme.co', phone: '+1 555 0100', company: 'Acme', note: 'quote for 50 seats' },
-          { name: 'Marco', email: 'marco@globex.io', company: 'Globex', note: 'enterprise pricing' },
+          {
+            name: 'Dana',
+            email: 'dana@acme.co',
+            phone: '+1 555 0100',
+            company: 'Acme',
+            note: 'quote for 50 seats',
+          },
+          {
+            name: 'Marco',
+            email: 'marco@globex.io',
+            company: 'Globex',
+            note: 'enterprise pricing',
+          },
         ],
       },
     },
@@ -638,6 +660,95 @@ function exportToJSON(rows: Array<Record<string, unknown>>, filename: string) {
   downloadFile(jsonContent, `${filename}.json`, 'application/json;charset=utf-8;')
 }
 
+// ─── Editor: syntax highlighting & formatting ───
+
+const SQL_KEYWORDS = new Set(
+  `select from where group by order having limit offset join inner left right full outer cross on
+   as and or not in is null true false case when then else end union all except intersect distinct
+   insert into values update set delete create table view index unique primary key foreign references
+   alter add drop column constraint default cascade returning with recursive using exists between
+   like ilike asc desc grant revoke begin commit rollback policy enable row level security to`
+    .split(/\s+/)
+    .filter(Boolean)
+)
+
+// Clauses that start a new line when Format runs; longest first so "GROUP BY"
+// wins over a bare "BY".
+const FORMAT_CLAUSES = [
+  'LEFT JOIN',
+  'RIGHT JOIN',
+  'INNER JOIN',
+  'FULL JOIN',
+  'CROSS JOIN',
+  'GROUP BY',
+  'ORDER BY',
+  'UNION ALL',
+  'SELECT',
+  'FROM',
+  'WHERE',
+  'HAVING',
+  'LIMIT',
+  'OFFSET',
+  'JOIN',
+  'UNION',
+  'RETURNING',
+]
+
+const TOKEN_RE = /(--[^\n]*|\/\*[\s\S]*?\*\/)|('(?:[^']|'')*')|(\b\d+(?:\.\d+)?\b)|([A-Za-z_]\w*)/g
+
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+/**
+ * SQL → HTML for the highlight layer behind the editor textarea.
+ * Input is escaped first, so the only markup emitted is our own spans.
+ */
+export function highlightSql(sql: string, tableNames: Set<string>): string {
+  return escapeHtml(sql).replace(
+    TOKEN_RE,
+    (match, comment, str, num, word, offset: number, whole: string) => {
+      if (comment) return `<span class="cm">${match}</span>`
+      if (str) return `<span class="str">${match}</span>`
+      if (num) return `<span class="num">${match}</span>`
+      if (!word) return match
+      if (SQL_KEYWORDS.has(word.toLowerCase())) return `<span class="kw">${match}</span>`
+      // A name followed by "(" is a call; otherwise a known table gets the table colour.
+      if (/^\s*\(/.test(whole.slice(offset + word.length))) {
+        return `<span class="fn">${match}</span>`
+      }
+      if (tableNames.has(word.toLowerCase())) return `<span class="tbl">${match}</span>`
+      return match
+    }
+  )
+}
+
+function formatChunk(chunk: string): string {
+  let out = chunk.replace(/\s+/g, ' ')
+  out = out.replace(/\b([A-Za-z_]\w*)\b/g, (word) =>
+    SQL_KEYWORDS.has(word.toLowerCase()) ? word.toUpperCase() : word
+  )
+  for (const clause of FORMAT_CLAUSES) {
+    out = out.replace(new RegExp(`\\s*\\b${clause}\\b`, 'g'), `\n${clause}`)
+  }
+  // Continuation keywords hang under the clause they belong to.
+  out = out.replace(/\s+\b(AND|OR|ON)\b/g, '\n  $1')
+  return out
+}
+
+/**
+ * Light reformat: uppercase keywords, one clause per line. String literals are
+ * split out first so their contents are never rewritten.
+ */
+export function formatSql(sql: string): string {
+  const parts = sql.split(/('(?:[^']|'')*')/)
+  return parts
+    .map((part, i) => (i % 2 === 1 ? part : formatChunk(part)))
+    .join('')
+    .replace(/\n{2,}/g, '\n')
+    .trim()
+}
+
 function downloadFile(content: string, filename: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType })
   const url = URL.createObjectURL(blob)
@@ -654,6 +765,7 @@ export function SQLPanel() {
   const {
     activeConnectionId,
     connections,
+    tables,
     addSqlResult,
     sqlEditorContent,
     setSqlEditorContent,
@@ -664,7 +776,37 @@ export function SQLPanel() {
   } = useSupabaseStore()
   const activeConnection = connections.find((c) => c.id === activeConnectionId) || null
 
-  const [query, setQuery] = useState('')
+  // Open .sql buffers. Component state, like the single buffer it replaces —
+  // the panel unmounts on nav change either way.
+  const [tabs, setTabs] = useState<QueryTab[]>([{ id: 'tab-1', name: 'query.sql', sql: '' }])
+  const [activeTabId, setActiveTabId] = useState('tab-1')
+  const activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0]
+  const query = activeTab.sql
+
+  const setQuery = useCallback(
+    (sql: string) => {
+      setTabs((prev) => prev.map((t) => (t.id === activeTabId ? { ...t, sql } : t)))
+    },
+    [activeTabId]
+  )
+
+  const addTab = useCallback(() => {
+    const id = `tab-${Date.now()}`
+    setTabs((prev) => [...prev, { id, name: `untitled-${prev.length + 1}.sql`, sql: '' }])
+    setActiveTabId(id)
+  }, [])
+
+  const closeTab = useCallback(
+    (id: string) => {
+      setTabs((prev) => {
+        if (prev.length === 1) return prev
+        const next = prev.filter((t) => t.id !== id)
+        if (id === activeTabId) setActiveTabId(next[next.length - 1].id)
+        return next
+      })
+    },
+    [activeTabId]
+  )
 
   // Sync from store (e.g., when Policy Generator pushes SQL)
   useEffect(() => {
@@ -672,29 +814,75 @@ export function SQLPanel() {
       setQuery(sqlEditorContent)
       setSqlEditorContent('') // Clear after consuming
     }
-  }, [sqlEditorContent, setSqlEditorContent])
+  }, [sqlEditorContent, setSqlEditorContent, setQuery])
   const [isExecuting, setIsExecuting] = useState(false)
   const [result, setResult] = useState<SQLQueryResult | null>(null)
+  const [elapsedMs, setElapsedMs] = useState<number | null>(null)
   const [copied, setCopied] = useState(false)
   const [copiedResults, setCopiedResults] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
-  const [isEditorFocused, setIsEditorFocused] = useState(false)
   const [showVisualization, setShowVisualization] = useState(false)
   const [aiProvider, setAiProvider] = useState<AiProvider>('openai')
+
+  // Switching to a hosted project must not leave a stale 'supabase' selection behind,
+  // so the effective provider is derived rather than corrected in an effect.
+  const canUseSupabaseAi = supportsLocalInference(activeConnection?.supabaseUrl)
+  const effectiveProvider: AiProvider = canUseSupabaseAi ? aiProvider : 'openai'
+
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const highlightRef = useRef<HTMLPreElement>(null)
+  const gutterRef = useRef<HTMLDivElement>(null)
 
   // Line numbers for the SQL editor
   const lineCount = query ? query.split('\n').length : 1
+
+  // Known table names colour differently in the highlight layer.
+  const tableNames = useMemo(() => new Set(tables.map((t) => t.tableName.toLowerCase())), [tables])
+
+  // The textarea owns the scroll; the highlight and gutter follow it.
+  const syncScroll = useCallback(() => {
+    const el = textareaRef.current
+    if (!el) return
+    if (highlightRef.current) {
+      highlightRef.current.scrollTop = el.scrollTop
+      highlightRef.current.scrollLeft = el.scrollLeft
+    }
+    if (gutterRef.current) {
+      gutterRef.current.style.transform = `translateY(-${el.scrollTop}px)`
+    }
+  }, [])
+
+  /** Insert text from the schema browser at the caret. */
+  const insertAtCaret = useCallback(
+    (text: string) => {
+      const el = textareaRef.current
+      if (!el) {
+        setQuery(query + text)
+        return
+      }
+      const start = el.selectionStart ?? query.length
+      const end = el.selectionEnd ?? start
+      setQuery(query.slice(0, start) + text + query.slice(end))
+      requestAnimationFrame(() => {
+        el.focus()
+        el.setSelectionRange(start + text.length, start + text.length)
+      })
+    },
+    [query, setQuery]
+  )
 
   const executeQuery = useCallback(async () => {
     if (!activeConnectionId || !query.trim()) return
     setIsExecuting(true)
     setResult(null)
+    setElapsedMs(null)
+    const startedAt = performance.now()
 
     // Demo mode: return simulated results
     if (activeConnectionId === DEMO_CONNECTION_ID) {
       // Simulate a small delay for realism
       await new Promise((resolve) => setTimeout(resolve, 400 + Math.random() * 300))
+      setElapsedMs(Math.round(performance.now() - startedAt))
       const demoResult = getDemoSQLResult(query)
       setResult(demoResult)
       addSqlResult(demoResult)
@@ -720,6 +908,7 @@ export function SQLPanel() {
       const res = await apiFetch('/api/sql', activeConnection, { query: query.trim() })
 
       const data = await res.json()
+      setElapsedMs(Math.round(performance.now() - startedAt))
       const sqlResult: SQLQueryResult = data.error ? { success: false, error: data.error } : data
       setResult(sqlResult)
       addSqlResult(sqlResult)
@@ -763,12 +952,15 @@ export function SQLPanel() {
     [executeQuery]
   )
 
-  const applyTemplate = useCallback((templateName: string) => {
-    const template = QUICK_TEMPLATES[templateName]
-    if (template) {
-      setQuery(template)
-    }
-  }, [])
+  const applyTemplate = useCallback(
+    (templateName: string) => {
+      const template = QUICK_TEMPLATES[templateName]
+      if (template) {
+        setQuery(template)
+      }
+    },
+    [setQuery]
+  )
 
   const runAiDemo = useCallback(
     async (demo: AiDemoButton) => {
@@ -777,9 +969,12 @@ export function SQLPanel() {
       setQuery(demo.sql)
       setIsExecuting(true)
       setResult(null)
+      setElapsedMs(null)
+      const startedAt = performance.now()
 
       if (activeConnectionId === DEMO_CONNECTION_ID) {
         await new Promise((resolve) => setTimeout(resolve, 600 + Math.random() * 400))
+        setElapsedMs(Math.round(performance.now() - startedAt))
         const rows = AI_DEMO_MOCK[demo.label] ?? []
         const demoResult: SQLQueryResult = { success: true, data: rows }
         setResult(demoResult)
@@ -795,6 +990,7 @@ export function SQLPanel() {
       try {
         const res = await apiFetch('/api/sql', activeConnection, { query: demo.sql.trim() })
         const data = await res.json()
+        setElapsedMs(Math.round(performance.now() - startedAt))
         const sqlResult: SQLQueryResult = data.error ? { success: false, error: data.error } : data
         setResult(sqlResult)
         addSqlResult(sqlResult)
@@ -824,7 +1020,7 @@ export function SQLPanel() {
         setIsExecuting(false)
       }
     },
-    [activeConnectionId, activeConnection, addSqlResult, addSqlToHistory, addActivityLog]
+    [activeConnectionId, activeConnection, addSqlResult, addSqlToHistory, addActivityLog, setQuery]
   )
 
   const copyToClipboard = useCallback((text: string, type: 'query' | 'results') => {
@@ -873,375 +1069,472 @@ export function SQLPanel() {
     toast.success('Exported JSON', { description: `${resultRows.length} rows exported` })
   }, [resultRows])
 
+  if (!activeConnectionId) {
+    return (
+      <Card>
+        <CardContent className="py-12">
+          <div className="flex flex-col items-center justify-center text-center">
+            <Terminal className="mb-3 size-12 text-muted-foreground/30" />
+            <p className="text-sm font-medium text-muted-foreground">No connection selected</p>
+            <p className="text-xs text-muted-foreground">
+              Connect to a Supabase project to run SQL queries
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const isDemo = activeConnectionId === DEMO_CONNECTION_ID
+
   return (
-    <div className="em-panel h-full flex flex-col gap-3 p-3">
-      {/* Compact header toolbar */}
-      <div className="flex items-center gap-2">
-        <Terminal className="size-4 text-primary shrink-0" />
-        <span className="font-semibold text-sm">SQL Query</span>
-        {activeConnectionId === DEMO_CONNECTION_ID && (
-          <Badge
-            variant="outline"
-            className="gap-1 text-amber-600 border-amber-200 dark:text-amber-400 dark:border-amber-800 text-[10px]"
-          >
-            <Eye className="size-3" />
-            Demo
-          </Badge>
-        )}
-        <span className="flex items-center gap-1 text-[11px] text-muted-foreground ml-1">
+    <Tabs
+      defaultValue="query-runner"
+      className="flex h-[calc(100vh-150px)] min-h-[560px] flex-col overflow-hidden rounded-lg border border-border"
+    >
+      {/* Module header */}
+      <div className="flex items-center gap-4 border-b border-border bg-card px-5 py-2.5">
+        <div className="flex items-center gap-2">
+          <Terminal className="size-3.5 text-primary" />
+          <span className="text-sm font-medium tracking-tight">SQL</span>
+        </div>
+        <TabsList className="h-auto gap-0.5 rounded-md border border-border bg-secondary p-0.5">
+          <TabsTrigger value="query-runner" className="h-auto rounded px-3 py-1 text-xs">
+            Query runner
+          </TabsTrigger>
+          <TabsTrigger value="migrations" className="h-auto rounded px-3 py-1 text-xs">
+            Migrations
+          </TabsTrigger>
+          <TabsTrigger value="analyzer" className="h-auto rounded px-3 py-1 text-xs">
+            Analyzer
+          </TabsTrigger>
+        </TabsList>
+        <span className="ml-auto flex items-center gap-1.5 text-[11px] text-amber-500">
           <AlertTriangle className="size-3" />
-          {activeConnectionId === DEMO_CONNECTION_ID
+          {isDemo
             ? 'Demo mode — results are simulated'
             : 'Management API access — use with caution'}
         </span>
       </div>
 
-      {/* Tabs: Query Runner & Migrations */}
-      {activeConnectionId ? (
-        <Tabs defaultValue="query-runner" className="w-full">
-          <TabsList className="h-8">
-            <TabsTrigger value="query-runner" className="gap-1 text-xs h-7">
-              <Terminal className="size-3" />
-              Query Runner
-            </TabsTrigger>
-            <TabsTrigger value="migrations" className="gap-1 text-xs h-7">
-              <Database className="size-3" />
-              Migrations
-            </TabsTrigger>
-            <TabsTrigger value="analyzer" className="gap-1 text-xs h-7">
-              <Gauge className="size-3" />
-              Analyzer
-            </TabsTrigger>
-          </TabsList>
+      {/* Query Runner */}
+      <TabsContent
+        value="query-runner"
+        className="mt-0 flex min-h-0 flex-1 items-stretch data-[state=inactive]:hidden"
+      >
+        <SqlSchemaBrowser onInsert={insertAtCaret} />
 
-          {/* Query Runner Tab */}
-          <TabsContent value="query-runner" className="mt-2">
-            <div className="flex flex-col gap-2">
-              {/* Query Editor */}
-              <Card>
-                <div className="flex items-center justify-between px-4 py-2 border-b border-border/60">
-                  <span className="text-sm font-medium">Query Editor</span>
-                  <div className="flex items-center gap-2">
-                    <Select onValueChange={applyTemplate}>
-                      <SelectTrigger className="h-7 text-xs w-[160px]">
-                        <SelectValue placeholder="Quick Templates" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.keys(QUICK_TEMPLATES).map((name) => (
-                          <SelectItem key={name} value={name}>
-                            {name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0"
-                      onClick={() => copyToClipboard(query, 'query')}
-                      disabled={!query.trim()}
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* Editor tab strip + actions */}
+          <div className="flex items-center border-b border-border bg-card">
+            <div className="flex min-w-0 items-center overflow-x-auto">
+              {tabs.map((tab) => {
+                const isActive = tab.id === activeTab.id
+                return (
+                  <div
+                    key={tab.id}
+                    className={cn(
+                      'flex shrink-0 items-center gap-2 border-r border-border px-4 py-2.5',
+                      isActive
+                        ? 'border-t-2 border-t-primary bg-background'
+                        : 'border-t-2 border-t-transparent'
+                    )}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setActiveTabId(tab.id)}
+                      className={cn(
+                        'font-mono text-xs',
+                        isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+                      )}
                     >
-                      {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
-                    </Button>
+                      {tab.name}
+                    </button>
+                    {isActive && tabs.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => closeTab(tab.id)}
+                        aria-label={`Close ${tab.name}`}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    )}
                   </div>
-                </div>
-                <CardContent className="pt-2 pb-3">
-                  <div className="flex flex-col gap-2">
-                    {/* AI Demo Buttons */}
-                    <div className="flex flex-wrap items-center gap-2 pb-1.5 border-b border-border/50">
-                      <span className="flex items-center gap-1 text-[11px] text-muted-foreground font-medium shrink-0">
-                        <Sparkles className="size-3 text-primary" />
-                        AI demos
-                      </span>
-                      {/* Provider toggle */}
-                      <div className="flex items-center rounded-md border border-border/60 overflow-hidden text-[10px] font-medium shrink-0">
-                        <button
-                          className={`px-2 py-1 transition-colors ${aiProvider === 'openai' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}
-                          onClick={() => setAiProvider('openai')}
-                          title="Use OpenAI (requires OPENAI_API_KEY secret)"
-                        >
-                          OpenAI
-                        </button>
-                        <button
-                          className={`px-2 py-1 transition-colors ${aiProvider === 'supabase' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}
-                          onClick={() => setAiProvider('supabase')}
-                          title="Use Supabase built-in inference (no API key needed)"
-                        >
-                          Supabase AI
-                        </button>
-                      </div>
-                      {getAiDemoButtons(aiProvider).map((demo) => (
-                        <Button
-                          key={demo.label}
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/60"
-                          disabled={isExecuting || !activeConnectionId}
-                          onClick={() => runAiDemo(demo)}
-                          title={demo.description}
-                        >
-                          <Play className="size-3" />
-                          {demo.label}
-                        </Button>
-                      ))}
-                    </div>
+                )
+              })}
+              <button
+                type="button"
+                onClick={addTab}
+                aria-label="New query tab"
+                className="shrink-0 px-3 py-2.5 text-muted-foreground hover:text-foreground"
+              >
+                <Plus className="size-3.5" />
+              </button>
+            </div>
 
-                    <div className="relative flex rounded-lg overflow-hidden border border-zinc-800 dark:border-zinc-700 bg-zinc-950 dark:bg-zinc-900 focus-within:ring-1 focus-within:ring-zinc-600">
-                      {/* Line numbers */}
-                      <div
-                        className="flex-shrink-0 py-3 px-2 text-right select-none border-r border-zinc-800 dark:border-zinc-700 bg-zinc-900/50 dark:bg-zinc-800/50 overflow-hidden"
-                        aria-hidden="true"
-                      >
-                        {Array.from({ length: lineCount }, (_, i) => (
-                          <div
-                            key={i}
-                            className="text-[11px] leading-[1.375rem] text-zinc-600 dark:text-zinc-500 font-mono"
-                          >
-                            {i + 1}
-                          </div>
-                        ))}
-                      </div>
-                      <Textarea
-                        ref={textareaRef}
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        onFocus={() => setIsEditorFocused(true)}
-                        onBlur={() => setIsEditorFocused(false)}
-                        onKeyDown={handleKeyDown}
-                        placeholder="SELECT * FROM your_table LIMIT 10;"
-                        className="font-mono text-sm min-h-[180px] bg-transparent text-zinc-100 dark:text-zinc-200 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-zinc-600 dark:placeholder:text-zinc-500 resize-y pl-3 py-3"
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">
-                          {query.trim() ? `${query.trim().length} characters` : 'Enter a SQL query'}
-                        </span>
-                        {isEditorFocused && (
-                          <span className="text-[10px] text-muted-foreground/60 border border-border/50 rounded px-1.5 py-0.5">
-                            Ctrl+Enter to execute
-                          </span>
+            <div className="ml-auto flex shrink-0 items-center gap-2 px-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-[26px] text-xs"
+                onClick={() => setQuery(formatSql(query))}
+                disabled={!query.trim()}
+              >
+                Format
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-[26px] w-[26px] p-0"
+                onClick={() => copyToClipboard(query, 'query')}
+                disabled={!query.trim()}
+                aria-label="Copy query"
+              >
+                {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
+              </Button>
+              <Select onValueChange={applyTemplate}>
+                <SelectTrigger size="sm" className="h-[26px] w-[110px] text-xs">
+                  <SelectValue placeholder="Templates" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.keys(QUICK_TEMPLATES).map((name) => (
+                    <SelectItem key={name} value={name}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-[26px] gap-1.5 text-xs">
+                    <Sparkles className="size-3 text-primary" />
+                    AI demos
+                    <ChevronDown className="size-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  // Twelve demos overflow a short viewport — cap to the space Radix reports.
+                  className="max-h-[var(--radix-dropdown-menu-content-available-height)] w-64 overflow-y-auto"
+                >
+                  <DropdownMenuLabel className="flex items-center justify-between gap-2 font-normal">
+                    <span className="text-xs text-muted-foreground">Provider</span>
+                    <span className="flex items-center overflow-hidden rounded-md border border-border text-[10px] font-medium">
+                      <button
+                        type="button"
+                        className={cn(
+                          'px-2 py-0.5 transition-colors',
+                          effectiveProvider === 'openai'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:text-foreground'
                         )}
-                      </div>
+                        onClick={(e) => {
+                          e.preventDefault()
+                          setAiProvider('openai')
+                        }}
+                      >
+                        OpenAI
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!canUseSupabaseAi}
+                        title={
+                          canUseSupabaseAi
+                            ? 'Route the AI functions at AI_INFERENCE_API_HOST'
+                            : 'Supabase AI needs a local project running `supabase functions serve` with AI_INFERENCE_API_HOST set'
+                        }
+                        className={cn(
+                          'px-2 py-0.5 transition-colors',
+                          effectiveProvider === 'supabase'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:text-foreground',
+                          !canUseSupabaseAi &&
+                            'cursor-not-allowed opacity-40 hover:text-muted-foreground'
+                        )}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          setAiProvider('supabase')
+                        }}
+                      >
+                        Supabase AI
+                      </button>
+                    </span>
+                  </DropdownMenuLabel>
+                  {!canUseSupabaseAi && (
+                    <p className="px-2 pb-1 text-[10px] leading-snug text-muted-foreground">
+                      Supabase AI is local-only — this project is hosted, so demos run on OpenAI.
+                    </p>
+                  )}
+                  <DropdownMenuSeparator />
+                  {getAiDemoButtons(effectiveProvider).map((demo) => (
+                    <DropdownMenuItem
+                      key={demo.label}
+                      disabled={isExecuting}
+                      onSelect={() => runAiDemo(demo)}
+                      className="flex-col items-start gap-0.5"
+                    >
+                      <span className="text-xs font-medium">{demo.label}</span>
+                      <span className="text-[11px] text-muted-foreground">{demo.description}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button
+                size="sm"
+                className="h-[26px] gap-1.5 text-xs"
+                onClick={executeQuery}
+                disabled={isExecuting || !query.trim()}
+              >
+                {isExecuting ? (
+                  <Loader2 className="size-3 animate-spin" />
+                ) : (
+                  <Play className="size-3" />
+                )}
+                Run ⌘⏎
+              </Button>
+            </div>
+          </div>
+
+          {/* Editor — textarea owns the scroll, highlight and gutter follow it */}
+          <div className="relative min-h-0 flex-1 font-mono text-[13px] leading-[1.75]">
+            <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-11 overflow-hidden border-r border-border bg-card">
+              <div
+                ref={gutterRef}
+                className="select-none pt-3 pr-3 text-right text-muted-foreground/60"
+              >
+                {Array.from({ length: lineCount }, (_, i) => (
+                  <div key={`line-${i + 1}`}>{i + 1}</div>
+                ))}
+              </div>
+            </div>
+            <pre
+              ref={highlightRef}
+              aria-hidden="true"
+              className="sql-hl pointer-events-none absolute inset-0 overflow-hidden whitespace-pre py-3 pr-4 pl-[56px] text-foreground/90"
+              // biome-ignore lint/security/noDangerouslySetInnerHtml: highlightSql escapes & < > before tokenising, so the only markup here is its own <span> tags.
+              dangerouslySetInnerHTML={{ __html: `${highlightSql(query, tableNames)}\n` }}
+            />
+            <textarea
+              ref={textareaRef}
+              value={query}
+              wrap="off"
+              spellCheck={false}
+              onChange={(e) => setQuery(e.target.value)}
+              onScroll={syncScroll}
+              onKeyDown={handleKeyDown}
+              placeholder="SELECT * FROM your_table LIMIT 10;"
+              // The global :focus-visible outline would float outside the editor pane;
+              // pull it inside so the focused editor reads as a framed region.
+              className="absolute inset-0 size-full resize-none overflow-auto whitespace-pre bg-transparent py-3 pr-4 pl-[56px] text-transparent caret-foreground placeholder:text-muted-foreground/50 focus-visible:[border-radius:0] focus-visible:[outline-offset:-1px]"
+            />
+          </div>
+
+          {/* Query history */}
+          {showHistory && sqlHistory.length > 0 && (
+            <div className="max-h-40 shrink-0 overflow-auto border-t border-border bg-card">
+              {sqlHistory.map((histQuery, idx) => (
+                <button
+                  key={`${histQuery.slice(0, 20)}-${idx}`}
+                  type="button"
+                  className="flex w-full items-center gap-2 border-b border-border px-4 py-2 text-left last:border-0 hover:bg-secondary"
+                  onClick={() => setQuery(histQuery)}
+                >
+                  <History className="size-3 shrink-0 text-muted-foreground" />
+                  <code className="truncate font-mono text-xs text-foreground/80">
+                    {histQuery.length > 100 ? `${histQuery.slice(0, 100)}…` : histQuery}
+                  </code>
+                </button>
+              ))}
+              <div className="px-4 py-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearSqlHistory}
+                  className="h-6 w-full gap-1.5 text-xs text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="size-3" />
+                  Clear history
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Results dock */}
+          <div className="shrink-0 border-t border-border bg-card">
+            {result ? (
+              <>
+                <div className="flex items-center gap-3.5 border-b border-border px-4 py-2">
+                  {result.success ? (
+                    <CheckCircle2 className="size-3.5 shrink-0 text-primary" />
+                  ) : (
+                    <XCircle className="size-3.5 shrink-0 text-red-500" />
+                  )}
+                  <span className="text-xs font-medium">
+                    {result.success ? 'Query executed' : 'Query failed'}
+                  </span>
+                  {result.success && (
+                    <span className="font-mono text-[11px] text-muted-foreground">
+                      {resultRows.length} row{resultRows.length !== 1 ? 's' : ''}
+                      {elapsedMs !== null && ` · ${elapsedMs} ms`}
+                    </span>
+                  )}
+                  {resultRows.length > 0 && (
+                    <div className="ml-auto flex gap-1">
                       <Button
-                        onClick={executeQuery}
-                        disabled={isExecuting || !query.trim()}
+                        variant={showVisualization ? 'secondary' : 'ghost'}
                         size="sm"
+                        className="h-[26px] text-xs"
+                        onClick={() => setShowVisualization(!showVisualization)}
                       >
-                        {isExecuting ? (
-                          <Loader2 className="mr-2 size-4 animate-spin" />
+                        <BarChart3 className="mr-1 size-3" />
+                        Visualize
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-[26px] text-xs"
+                        onClick={() =>
+                          copyToClipboard(JSON.stringify(resultRows, null, 2), 'results')
+                        }
+                      >
+                        {copiedResults ? (
+                          <Check className="mr-1 size-3" />
                         ) : (
-                          <Play className="mr-2 size-4" />
+                          <Copy className="mr-1 size-3" />
                         )}
-                        Execute
+                        Copy
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-[26px] text-xs"
+                        onClick={handleExportCSV}
+                      >
+                        <FileText className="mr-1 size-3" />
+                        CSV
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-[26px] text-xs"
+                        onClick={handleExportJSON}
+                      >
+                        <FileJson className="mr-1 size-3" />
+                        JSON
                       </Button>
                     </div>
-
-                    {/* Query History */}
-                    {sqlHistory.length > 0 && activeConnectionId && (
-                      <div className="rounded-lg border">
-                        <button
-                          className="flex items-center justify-between w-full px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-                          onClick={() => setShowHistory(!showHistory)}
-                        >
-                          <span className="flex items-center gap-1.5">
-                            <History className="size-3.5" />
-                            Query History ({sqlHistory.length})
-                          </span>
-                          {showHistory ? (
-                            <ChevronUp className="size-3.5" />
-                          ) : (
-                            <ChevronDown className="size-3.5" />
-                          )}
-                        </button>
-                        {showHistory && (
-                          <div className="border-t">
-                            <ScrollArea>
-                              <div className="flex flex-col">
-                                {sqlHistory.map((histQuery, idx) => (
-                                  <button
-                                    key={`${histQuery.slice(0, 20)}-${idx}`}
-                                    className="flex items-center gap-2 px-3 py-2 text-left hover:bg-accent transition-colors border-b last:border-0"
-                                    onClick={() => setQuery(histQuery)}
-                                  >
-                                    <History className="size-3 text-muted-foreground shrink-0" />
-                                    <code className="text-xs font-mono truncate text-foreground/80">
-                                      {histQuery.length > 80
-                                        ? `${histQuery.slice(0, 80)}...`
-                                        : histQuery}
-                                    </code>
-                                  </button>
-                                ))}
-                              </div>
-                            </ScrollArea>
-                            <div className="px-3 py-2 border-t">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={clearSqlHistory}
-                                className="w-full gap-1.5 text-xs text-muted-foreground hover:text-destructive"
-                              >
-                                <Trash2 className="size-3" />
-                                Clear History
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Results */}
-              {result && (
-                <Card>
-                  <div className="flex items-center justify-between px-4 py-2 border-b border-border/60">
-                    <div className="flex items-center gap-2">
-                      {result.success ? (
-                        <CheckCircle2 className="size-4 text-primary" />
-                      ) : (
-                        <XCircle className="size-4 text-red-500" />
-                      )}
-                      <span className="text-sm font-medium">
-                        {result.success ? 'Query Executed Successfully' : 'Query Failed'}
-                      </span>
-                    </div>
-                    {resultRows.length > 0 && (
-                      <div className="flex items-center gap-1 flex-wrap">
-                        <Badge variant="secondary" className="text-xs">
-                          {resultRows.length} row{resultRows.length !== 1 ? 's' : ''}
-                        </Badge>
-                        <Button
-                          variant={showVisualization ? 'secondary' : 'ghost'}
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => setShowVisualization(!showVisualization)}
-                        >
-                          <BarChart3 className="mr-1 size-3" />
-                          {showVisualization ? 'Hide Chart' : 'Visualize'}
-                        </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 text-xs"
-                            onClick={() =>
-                              copyToClipboard(JSON.stringify(resultRows, null, 2), 'results')
-                            }
-                          >
-                            {copiedResults ? (
-                              <Check className="mr-1 size-3" />
-                            ) : (
-                              <Copy className="mr-1 size-3" />
-                            )}
-                            Copy
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleExportCSV}>
-                            <FileText className="mr-1 size-3" />
-                            CSV
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleExportJSON}>
-                            <FileJson className="mr-1 size-3" />
-                            JSON
-                          </Button>
-                      </div>
-                    )}
-                  </div>
-                  <CardContent className="pt-3 pb-3">
-                    {result.error && (
-                      <Alert variant="destructive" className="mb-4">
-                        <AlertDescription className="font-mono text-xs whitespace-pre-wrap">
-                          {result.error}
-                        </AlertDescription>
-                      </Alert>
-                    )}
-
-                    {resultRows.length > 0 && columnKeys.length > 0 && (
-                      <ScrollArea className="flex-1 min-h-0">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              {columnKeys.map((key) => (
-                                <TableHead key={key} className="font-mono text-xs">
-                                  {key}
-                                </TableHead>
-                              ))}
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {resultRows.slice(0, 50).map((row, rowIdx) => (
-                              <TableRow key={rowIdx}>
-                                {columnKeys.map((key) => (
-                                  <TableCell
-                                    key={key}
-                                    className="font-mono text-xs whitespace-normal break-words max-w-[480px]"
-                                  >
-                                    {row[key] === null ? (
-                                      <span className="text-muted-foreground italic">NULL</span>
-                                    ) : typeof row[key] === 'object' ? (
-                                      JSON.stringify(row[key])
-                                    ) : (
-                                      String(row[key])
-                                    )}
-                                  </TableCell>
-                                ))}
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                        {resultRows.length > 50 && (
-                          <p className="mt-2 text-xs text-muted-foreground text-center">
-                            Showing 50 of {resultRows.length} rows
-                          </p>
-                        )}
-                      </ScrollArea>
-                    )}
-
-                    {result.success && resultRows.length === 0 && !result.error && (
-                      <div className="flex flex-col items-center justify-center py-6 text-center">
-                        <CheckCircle2 className="mb-2 size-8 text-primary/50" />
-                        <p className="text-sm text-muted-foreground">
-                          Query executed successfully. No rows returned.
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-
-                  {/* Visualization Panel */}
-                  {showVisualization && resultRows.length > 0 && (
-                    <CardContent className="border-t">
-                      <QueryChart data={resultRows} />
-                    </CardContent>
                   )}
-                </Card>
-              )}
-            </div>
-          </TabsContent>
+                </div>
 
-          {/* Migrations Tab */}
-          <TabsContent value="migrations">
-            <MigrationRunner />
-          </TabsContent>
+                {result.error && (
+                  <Alert variant="destructive" className="rounded-none border-x-0 border-t-0">
+                    <AlertDescription className="font-mono text-xs whitespace-pre-wrap">
+                      {result.error}
+                    </AlertDescription>
+                  </Alert>
+                )}
 
-          {/* Analyzer Tab */}
-          <TabsContent value="analyzer">
-            <QueryAnalyzer activeConnectionId={activeConnectionId} query={query} />
-          </TabsContent>
-        </Tabs>
-      ) : (
-        <Card>
-          <CardContent className="py-12">
-            <div className="flex flex-col items-center justify-center text-center">
-              <Terminal className="mb-3 size-12 text-muted-foreground/30" />
-              <p className="text-sm font-medium text-muted-foreground">No connection selected</p>
-              <p className="text-xs text-muted-foreground">
-                Connect to a Supabase project to run SQL queries
+                {resultRows.length > 0 && columnKeys.length > 0 && (
+                  <div className="max-h-[34vh] overflow-auto">
+                    <div
+                      className="grid min-w-max border-b border-border font-mono text-[10px] uppercase tracking-wider text-muted-foreground"
+                      style={{
+                        gridTemplateColumns: `repeat(${columnKeys.length}, minmax(110px, 1fr))`,
+                      }}
+                    >
+                      {columnKeys.map((key) => (
+                        <span
+                          key={key}
+                          className="truncate border-r border-border px-4 py-1.5 last:border-r-0"
+                        >
+                          {key}
+                        </span>
+                      ))}
+                    </div>
+                    {resultRows.slice(0, 50).map((row, rowIdx) => (
+                      <div
+                        key={`row-${rowIdx}`}
+                        className="grid min-w-max border-b border-border/60 font-mono text-xs text-foreground/70 last:border-b-0 hover:bg-secondary/50"
+                        style={{
+                          gridTemplateColumns: `repeat(${columnKeys.length}, minmax(110px, 1fr))`,
+                        }}
+                      >
+                        {columnKeys.map((key) => (
+                          <span
+                            key={key}
+                            className="truncate border-r border-border/60 px-4 py-1.5 last:border-r-0"
+                            title={row[key] === null ? 'NULL' : String(row[key])}
+                          >
+                            {row[key] === null ? (
+                              <span className="italic text-muted-foreground">NULL</span>
+                            ) : typeof row[key] === 'object' ? (
+                              JSON.stringify(row[key])
+                            ) : (
+                              String(row[key])
+                            )}
+                          </span>
+                        ))}
+                      </div>
+                    ))}
+                    {resultRows.length > 50 && (
+                      <p className="px-4 py-2 text-center text-xs text-muted-foreground">
+                        Showing 50 of {resultRows.length} rows
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {result.success && resultRows.length === 0 && !result.error && (
+                  <p className="px-4 py-4 text-center text-xs text-muted-foreground">
+                    Query executed successfully. No rows returned.
+                  </p>
+                )}
+
+                {showVisualization && resultRows.length > 0 && (
+                  <div className="border-t border-border p-4">
+                    <QueryChart data={resultRows} />
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="px-4 py-3 text-xs text-muted-foreground">
+                Run a query to see results here. ⌘⏎ executes.
               </p>
+            )}
+
+            <div className="flex items-center gap-3 border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
+              <button
+                type="button"
+                onClick={() => setShowHistory(!showHistory)}
+                disabled={sqlHistory.length === 0}
+                className="flex items-center gap-1.5 transition-colors hover:text-foreground disabled:hover:text-muted-foreground"
+              >
+                <History className="size-3" />
+                Query history
+                <span className="font-mono">{sqlHistory.length}</span>
+                {sqlHistory.length > 0 &&
+                  (showHistory ? (
+                    <ChevronDown className="size-3" />
+                  ) : (
+                    <ChevronUp className="size-3" />
+                  ))}
+              </button>
+              <span className="ml-auto">
+                {isDemo ? 'Simulated · no database contacted' : 'Read-only role · Management API'}
+              </span>
             </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+          </div>
+        </div>
+      </TabsContent>
+
+      <TabsContent value="migrations" className="mt-0 min-h-0 flex-1 overflow-auto p-3">
+        <MigrationRunner />
+      </TabsContent>
+
+      <TabsContent value="analyzer" className="mt-0 min-h-0 flex-1 overflow-auto p-3">
+        <QueryAnalyzer activeConnectionId={activeConnectionId} query={query} />
+      </TabsContent>
+    </Tabs>
   )
 }
