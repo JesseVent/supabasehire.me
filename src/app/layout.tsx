@@ -127,7 +127,8 @@ export default function RootLayout({
             crossOrigin="anonymous"
             strategy="lazyOnload"
           />
-          <footer className="border-t border-border/40 px-6 py-1.5 flex items-center justify-center gap-5 text-[10px]">
+          {/* Fixed h-7 so the sidebar rail can stop exactly above it (see app-sidebar.tsx). */}
+          <footer className="h-7 shrink-0 border-t border-border/40 px-6 flex items-center justify-center gap-5 text-[10px]">
             <span className="font-mono text-muted-foreground">supabasehire.me</span>
             <span className="text-border">·</span>
             <span className="text-muted-foreground/70">Not affiliated with Supabase</span>
