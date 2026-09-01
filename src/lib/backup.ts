@@ -9,9 +9,10 @@
  * required for SQL/MCP-backed steps).
  */
 
+import { buildLiteProject, type TableRows } from '@jessevent/supalite-snapshot'
+import { type Zippable, zipSync } from 'fflate'
 import { apiFetch } from '@/lib/api-auth'
 import type { SupabaseConnection } from '@/lib/supabase-types'
-import { zipSync, type Zippable } from 'fflate'
 
 // ─── Types ───
 
@@ -26,7 +27,10 @@ export type ProgressCallback = (steps: BackupStep[]) => void
 
 export interface BackupOptions {
   includeData: boolean
+  /** 0 = no limit */
   rowLimit: number
+  /** Also emit lite/: a runnable @supabase/lite project (node lite/restore.mjs) */
+  includeLite: boolean
 }
 
 export interface BackupResult {
@@ -38,6 +42,7 @@ export interface BackupResult {
 export const DEFAULT_BACKUP_OPTIONS: BackupOptions = {
   includeData: true,
   rowLimit: 500,
+  includeLite: true,
 }
 
 // ─── SQL helper ───
@@ -224,7 +229,7 @@ function buildSchemaSql(parts: {
     for (const con of constraints) {
       const tableRef = `${quoteIdent(con.schema_name)}.${quoteIdent(con.table_name)}`
       lines.push(
-        `ALTER TABLE ${tableRef} ADD CONSTRAINT ${quoteIdent(con.constraint_name)} ${con.definition};`,
+        `ALTER TABLE ${tableRef} ADD CONSTRAINT ${quoteIdent(con.constraint_name)} ${con.definition};`
       )
     }
     lines.push('')
@@ -282,7 +287,7 @@ function updateStep(
   id: string,
   status: BackupStep['status'],
   detail: string | undefined,
-  onProgress: ProgressCallback,
+  onProgress: ProgressCallback
 ) {
   const step = steps.find((s) => s.id === id)
   if (step) {
@@ -295,7 +300,7 @@ function updateStep(
 export async function createBackup(
   connection: SupabaseConnection,
   options: BackupOptions,
-  onProgress: ProgressCallback,
+  onProgress: ProgressCallback
 ): Promise<BackupResult> {
   const warnings: string[] = []
 
@@ -308,7 +313,18 @@ export async function createBackup(
     { id: 'edge-functions', label: 'Gathering edge functions', status: 'pending' },
     { id: 'storage', label: 'Gathering storage buckets', status: 'pending' },
     ...(options.includeData
-      ? [{ id: 'data', label: `Gathering row data (≤${options.rowLimit}/table)`, status: 'pending' as const }]
+      ? [
+          {
+            id: 'data',
+            label: options.rowLimit
+              ? `Gathering row data (≤${options.rowLimit}/table)`
+              : 'Gathering all row data',
+            status: 'pending' as const,
+          },
+        ]
+      : []),
+    ...(options.includeLite
+      ? [{ id: 'lite', label: 'Building Supabase Lite project', status: 'pending' as const }]
       : []),
     { id: 'zip', label: 'Building zip archive', status: 'pending' },
   ]
@@ -385,7 +401,8 @@ export async function createBackup(
   const edgeFns = await safe('edge-functions', async () => {
     const listRes = await apiFetch('/api/edge-functions', connection)
     const listBody = await listRes.json()
-    if (!listRes.ok) throw new Error(listBody.error || `Edge functions request failed (${listRes.status})`)
+    if (!listRes.ok)
+      throw new Error(listBody.error || `Edge functions request failed (${listRes.status})`)
     const fns = listBody.functions ?? []
 
     const sources: Record<string, string> = {}
@@ -423,30 +440,54 @@ export async function createBackup(
   }
 
   // 8. Row data (optional)
+  let dataTables: TableRows[] = []
   if (options.includeData) {
     const dataResult = await safe('data', async () => {
       const tableList = await runSql(connection, TABLES_QUERY)
-      const tableFiles: Record<string, SqlRow[]> = {}
+      const tables: TableRows[] = []
+      const limit = options.rowLimit > 0 ? ` LIMIT ${options.rowLimit}` : ''
       for (const row of tableList) {
         const schema = String(row.schema_name)
         const table = String(row.table_name)
         try {
-          const data = await runSql(
+          const rows = await runSql(
             connection,
-            `SELECT * FROM ${quoteIdent(schema)}.${quoteIdent(table)} LIMIT ${options.rowLimit};`,
+            `SELECT * FROM ${quoteIdent(schema)}.${quoteIdent(table)}${limit};`
           )
-          tableFiles[`${sanitizeFilename(schema)}.${sanitizeFilename(table)}`] = data
+          tables.push({ schema, table, rows })
         } catch {
           warnings.push(`[data] Could not read ${schema}.${table}`)
         }
       }
-      return tableFiles
+      return tables
     })
     if (dataResult) {
-      for (const [name, rows] of Object.entries(dataResult)) {
-        files[`data/${name}.json`] = strToU8(JSON.stringify(rows, null, 2))
+      for (const { schema, table, rows } of dataResult) {
+        files[`data/${sanitizeFilename(schema)}.${sanitizeFilename(table)}.json`] = strToU8(
+          JSON.stringify(rows, null, 2)
+        )
       }
     }
+    dataTables = dataResult ?? []
+  }
+
+  // 8b. Runnable Supabase Lite project
+  if (options.includeLite) {
+    await safe('lite', async () => {
+      const lite = buildLiteProject({
+        projectRef: extractRef(connection.supabaseUrl),
+        schemaSql,
+        rlsSql: rlsData ? buildRlsSql(rlsData) : undefined,
+        tables: dataTables,
+      })
+      for (const [name, content] of Object.entries(lite)) files[`lite/${name}`] = strToU8(content)
+      if (!options.includeData)
+        warnings.push('[lite] schema only: enable "Include row data" for a restorable copy')
+      else if (options.rowLimit > 0)
+        warnings.push(
+          `[lite] rows capped at ${options.rowLimit}/table: set row limit to All for a full restore`
+        )
+    })
   }
 
   // Manifest
@@ -460,8 +501,8 @@ export async function createBackup(
         tables: tablesMapKeys(columns),
       },
       null,
-      2,
-    ),
+      2
+    )
   )
 
   // 9. Zip
@@ -476,9 +517,7 @@ export async function createBackup(
     throw err
   }
 
-  const projectRef = connection.supabaseUrl
-    ? extractRef(connection.supabaseUrl)
-    : 'supabase'
+  const projectRef = connection.supabaseUrl ? extractRef(connection.supabaseUrl) : 'supabase'
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
   const filename = `${projectRef}-backup-${timestamp}.zip`
 
@@ -532,7 +571,7 @@ function buildRlsSql(tables: SqlRow[]): string {
       const using = p.qual ? `\n  USING (${p.qual})` : ''
       const check = p.with_check ? `\n  WITH CHECK (${p.with_check})` : ''
       lines.push(
-        `CREATE POLICY ${policyName} ON ${quoteIdent(tableName)}\n  AS ${String(p.permissive || 'PERMISSIVE').toUpperCase()}\n  FOR ${cmd || 'ALL'}\n  TO ${roles}${using}${check};`,
+        `CREATE POLICY ${policyName} ON ${quoteIdent(tableName)}\n  AS ${String(p.permissive || 'PERMISSIVE').toUpperCase()}\n  FOR ${cmd || 'ALL'}\n  TO ${roles}${using}${check};`
       )
     }
     lines.push('')

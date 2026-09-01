@@ -17,13 +17,13 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { track } from '@/lib/analytics'
 import {
-  DEFAULT_BACKUP_OPTIONS,
-  createBackup,
   type BackupOptions,
   type BackupStep,
+  createBackup,
+  DEFAULT_BACKUP_OPTIONS,
 } from '@/lib/backup'
-import { track } from '@/lib/analytics'
 import type { SupabaseConnection } from '@/lib/supabase-types'
 
 // ─── Types ───
@@ -70,7 +70,9 @@ export function BackupPanel({ connection, isDemoMode }: BackupPanelProps) {
       document.body.removeChild(a)
 
       if (warnings.length > 0) {
-        toast.success(`Backup created with ${warnings.length} warning${warnings.length === 1 ? '' : 's'}`)
+        toast.success(
+          `Backup created with ${warnings.length} warning${warnings.length === 1 ? '' : 's'}`
+        )
       } else {
         toast.success('Backup created successfully')
       }
@@ -78,6 +80,7 @@ export function BackupPanel({ connection, isDemoMode }: BackupPanelProps) {
       track('backup_created', {
         include_data: options.includeData,
         row_limit: options.rowLimit,
+        include_lite: options.includeLite,
         warning_count: warnings.length,
       })
     } catch (err) {
@@ -155,7 +158,8 @@ export function BackupPanel({ connection, isDemoMode }: BackupPanelProps) {
                 Include row data
               </Label>
               <p className="text-xs text-muted-foreground">
-                Export the first {options.rowLimit} rows from each table as JSON.
+                Export {options.rowLimit ? `the first ${options.rowLimit}` : 'all'} rows from each
+                table as JSON.
               </p>
             </div>
             <Switch
@@ -174,7 +178,7 @@ export function BackupPanel({ connection, isDemoMode }: BackupPanelProps) {
               <p className="text-xs text-muted-foreground">Caps the number of rows exported.</p>
             </div>
             <div className="flex gap-1">
-              {[100, 500, 1000].map((n) => (
+              {[100, 500, 1000, 0].map((n) => (
                 <Button
                   key={n}
                   variant={options.rowLimit === n ? 'default' : 'outline'}
@@ -183,10 +187,30 @@ export function BackupPanel({ connection, isDemoMode }: BackupPanelProps) {
                   onClick={() => setOptions((prev) => ({ ...prev, rowLimit: n }))}
                   disabled={isRunning || !options.includeData}
                 >
-                  {n}
+                  {n === 0 ? 'All' : n}
                 </Button>
               ))}
             </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-0.5">
+              <Label htmlFor="include-lite" className="text-sm font-medium">
+                Include Supabase Lite project
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Adds <code>lite/</code>: unzip and run <code>node lite/restore.mjs</code> to bring
+                the project back up locally.
+              </p>
+            </div>
+            <Switch
+              id="include-lite"
+              checked={options.includeLite}
+              onCheckedChange={(checked) =>
+                setOptions((prev) => ({ ...prev, includeLite: checked }))
+              }
+              disabled={isRunning}
+            />
           </div>
         </CardContent>
       </Card>
@@ -194,7 +218,11 @@ export function BackupPanel({ connection, isDemoMode }: BackupPanelProps) {
       {/* Action */}
       <div className="flex items-center gap-3">
         <Button onClick={handleBackup} disabled={isRunning} className="gap-1.5">
-          {isRunning ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+          {isRunning ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Download className="size-4" />
+          )}
           {isRunning ? 'Creating backup…' : 'Create Backup'}
         </Button>
         {resultUrl && !isRunning && (
@@ -210,7 +238,11 @@ export function BackupPanel({ connection, isDemoMode }: BackupPanelProps) {
             <Badge variant={errorCount > 0 ? 'destructive' : 'secondary'} className="text-[10px]">
               {completedCount}/{steps.length} done
             </Badge>
-            {errorCount > 0 && <span>{errorCount} error{errorCount === 1 ? '' : 's'}</span>}
+            {errorCount > 0 && (
+              <span>
+                {errorCount} error{errorCount === 1 ? '' : 's'}
+              </span>
+            )}
           </div>
         )}
       </div>
