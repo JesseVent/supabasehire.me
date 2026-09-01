@@ -1191,7 +1191,11 @@ export function SQLPanel() {
                     <ChevronDown className="size-3" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuContent
+                  align="end"
+                  // Twelve demos overflow a short viewport — cap to the space Radix reports.
+                  className="max-h-[var(--radix-dropdown-menu-content-available-height)] w-64 overflow-y-auto"
+                >
                   <DropdownMenuLabel className="flex items-center justify-between gap-2 font-normal">
                     <span className="text-xs text-muted-foreground">Provider</span>
                     <span className="flex items-center overflow-hidden rounded-md border border-border text-[10px] font-medium">
