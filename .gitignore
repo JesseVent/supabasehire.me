@@ -84,3 +84,6 @@ evals/results/
 # Office docs (accidental commits)
 *.docx
 *.xlsx
+
+# The global excludes file ignores every "logs/" directory — this is an API route, not logs.
+!/src/app/api/logs/

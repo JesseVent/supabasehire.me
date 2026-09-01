@@ -13,6 +13,7 @@
         "@evilmartians/agent-prism-data": "^0.0.9",
         "@evilmartians/agent-prism-types": "^0.0.9",
         "@hookform/resolvers": "^5.4.0",
+        "@jessevent/supalite-snapshot": "github:JesseVent/supalite-snapshot#22ca306",
         "@mdxeditor/editor": "^4.0.1",
         "@modelcontextprotocol/sdk": "^1.12.1",
         "@opentelemetry/instrumentation-openai": "^0.17.0",
@@ -295,6 +296,8 @@
     "@img/sharp-win32-ia32": ["@img/sharp-win32-ia32@0.35.3", "", { "os": "win32", "cpu": "ia32" }, "sha512-r53mXsBN6lFUDiST764SvgwUdHAqM4rPAiDzAmf4fLoB6X/rkfyTrLCg6+g17wJJiCmB3JYgHuUldCWUIRFSXw=="],
 
     "@img/sharp-win32-x64": ["@img/sharp-win32-x64@0.35.3", "", { "os": "win32", "cpu": "x64" }, "sha512-D4y1vNeZrIIJCN+uHaWVtH86B+aCrdMYYjicy9pXHvbGZeGYLLSd3wdVuC37FxVXlU1ARsk84eKWfWMXGYEqvA=="],
+
+    "@jessevent/supalite-snapshot": ["@jessevent/supalite-snapshot@github:JesseVent/supalite-snapshot#22ca306", { "dependencies": { "@modelcontextprotocol/sdk": "^1.12.1" }, "bin": { "supalite-snapshot": "./bin/supalite-snapshot.mjs" } }, "JesseVent-supalite-snapshot-22ca306", "sha512-GqE/zi/Aus+un3mIwZamyAWlRCipvj1Jh657ZYIcIY9nazrgyjhhkbFSH2B3Q8XJDO62God/Z3stlKtnSblUlg=="],
 
     "@jridgewell/gen-mapping": ["@jridgewell/gen-mapping@0.3.13", "https://registry.npmjs.com/@jridgewell/gen-mapping/-/gen-mapping-0.3.13.tgz", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.0", "@jridgewell/trace-mapping": "^0.3.24" } }, "sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA=="],
 

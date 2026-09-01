@@ -163,7 +163,14 @@ export interface InvokeEdgeFunctionResult {
 
 // ─── Logs Types ───
 
-export type LogService = 'postgres' | 'api' | 'auth' | 'edge-functions' | 'storage' | 'realtime'
+export type LogService =
+  | 'all'
+  | 'postgres'
+  | 'api'
+  | 'auth'
+  | 'edge-functions'
+  | 'storage'
+  | 'realtime'
 
 export interface LogEntry {
   id: string
@@ -220,20 +227,26 @@ export type ActivePanel =
 
 // ─── Resource Warnings (platform API) ───
 
-export type ResourceSeverity = 'warning' | 'critical' | null
+export type AdvisorType = 'security' | 'performance'
 
-export interface ResourceWarning {
-  project: string
-  is_readonly_mode_enabled: boolean
-  disk_io_exhaustion: ResourceSeverity
-  cpu_exhaustion: ResourceSeverity
-  memory_and_swap_exhaustion: ResourceSeverity
-  disk_space_exhaustion: ResourceSeverity
-  // Auth rate limit only ever returns 'warning' — never 'critical'.
-  auth_rate_limit_exhaustion: 'warning' | null
-  auth_email_offender: string | null
-  auth_restricted_email_sending: boolean | null
-  need_pitr: boolean | null
+/** One finding from the Supabase MCP `get_advisors` tool (the database linter). */
+export interface AdvisorLint {
+  type: AdvisorType
+  name: string
+  title: string
+  level: 'ERROR' | 'WARN' | 'INFO'
+  facing: string | null
+  categories: string[]
+  description: string
+  /** Names the specific object at fault, e.g. "Table `public.orders` has RLS enabled, but no policies exist". */
+  detail: string
+  remediation: string | null
+  cacheKey: string
+}
+
+export interface AdvisorsResult {
+  lints: AdvisorLint[]
+  error?: string
 }
 
 // ─── Data Catalog Types ───

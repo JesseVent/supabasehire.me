@@ -5,7 +5,11 @@ import {
   BarChart3,
   ChevronDown,
   ChevronRight,
+  Clock,
+  Columns3,
   Database,
+  Files,
+  HardDrive,
   Layers,
   Loader2,
   Play,
@@ -23,6 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { StatTile } from '@/components/ui/stat-tile'
 import {
   Table,
   TableBody,
@@ -39,10 +44,31 @@ import { useSupabaseStore } from '@/store/supabase-store'
 
 // ─── Types ───
 
+/** Iceberg FDW settings read back off the connected project (see /api/iceberg/config). */
+interface ProjectIcebergConfig {
+  server: string
+  warehouse: string
+  catalogUri: string | null
+  s3KeyId: string
+  s3Secret: string
+}
+
 interface IcebergColumn {
   name: string
   type: string
   nullable: boolean
+}
+
+/** Current-snapshot stats read off the table metadata the catalog already returns. */
+interface IcebergTableStats {
+  rowCount: number | null
+  dataFiles: number | null
+  sizeBytes: number | null
+  lastUpdatedMs: number | null
+  snapshotCount: number | null
+  formatVersion: number | null
+  partitionFields: string[]
+  location: string | null
 }
 
 interface IcebergTable {
@@ -53,6 +79,7 @@ interface IcebergTable {
   rowCount: number | null
   schema: IcebergColumn[] // from catalog API — no DuckDB manifest reads needed
   viewReady: boolean // true once the DuckDB view has been created
+  stats: IcebergTableStats
 }
 
 interface QueryResult {
@@ -103,6 +130,51 @@ async function getDuckDB() {
   return dbInitPromise
 }
 
+const EMPTY_STATS: IcebergTableStats = {
+  rowCount: null,
+  dataFiles: null,
+  sizeBytes: null,
+  lastUpdatedMs: null,
+  snapshotCount: null,
+  formatVersion: null,
+  partitionFields: [],
+  location: null,
+}
+
+function formatBytes(bytes: number | null): string {
+  if (bytes === null) return '—'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let n = bytes
+  let i = 0
+  while (n >= 1024 && i < units.length - 1) {
+    n /= 1024
+    i++
+  }
+  return `${n < 10 && i > 0 ? n.toFixed(1) : Math.round(n)} ${units[i]}`
+}
+
+function formatCount(n: number | null): string {
+  return n === null ? '—' : n.toLocaleString()
+}
+
+/** Tile-sized number: 6,714,200 → 6.7M, so a big warehouse doesn't overflow the card. */
+function formatCompact(n: number | null): string {
+  if (n === null) return '—'
+  return n < 1000
+    ? String(n)
+    : Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(n)
+}
+
+function formatAge(ms: number | null): string {
+  if (!ms) return '—'
+  const mins = Math.round((Date.now() - ms) / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.round(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.round(hours / 24)}d ago`
+}
+
 function formatCell(val: unknown): string {
   if (val === null || val === undefined) return 'NULL'
   if (typeof val === 'bigint') return val.toString()
@@ -146,9 +218,9 @@ export function AnalyticsPanel({
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   const resolveField = (
-    connVal: string | undefined,
+    connVal: string | null | undefined,
     envVal: string | undefined,
-    lsVal: string | undefined
+    lsVal?: string | undefined
   ) => connVal || envVal || lsVal || ''
 
   const ls = readLsSettings()
@@ -156,11 +228,15 @@ export function AnalyticsPanel({
     resolveField(connection?.s3KeyId, process.env.NEXT_PUBLIC_S3_KEY_ID, ls.s3KeyId)
   )
   const [s3Secret, setS3Secret] = useState(
-    resolveField(connection?.s3Secret, process.env.NEXT_PUBLIC_S3_SECRET, ls.s3Secret)
+    resolveField(connection?.s3Secret, process.env.NEXT_PUBLIC_S3_SECRET)
   )
   const [warehouse, setWarehouse] = useState(
     resolveField(connection?.s3Warehouse, process.env.NEXT_PUBLIC_S3_WAREHOUSE, ls.warehouse)
   )
+
+  // Name of the foreign server the credentials came from, when the project supplied them
+  // instead of the user typing them.
+  const [sourcedFromProject, setSourcedFromProject] = useState<string | null>(null)
 
   const [tables, setTables] = useState<IcebergTable[]>([])
   const [selectedTable, setSelectedTable] = useState<IcebergTable | null>(null)
@@ -173,7 +249,7 @@ export function AnalyticsPanel({
     prevConnId.current = connection?.id
     const ls2 = readLsSettings()
     setS3KeyId(resolveField(connection?.s3KeyId, process.env.NEXT_PUBLIC_S3_KEY_ID, ls2.s3KeyId))
-    setS3Secret(resolveField(connection?.s3Secret, process.env.NEXT_PUBLIC_S3_SECRET, ls2.s3Secret))
+    setS3Secret(resolveField(connection?.s3Secret, process.env.NEXT_PUBLIC_S3_SECRET))
     setWarehouse(
       resolveField(connection?.s3Warehouse, process.env.NEXT_PUBLIC_S3_WAREHOUSE, ls2.warehouse)
     )
@@ -203,116 +279,164 @@ export function AnalyticsPanel({
   // Supabase storage S3 endpoint — use the storage subdomain (same host as the Iceberg catalog)
   const s3Endpoint = `${projectRef}.storage.supabase.co/storage/v1/s3`
 
-  const connect = useCallback(async () => {
-    if (!connection) return
-    if (!s3KeyId || !s3Secret || !warehouse) {
-      toast.error('Enter S3 credentials and warehouse name')
-      return
-    }
-    if (connectingRef.current) return
-    connectingRef.current = true
+  // `creds` lets a caller connect with values it just fetched, without waiting a render
+  // for the form state to catch up. `source` names the foreign server they came from.
+  const connect = useCallback(
+    async (creds?: { s3KeyId: string; s3Secret: string; warehouse: string; source: string }) => {
+      if (!connection) return
+      const keyId = creds?.s3KeyId ?? s3KeyId
+      const secret = creds?.s3Secret ?? s3Secret
+      const bucket = creds?.warehouse ?? warehouse
+      const fromProject = creds?.source ?? sourcedFromProject
+      if (!keyId || !secret || !bucket) {
+        toast.error('Enter S3 credentials and warehouse name')
+        return
+      }
+      if (connectingRef.current) return
+      connectingRef.current = true
 
-    setPhase('connecting')
-    setErrorMsg(null)
+      setPhase('connecting')
+      setErrorMsg(null)
 
-    if (connection) {
-      updateConnection(connection.id, { s3KeyId, s3Secret, s3Warehouse: warehouse })
-    }
-    saveLsSettings({ s3KeyId, warehouse })
-
-    try {
-      // Discover tables via Iceberg REST catalog (server-side, avoids CORS + S3 glob fragility).
-      // Pass both serviceRoleKey and accessToken — the route prefers a real eyJ... JWT and will
-      // fall back to fetching one via the Management API when the key is opaque (sb_secret_...).
-      const catalogRes = await fetch('/api/iceberg/tables', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          supabaseUrl: connection.supabaseUrl,
-          serviceRoleKey: connection.serviceRoleKey,
-          accessToken: connection.accessToken,
-          warehouse,
-        }),
-      })
-
-      if (!catalogRes.ok) {
-        const err = (await catalogRes.json()) as { error?: string; catalogUrl?: string }
-        throw new Error(
-          `Iceberg catalog error: ${err.error ?? catalogRes.statusText}${err.catalogUrl ? ` (${err.catalogUrl})` : ''}`
-        )
+      // Credentials the project already holds stay there — copying them into localStorage
+      // would widen their blast radius for nothing.
+      if (!fromProject) {
+        updateConnection(connection.id, { s3KeyId: keyId, s3Secret: secret, s3Warehouse: bucket })
+        saveLsSettings({ s3KeyId: keyId, warehouse: bucket })
       }
 
-      const { tables: catalogTables } = (await catalogRes.json()) as {
-        tables: Array<{
-          namespace: string
-          name: string
-          metadataLocation: string
-          schema: Array<{ name: string; type: string; nullable: boolean }>
-        }>
-      }
+      try {
+        // Discover tables via Iceberg REST catalog (server-side, avoids CORS + S3 glob fragility).
+        // Pass both serviceRoleKey and accessToken — the route prefers a real eyJ... JWT and will
+        // fall back to fetching one via the Management API when the key is opaque (sb_secret_...).
+        const catalogRes = await fetch('/api/iceberg/tables', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            supabaseUrl: connection.supabaseUrl,
+            serviceRoleKey: connection.serviceRoleKey,
+            accessToken: connection.accessToken,
+            warehouse: bucket,
+          }),
+        })
 
-      if (catalogTables.length === 0) {
-        throw new Error(
-          `No Iceberg tables found in warehouse "${warehouse}". Verify the analytics bucket name and that tables have been created.`
-        )
-      }
+        if (!catalogRes.ok) {
+          const err = (await catalogRes.json()) as { error?: string; catalogUrl?: string }
+          throw new Error(
+            `Iceberg catalog error: ${err.error ?? catalogRes.statusText}${err.catalogUrl ? ` (${err.catalogUrl})` : ''}`
+          )
+        }
 
-      // Set up DuckDB WASM with S3 credentials for data reads
-      const db = await getDuckDB()
-      const conn = await db.connect()
-      connRef.current = conn
+        const { tables: catalogTables } = (await catalogRes.json()) as {
+          tables: Array<{
+            namespace: string
+            name: string
+            metadataLocation: string
+            schema: Array<{ name: string; type: string; nullable: boolean }>
+            stats?: Partial<IcebergTableStats>
+          }>
+        }
 
-      await conn.query(`INSTALL httpfs; LOAD httpfs;`)
-      await conn.query(`INSTALL iceberg; LOAD iceberg;`)
+        if (catalogTables.length === 0) {
+          throw new Error(
+            `No Iceberg tables found in warehouse "${bucket}". Verify the analytics bucket name and that tables have been created.`
+          )
+        }
 
-      await conn.query(`
+        // Set up DuckDB WASM with S3 credentials for data reads
+        const db = await getDuckDB()
+        const conn = await db.connect()
+        connRef.current = conn
+
+        await conn.query(`INSTALL httpfs; LOAD httpfs;`)
+        await conn.query(`INSTALL iceberg; LOAD iceberg;`)
+
+        await conn.query(`
         CREATE OR REPLACE SECRET supabase_s3 (
           TYPE S3,
-          KEY_ID '${s3KeyId}',
-          SECRET '${s3Secret}',
+          KEY_ID '${keyId}',
+          SECRET '${secret}',
           ENDPOINT '${s3Endpoint}',
           URL_STYLE 'path'
         );
       `)
 
-      // Build table list from catalog metadata — no DuckDB view creation yet.
-      // Views are created lazily in selectTable() to avoid reading manifests for
-      // every table at connect time.
-      const tableList: IcebergTable[] = catalogTables.map((t) => ({
-        namespace: t.namespace,
-        name: t.name,
-        fullName: `${t.namespace}_${t.name}`.replace(/[^a-z0-9_]/gi, '_'),
-        location: t.metadataLocation,
-        rowCount: null,
-        schema: (t.schema ?? []) as IcebergColumn[],
-        viewReady: false,
-      }))
+        // Build table list from catalog metadata — no DuckDB view creation yet.
+        // Views are created lazily in selectTable() to avoid reading manifests for
+        // every table at connect time.
+        const tableList: IcebergTable[] = catalogTables.map((t) => ({
+          namespace: t.namespace,
+          name: t.name,
+          fullName: `${t.namespace}_${t.name}`.replace(/[^a-z0-9_]/gi, '_'),
+          location: t.metadataLocation,
+          rowCount: t.stats?.rowCount ?? null,
+          schema: (t.schema ?? []) as IcebergColumn[],
+          viewReady: false,
+          stats: { ...EMPTY_STATS, ...t.stats },
+        }))
 
-      setTables(tableList)
+        setTables(tableList)
 
-      const firstNs = [...new Set(tableList.map((t) => t.namespace))]
-      if (firstNs.length > 0) setExpandedNamespaces(new Set([firstNs[0]]))
+        const firstNs = [...new Set(tableList.map((t) => t.namespace))]
+        if (firstNs.length > 0) setExpandedNamespaces(new Set([firstNs[0]]))
 
-      setPhase('connected')
-      toast.success(
-        `Connected — ${tableList.length} table${tableList.length !== 1 ? 's' : ''} found`
-      )
-    } catch (err) {
-      setPhase('error')
-      const msg = err instanceof Error ? err.message : String(err)
-      setErrorMsg(msg)
-      toast.error('Connection failed')
-    } finally {
-      connectingRef.current = false
-    }
-  }, [connection, s3KeyId, s3Secret, warehouse, s3Endpoint, updateConnection])
+        setPhase('connected')
+        toast.success(
+          `Connected — ${tableList.length} table${tableList.length !== 1 ? 's' : ''} found`
+        )
+      } catch (err) {
+        setPhase('error')
+        const msg = err instanceof Error ? err.message : String(err)
+        setErrorMsg(msg)
+        toast.error('Connection failed')
+      } finally {
+        connectingRef.current = false
+      }
+    },
+    [connection, s3KeyId, s3Secret, warehouse, sourcedFromProject, s3Endpoint, updateConnection]
+  )
 
-  // Auto-connect when the panel mounts with saved credentials
+  // On mount and whenever the connection changes: connect with whatever credentials we
+  // already have, else ask the project for them. A project with an Iceberg FDW keeps the
+  // warehouse and S3 keys itself, so there is nothing to prompt for.
+  const bootstrapRef = useRef<string | null>(null)
   useEffect(() => {
-    if (phase === 'idle' && s3KeyId && s3Secret && warehouse && connection) {
+    if (!connection || phase !== 'idle') return
+    if (bootstrapRef.current === connection.id) return
+    bootstrapRef.current = connection.id
+
+    if (s3KeyId && s3Secret && warehouse) {
       connect()
+      return
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    if (!connection.accessToken) return
+
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await apiFetch('/api/iceberg/config', connection, {})
+        if (!res.ok || cancelled) return
+        const { configs } = (await res.json()) as { configs?: ProjectIcebergConfig[] }
+        const cfg = configs?.[0]
+        if (!cfg || cancelled) return
+        setWarehouse(cfg.warehouse)
+        setS3KeyId(cfg.s3KeyId)
+        setS3Secret(cfg.s3Secret)
+        setSourcedFromProject(cfg.server)
+        void connect({
+          s3KeyId: cfg.s3KeyId,
+          s3Secret: cfg.s3Secret,
+          warehouse: cfg.warehouse,
+          source: cfg.server,
+        })
+      } catch {
+        // No project-side config — the form below asks for the values instead.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [connection, phase, s3KeyId, s3Secret, warehouse, connect])
 
   const selectTable = useCallback(async (table: IcebergTable) => {
     if (!connRef.current) return
@@ -543,7 +667,7 @@ export function AnalyticsPanel({
               </p>
             </div>
 
-            <Button onClick={connect} className="w-full gap-2">
+            <Button onClick={() => void connect()} className="w-full gap-2">
               <Database className="size-3.5" />
               Connect
             </Button>
@@ -580,7 +704,7 @@ export function AnalyticsPanel({
               variant="ghost"
               size="icon"
               className="size-6"
-              onClick={connect}
+              onClick={() => void connect()}
               title="Reconnect / refresh"
             >
               <RefreshCw className="size-3" />
@@ -589,13 +713,27 @@ export function AnalyticsPanel({
               variant="ghost"
               size="icon"
               className="size-6"
-              onClick={() => setPhase('idle')}
+              onClick={() => {
+                // Editing by hand takes the credentials out of the project's hands, so
+                // they persist like any typed value from here on.
+                setSourcedFromProject(null)
+                setPhase('idle')
+              }}
               title="Edit S3 keys / reconnect"
             >
               <Settings className="size-3" />
             </Button>
           </div>
         </div>
+        {sourcedFromProject && (
+          <p
+            className="px-3 py-1.5 border-b text-[10px] text-muted-foreground truncate"
+            title={`Warehouse and S3 keys read from ${sourcedFromProject} and this project's vault — not stored in the browser.`}
+          >
+            Credentials from project vault
+            <span className="font-mono"> ({sourcedFromProject})</span>
+          </p>
+        )}
         <ScrollArea className="flex-1">
           <div className="p-1">
             {namespaces.map((ns) => {
@@ -651,10 +789,15 @@ export function AnalyticsPanel({
       {/* Main area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {!selectedTable ? (
-          <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground">
-            <Table2 className="size-8 opacity-30" />
-            <p className="text-sm">Select a table to explore</p>
-          </div>
+          <IcebergOverview
+            tables={tables}
+            warehouse={warehouse}
+            catalogHost={`${projectRef}.storage.supabase.co`}
+            sourcedFromProject={sourcedFromProject}
+            onReconnect={() => void connect()}
+            onSelect={selectTable}
+            onOpenNamespace={(ns) => setExpandedNamespaces(new Set([...expandedNamespaces, ns]))}
+          />
         ) : (
           <Tabs defaultValue="preview" className="flex flex-col h-full">
             <div className="flex items-center gap-3 px-4 py-2 border-b shrink-0">
@@ -860,10 +1003,10 @@ export function AnalyticsPanel({
                   </div>
 
                   <p className="text-xs text-muted-foreground -mt-1">
-                    ⚠️ Not apples-to-apples: Postgres time includes client→server→Management
-                    API→DB round-trip latency. DuckDB WASM runs locally (only S3 reads are
-                    measured). Iceberg will appear faster on small queries due to proxy overhead,
-                    not raw throughput. Use for relative comparison only.
+                    ⚠️ Not apples-to-apples: Postgres time includes client→server→Management API→DB
+                    round-trip latency. DuckDB WASM runs locally (only S3 reads are measured).
+                    Iceberg will appear faster on small queries due to proxy overhead, not raw
+                    throughput. Use for relative comparison only.
                   </p>
 
                   {benchResults.length > 0 && (
@@ -1045,5 +1188,257 @@ export function AnalyticsPanel({
         )}
       </div>
     </div>
+  )
+}
+
+// ─── Overview (landing screen once connected, before a table is picked) ───
+
+function sumStat(
+  tables: IcebergTable[],
+  key: 'rowCount' | 'sizeBytes' | 'dataFiles'
+): number | null {
+  const vals = tables.map((t) => t.stats[key]).filter((v): v is number => v !== null)
+  return vals.length === 0 ? null : vals.reduce((a, b) => a + b, 0)
+}
+
+function IcebergOverview({
+  tables,
+  warehouse,
+  catalogHost,
+  sourcedFromProject,
+  onReconnect,
+  onSelect,
+  onOpenNamespace,
+}: {
+  tables: IcebergTable[]
+  warehouse: string
+  catalogHost: string
+  sourcedFromProject: string | null
+  onReconnect: () => void
+  onSelect: (t: IcebergTable) => void
+  onOpenNamespace: (ns: string) => void
+}) {
+  const namespaces = [...new Set(tables.map((t) => t.namespace))]
+  const totalRows = sumStat(tables, 'rowCount')
+  const totalBytes = sumStat(tables, 'sizeBytes')
+  const totalFiles = sumStat(tables, 'dataFiles')
+  const totalColumns = tables.reduce((n, t) => n + t.schema.length, 0)
+
+  const largest = [...tables]
+    .filter((t) => t.stats.rowCount !== null || t.stats.sizeBytes !== null)
+    .sort((a, b) => (b.stats.rowCount ?? 0) - (a.stats.rowCount ?? 0))
+    .slice(0, 8)
+  const maxRows = largest[0]?.stats.rowCount ?? 0
+
+  const recent = [...tables]
+    .filter((t) => t.stats.lastUpdatedMs !== null)
+    .sort((a, b) => (b.stats.lastUpdatedMs ?? 0) - (a.stats.lastUpdatedMs ?? 0))
+    .slice(0, 5)
+
+  const partitioned = tables.filter((t) => t.stats.partitionFields.length > 0).length
+  const empty = tables.filter((t) => t.stats.rowCount === 0).length
+
+  return (
+    <ScrollArea className="h-full">
+      <div className="p-6 flex flex-col gap-6 max-w-6xl">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="rounded-lg border bg-muted/40 p-2">
+              <Layers className="size-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold leading-tight">
+                {warehouse || 'Analytics bucket'}
+              </h2>
+              <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                {catalogHost}/storage/v1/iceberg
+              </p>
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                <Badge variant="secondary" className="text-[10px] h-5">
+                  Apache Iceberg
+                </Badge>
+                <Badge variant="secondary" className="text-[10px] h-5">
+                  DuckDB WASM · in-browser
+                </Badge>
+                {sourcedFromProject && (
+                  <Badge variant="outline" className="text-[10px] h-5 font-mono">
+                    vault: {sourcedFromProject}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={onReconnect}>
+            <RefreshCw className="size-3.5" />
+            Refresh catalog
+          </Button>
+        </div>
+
+        {/* Stat tiles */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 2xl:grid-cols-6 gap-3">
+          <StatTile label="Tables" value={tables.length} icon={Table2} />
+          <StatTile label="Namespaces" value={namespaces.length} icon={Database} />
+          <StatTile
+            label="Rows"
+            value={formatCompact(totalRows)}
+            icon={BarChart3}
+            className={totalRows === null ? undefined : 'tabular-nums'}
+          />
+          <StatTile label="Size" value={formatBytes(totalBytes)} icon={HardDrive} />
+          <StatTile label="Data files" value={formatCompact(totalFiles)} icon={Files} />
+          <StatTile label="Columns" value={formatCompact(totalColumns)} icon={Columns3} />
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-4">
+          {/* Largest tables */}
+          <Card className="lg:col-span-2 gap-0 py-4">
+            <CardHeader className="px-4 pb-3">
+              <CardTitle className="text-sm">Largest tables</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4">
+              {largest.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-2">
+                  No snapshot statistics yet — these tables have not been written to.
+                </p>
+              ) : (
+                <div className="flex flex-col">
+                  {largest.map((t) => (
+                    <button
+                      key={`${t.namespace}.${t.name}`}
+                      onClick={() => onSelect(t)}
+                      className="group flex items-center gap-3 py-1.5 text-left rounded hover:bg-muted/50 px-2 -mx-2 transition-colors"
+                    >
+                      <Table2 className="size-3.5 text-muted-foreground shrink-0" />
+                      <span className="text-xs font-medium truncate w-44 shrink-0 group-hover:text-primary transition-colors">
+                        {t.name}
+                      </span>
+                      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-primary/60"
+                          style={{
+                            width: `${maxRows > 0 ? Math.max(2, ((t.stats.rowCount ?? 0) / maxRows) * 100) : 2}%`,
+                          }}
+                        />
+                      </div>
+                      <span className="text-[11px] tabular-nums text-muted-foreground w-20 text-right shrink-0">
+                        {formatCount(t.stats.rowCount)}
+                      </span>
+                      <span className="text-[11px] tabular-nums text-muted-foreground w-16 text-right shrink-0">
+                        {formatBytes(t.stats.sizeBytes)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Namespaces */}
+          <Card className="gap-0 py-4">
+            <CardHeader className="px-4 pb-3">
+              <CardTitle className="text-sm">Namespaces</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4">
+              <div className="flex flex-col">
+                {namespaces.map((ns) => {
+                  const nsTables = tables.filter((t) => t.namespace === ns)
+                  return (
+                    <button
+                      key={ns}
+                      onClick={() => onOpenNamespace(ns)}
+                      className="flex items-center gap-2 py-1.5 px-2 -mx-2 rounded text-left hover:bg-muted/50 transition-colors"
+                    >
+                      <Database className="size-3.5 text-muted-foreground shrink-0" />
+                      <span className="text-xs font-medium truncate">{ns}</span>
+                      <span className="ml-auto text-[11px] text-muted-foreground tabular-nums shrink-0">
+                        {nsTables.length} · {formatCount(sumStat(nsTables, 'rowCount'))}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-4">
+          {/* Recently updated */}
+          <Card className="lg:col-span-2 gap-0 py-4">
+            <CardHeader className="px-4 pb-3">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <Clock className="size-3.5 text-muted-foreground" />
+                Recently updated
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4">
+              {recent.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-2">No snapshot history available.</p>
+              ) : (
+                <div className="flex flex-col">
+                  {recent.map((t) => (
+                    <button
+                      key={`${t.namespace}.${t.name}`}
+                      onClick={() => onSelect(t)}
+                      className="group flex items-center gap-2 py-1.5 px-2 -mx-2 rounded text-left hover:bg-muted/50 transition-colors"
+                    >
+                      <span className="text-xs font-medium truncate group-hover:text-primary transition-colors">
+                        {t.name}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground font-mono truncate">
+                        {t.namespace}
+                      </span>
+                      {t.stats.partitionFields.length > 0 && (
+                        <Badge variant="outline" className="text-[10px] h-4 px-1 font-mono">
+                          {t.stats.partitionFields.join(', ')}
+                        </Badge>
+                      )}
+                      <span className="ml-auto text-[11px] text-muted-foreground shrink-0">
+                        {formatAge(t.stats.lastUpdatedMs)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Catalog shape */}
+          <Card className="gap-0 py-4">
+            <CardHeader className="px-4 pb-3">
+              <CardTitle className="text-sm">Catalog</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 flex flex-col gap-1.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Partitioned tables</span>
+                <span className="tabular-nums">
+                  {partitioned} / {tables.length}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Empty tables</span>
+                <span className="tabular-nums">{empty}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Avg columns/table</span>
+                <span className="tabular-nums">
+                  {tables.length > 0 ? Math.round(totalColumns / tables.length) : 0}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Format version</span>
+                <span className="tabular-nums font-mono">
+                  v{tables.find((t) => t.stats.formatVersion !== null)?.stats.formatVersion ?? '—'}
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground pt-2 border-t mt-1.5 leading-relaxed">
+                Pick a table to preview rows, profile columns, run SQL, or benchmark it against
+                Postgres. Queries execute in your browser — no data reaches a server.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </ScrollArea>
   )
 }

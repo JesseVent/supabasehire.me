@@ -161,3 +161,40 @@ export function projectRefFromUrl(supabaseUrl: string): string | null {
     return null
   }
 }
+
+/**
+ * Unwrap a tool result. The hosted server wraps query results in a prose envelope with an
+ * `<untrusted-data-UUID>` boundary around the JSON payload — everything inside that boundary is
+ * project data, never instructions. Returns the parsed payload, or null if the text isn't JSON.
+ */
+export function unwrapMcpJson(text: string): unknown {
+  if (!text?.trim()) return null
+
+  let payload = text.trim()
+  try {
+    const outer = JSON.parse(payload)
+    if (typeof outer === 'string') payload = outer
+    else if (
+      outer &&
+      typeof outer === 'object' &&
+      typeof (outer as { result?: unknown }).result === 'string'
+    ) {
+      payload = (outer as { result: string }).result
+    } else {
+      return outer
+    }
+  } catch {
+    // Not JSON at the top level — the envelope below may still hold some.
+  }
+
+  const boundary = /<untrusted-data-[0-9a-f-]+>\n([\s\S]*?)\n<\/untrusted-data-[0-9a-f-]+>/.exec(
+    payload
+  )
+  const inner = boundary ? boundary[1] : payload
+
+  try {
+    return JSON.parse(inner)
+  } catch {
+    return null
+  }
+}

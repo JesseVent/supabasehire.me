@@ -41,7 +41,12 @@ WHERE tc.constraint_type = 'FOREIGN KEY'
 export async function POST(request: NextRequest) {
   const client = mcpClientFromRequest(request)
   if (!client) {
-    return NextResponse.json({ error: 'OAuth access token required.' }, { status: 403 })
+    // Not a rejected credential — this connection has none. The client uses the
+    // code to prompt for OAuth instead of reporting a failure.
+    return NextResponse.json(
+      { error: 'OAuth access token required.', code: 'oauth_required' },
+      { status: 403 }
+    )
   }
 
   try {

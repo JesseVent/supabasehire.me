@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
-import { getConnectionFromHeaders } from '@/lib/api-auth'
+import { forwardableTraceHeaders, getConnectionFromHeaders } from '@/lib/api-auth'
 import { DEMO_TABLE_ROWS } from '@/lib/demo-data'
 import { parseMcpSqlRows } from '@/lib/mcp-response-parser'
 import { mcpClientFromRequest } from '@/lib/mcp-server-client'
@@ -99,6 +99,7 @@ export async function POST(request: NextRequest) {
         apikey: apiKey,
         Authorization: `Bearer ${validKey}`,
         Prefer: 'count=exact',
+        ...forwardableTraceHeaders(request),
       },
     })
 

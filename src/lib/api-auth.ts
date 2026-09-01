@@ -68,6 +68,32 @@ export function connectionHeaders(conn: SupabaseConnection): Record<string, stri
   return headers
 }
 
+// ── W3C trace context (traceparent) ─────────────────────────────────────────
+// When an AgentPrism trace is running, requests to the project host carry its
+// trace id; Supabase's API gateway and edge-function logs stamp the same id,
+// so client traces and server logs join by trace_id.
+
+export function traceparentHeader(traceId: string): string {
+  const spanId = crypto.randomUUID().replaceAll('-', '').slice(0, 16)
+  return `00-${traceId}-${spanId}-01`
+}
+
+export function traceIdFromTraceparent(tp: string | null): string | null {
+  if (!tp) return null
+  const match = /^[0-9a-f]{2}-([0-9a-f]{32})-[0-9a-f]{16}-[0-9a-f]{2}$/i.exec(tp)
+  return match ? match[1].toLowerCase() : null
+}
+
+/**
+ * Continue an incoming request's trace on the hop to the project host: same trace
+ * id, a fresh span id (W3C requires each hop mint its own). Empty when the caller
+ * sent no valid traceparent.
+ */
+export function forwardableTraceHeaders(request: Request): Record<string, string> {
+  const traceId = traceIdFromTraceparent(request.headers.get('traceparent'))
+  return traceId ? { traceparent: traceparentHeader(traceId) } : {}
+}
+
 /**
  * Client-side fetch wrapper that includes connection credentials in headers.
  *
@@ -190,10 +216,18 @@ export async function apiFetch(
     }
   }
 
+  // While an AgentPrism trace is running, stamp requests with its trace id so
+  // the connected project's gateway/edge logs can be joined by trace_id.
+  const traceHeaders = await getActiveTraceHeaders()
+  const baseHeaders = (): Record<string, string> => ({
+    'Content-Type': 'application/json',
+    ...traceHeaders,
+  })
+
   const res = await fetch(path, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      ...baseHeaders(),
       ...connectionHeaders(effectiveConn),
     },
     body: JSON.stringify(data ?? {}),
@@ -207,7 +241,7 @@ export async function apiFetch(
       return fetch(path, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          ...baseHeaders(),
           ...connectionHeaders({ ...effectiveConn, ...tokens }),
         },
         body: JSON.stringify(data ?? {}),
@@ -228,7 +262,7 @@ export async function apiFetch(
         return fetch(path, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
+            ...baseHeaders(),
             ...connectionHeaders({ ...effectiveConn, ...tokens }),
           },
           body: JSON.stringify(data ?? {}),
@@ -240,4 +274,21 @@ export async function apiFetch(
   }
 
   return res
+}
+
+async function getActiveTraceHeaders(): Promise<Record<string, string>> {
+  try {
+    // Dynamic import keeps the client-only bridge singleton out of server
+    // bundles (API routes import this module too).
+    const { AgentTraceBridge } = await import('@/lib/agent-trace-bridge')
+    const bridge = AgentTraceBridge.getInstance()
+    const traceId = bridge.getActiveTraceId()
+    if (!traceId) return {}
+    // Record that this trace's id actually went out on a request, so the panel
+    // only queries logs for ids a server could have stamped.
+    bridge.markPropagated()
+    return { traceparent: traceparentHeader(traceId) }
+  } catch {
+    return {}
+  }
 }

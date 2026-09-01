@@ -98,7 +98,8 @@
     "vaul": "^1.1.2",
     "z-ai-web-dev-sdk": "^0.0.18",
     "zod": "^4.4.3",
-    "zustand": "^5.0.14"
+    "zustand": "^5.0.14",
+    "@jessevent/supalite-snapshot": "github:JesseVent/supalite-snapshot#22ca306"
   },
   "overrides": {
     "postcss": ">=8.5.10",

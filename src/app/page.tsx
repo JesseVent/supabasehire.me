@@ -11,7 +11,6 @@ import {
   CheckCircle2,
   ChevronDown,
   Database,
-  DatabaseBackup,
   ExternalLink,
   Eye,
   FileText,
@@ -48,6 +47,9 @@ import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { AnalyticsPanel } from '@/components/analytics-panel'
+import { AppLogo } from '@/components/app-logo'
+import { AppSidebar } from '@/components/app-sidebar'
+import { BackupPanel } from '@/components/backup-panel'
 import { CommandPalette } from '@/components/command-palette'
 import { DataCatalogPanel } from '@/components/data-catalog-panel'
 import { DbViewsFunctions } from '@/components/db-views-functions'
@@ -56,14 +58,12 @@ import { ExportReport } from '@/components/export-report'
 import { KeyboardShortcuts } from '@/components/keyboard-shortcuts'
 import { LogsPanel } from '@/components/logs-panel'
 import { ProjectDashboard } from '@/components/project-dashboard'
-import { BackupPanel } from '@/components/backup-panel'
 import { ResourceWarningsPanel } from '@/components/resource-warnings-panel'
 import { RLSPanel } from '@/components/rls-panel'
 import { SchemaSnapshotPanel } from '@/components/schema-snapshot'
 import { SQLPanel } from '@/components/sql-panel'
 import { StorageBrowser } from '@/components/storage-browser'
 import { TableDataViewer } from '@/components/table-data-viewer'
-import { ThemeToggle } from '@/components/theme-toggle'
 import { TracePanel } from '@/components/trace-panel'
 import { TriggerViewer } from '@/components/trigger-viewer'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -81,7 +81,6 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
   Dialog,
   DialogContent,
@@ -103,9 +102,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
@@ -117,11 +114,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { setProject, track } from '@/lib/analytics'
 import { apiFetch } from '@/lib/api-auth'
-import { getExtensionCredentials, setSessionCredentials } from '@/lib/extension-bridge'
 import {
   DEMO_CONNECTION,
   DEMO_CONNECTION_ID,
@@ -130,6 +128,7 @@ import {
   DEMO_RLS_STATUSES,
   DEMO_TABLES,
 } from '@/lib/demo-data'
+import { getExtensionCredentials, setSessionCredentials } from '@/lib/extension-bridge'
 import {
   fetchWithBackoff,
   recordAuthFailure,
@@ -147,7 +146,6 @@ import {
   openOAuthPopup,
   waitForOAuthCallback,
 } from '@/lib/supabase-oauth'
-import { track, setProject } from '@/lib/analytics'
 import type {
   ActivePanel,
   ColumnInfo,
@@ -174,55 +172,6 @@ const SchemaDiagram = dynamic(
     ),
   }
 )
-
-type NavItem = { value: ActivePanel; icon: typeof LayoutDashboard; label: string; title: string }
-
-// Grouped nav for the left sidebar. 13 panels no longer fit a single
-// horizontal tab row, so they're bucketed by what you're doing with them.
-const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
-  {
-    label: 'Inspect',
-    items: [
-      { value: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', title: 'Dashboard' },
-      { value: 'schema', icon: GitFork, label: 'Schema', title: 'Schema' },
-      { value: 'rls', icon: Shield, label: 'RLS', title: 'Row Level Security' },
-      { value: 'storage', icon: HardDrive, label: 'Storage', title: 'Storage' },
-      { value: 'catalog', icon: BookOpen, label: 'Catalog', title: 'Data Catalog' },
-    ],
-  },
-  {
-    label: 'Run',
-    items: [
-      { value: 'sql', icon: Terminal, label: 'SQL', title: 'SQL Editor' },
-      { value: 'edge-functions', icon: Zap, label: 'Functions', title: 'Edge Functions' },
-    ],
-  },
-  {
-    label: 'Observe',
-    items: [
-      { value: 'logs', icon: ScrollText, label: 'Logs', title: 'Database Logs' },
-      { value: 'traces', icon: Activity, label: 'Traces', title: 'Traces' },
-      { value: 'resource-warnings', icon: ShieldAlert, label: 'Warnings', title: 'Resource Warnings' },
-    ],
-  },
-  {
-    label: 'Manage',
-    items: [
-      { value: 'backup', icon: DatabaseBackup, label: 'Backup', title: 'Project Backup' },
-      { value: 'iceberg', icon: Layers, label: 'Iceberg', title: 'Analytics' },
-      { value: 'settings', icon: Settings, label: 'Settings', title: 'Settings' },
-    ],
-  },
-]
-
-function AppLogo({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" className={className} aria-hidden="true">
-      <path fill="#1DD475" d="m98.6 61-27.8-56.1c-0.1-0.2-0.3-0.4-0.5-0.4l-15.9-0.1c-0.2 0-0.4 0.1-0.5 0.3l-52.6 96.2-0.1-0.3 7.5 14.9c0.3 0.6 1 0.7 1.3 0.2l14.1-24.3 15.3-0.5c0.6 0 1.2 0.7 0.9 1.4l-14.7 29c4.5 2.1 13.6 5.3 14.2 14.4 0 0.2 0.1 0.5 0.4 0.4l33.6-0.2c0.6-0.1 0.8-0.4 0.6-0.9l-6.8-15.7c0-0.2-0.2-0.3-0.4-0.3h-21c-0.6 0-1.1-0.6-0.8-1.1l29.8-57.8-8.6-16.2-15.2 30.1c-0.1 0.2-0.3 0.3-0.5 0.3l-14.3 0.4c-0.6 0-1.1-0.6-0.8-1.1l26.1-49.5c0.3-0.6 1.3-0.5 1.6 0.1l26.8 52.9 8.3-15.6v-0.5z"/>
-      <path fill="currentColor" opacity="0.4" d="m85.8 25.3 6.7 14.9c0.1 0.7-0.5 0.2 20.7 0.5 0.7 0 1.2 0.7 0.7 1.5l-30.2 56.8 9 16.8 15.9-29.2c0.1-0.2 0.3-0.3 0.4-0.3l14-0.3c0.7-0.1 1 0.6 0.6 1.3l-26.4 48.4c-0.3 0.6-1.2 0.6-1.4 0l-26.5-53.5h-0.4l-8.7 15.8 28.1 57.1c0.1 0.2 0.4 0.4 0.7 0.4l15.9 0.1c0.2 0 0.4-0.1 0.5-0.3l53.6-96-8-14.9c-0.3-0.6-1-0.7-1.4-0.1l-13.9 24.3c-0.1 0.2-0.3 0.4-0.6 0.4l-14.9 0.2c-0.7 0-1.2-0.7-0.8-1.4l14.7-28.2c-5.4-2.2-13-4.9-13.8-15.2h-34.4l-0.1 0.9z"/>
-    </svg>
-  )
-}
 
 export default function Home() {
   const {
@@ -260,6 +209,8 @@ export default function Home() {
   // True when the active extension connection can't reach the extension vault.
   // Surfaces an actionable "Connect via OAuth" button in the schema error alert.
   const [extensionOffline, setExtensionOffline] = useState(false)
+  // Connection simply has no Management API token yet — a prompt, not a failure.
+  const [needsOAuth, setNeedsOAuth] = useState(false)
 
   // New connection form
   const [newName, setNewName] = useState('')
@@ -491,12 +442,11 @@ export default function Home() {
     getExtensionCredentials().then((creds) => {
       if (!creds?.accessToken) return
       const projectRef = creds.projectRef ?? undefined
-      const supabaseUrl = creds.supabaseUrl ?? (projectRef ? `https://${projectRef}.supabase.co` : '')
+      const supabaseUrl =
+        creds.supabaseUrl ?? (projectRef ? `https://${projectRef}.supabase.co` : '')
 
       // Patch an existing extension connection that may have been created with an empty URL.
-      const existing = useSupabaseStore.getState().connections.find(
-        (c) => c.source === 'extension'
-      )
+      const existing = useSupabaseStore.getState().connections.find((c) => c.source === 'extension')
       if (existing) {
         if (!existing.supabaseUrl && supabaseUrl) {
           useSupabaseStore.getState().updateConnection(existing.id, { supabaseUrl, projectRef })
@@ -541,7 +491,7 @@ export default function Home() {
 
   useEffect(() => {
     const orig = window.fetch
-    window.fetch = async function (...args) {
+    window.fetch = async (...args) => {
       const res = await orig.apply(window, args)
       const url =
         typeof args[0] === 'string'
@@ -599,7 +549,9 @@ export default function Home() {
         setConnectionHealthMap((prev) => ({ ...prev, [c.id]: 'unhealthy' }))
       }
     })
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [connectionIdsKey])
 
   const createConnection = useCallback(async () => {
@@ -638,7 +590,10 @@ export default function Home() {
         action: 'Connection created',
         details: newConnection.name,
       })
-      track('connection_created', { has_service_role_key: !!newServiceRoleKey.trim(), has_access_token: !!newAccessToken.trim() })
+      track('connection_created', {
+        has_service_role_key: !!newServiceRoleKey.trim(),
+        has_access_token: !!newAccessToken.trim(),
+      })
       toast.success('Connection created', { description: newConnection.name })
       setShowNewDialog(false)
       setNewName('')
@@ -697,13 +652,13 @@ export default function Home() {
     setIsLoadingSchema(true)
     setSchemaError(null)
     setExtensionOffline(false)
+    setNeedsOAuth(false)
     try {
       // Fetch schema with exponential backoff — stops on 401/403/429
       const schemaRes = await fetchWithBackoff(() => apiFetch('/api/schema', activeConn), {
         key: `${activeConnectionId}:schema`,
       })
       if (schemaRes.status === 401 || schemaRes.status === 403) {
-        recordAuthFailure(activeConnectionId)
         // Distinguish extension-unavailable from a plain auth failure so the UI
         // can show a one-click OAuth re-auth button instead of a dead-end error.
         let body: { code?: string; error?: string } | null = null
@@ -711,11 +666,19 @@ export default function Home() {
           body = await schemaRes.clone().json()
         } catch {}
         if (body?.code === 'extension_unavailable' && activeConn.source === 'extension') {
+          recordAuthFailure(activeConnectionId)
           setExtensionOffline(true)
           setSchemaError(
             'SupaAgent extension is offline. Reconnect by authenticating via OAuth below.'
           )
+        } else if (body?.code === 'oauth_required' || !activeConn.accessToken) {
+          // Nothing failed — this connection has no Management API token yet.
+          // Don't count it as an auth failure, or the retry guard escalates to
+          // "repeated auth failures" for a project that was never authenticated.
+          setNeedsOAuth(true)
+          setSchemaError('Connect this project via OAuth to load its schema.')
         } else {
+          recordAuthFailure(activeConnectionId)
           setSchemaError('Authentication failed. Reconnect this project via OAuth.')
         }
         return
@@ -919,406 +882,403 @@ export default function Home() {
     return { schema, rls }
   }, [selectedTable, tables, rlsStatuses])
 
-  return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
-      {/* DB-paused overlay */}
-      {dbPaused && (
-        <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 cursor-pointer"
-          style={{ opacity: dbPausedVisible ? 1 : 0, transition: 'opacity 1.2s ease' }}
-          onClick={() => { setDbPaused(false); setDbPausedVisible(false); setActiveConnectionId('') }}
-        >
-          <video
-            autoPlay
-            playsInline
-            src="https://kdwgvyczmsrvuuddsgwi.supabase.co/storage/v1/object/public/public-files/AQN1MvCWJWWSZsWMfeFREoyaYTgkbZ1MNxCCGJq_X8XyLZdOqE7BmwT33_gDAtOg2N697K-S2YLPWzBZQ7SBtNIkV41ydD7sriU.mp4"
-            className="max-w-2xl w-full rounded-xl shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-            onEnded={() => { setDbPaused(false); setDbPausedVisible(false); setActiveConnectionId('') }}
-          />
-        </div>
-      )}
-
-      {/* Top navigation bar */}
-      <header
-        className="bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 header-gradient"
-        style={{
-          background: 'var(--surface-1)',
-          backdropFilter: 'var(--background-blur)',
-          WebkitBackdropFilter: 'var(--background-blur)',
-        }}
-      >
-        <div className="container mx-auto flex h-14 items-center justify-between px-4">
-          <div className="flex items-center gap-3">
-            <div className="size-8 rounded-lg bg-muted flex items-center justify-center overflow-hidden p-1">
-              <AppLogo className="w-full h-full" />
-            </div>
-            <h1
-              className="font-sans text-[22px] leading-none tracking-tight text-foreground"
-              style={{ fontWeight: 800 }}
-            >
-              supabasehire.me
-            </h1>
-          </div>
-
-          {/* Connection selector + Status + Theme toggle */}
-          <div className="flex items-center gap-2">
-            {/* Quick Actions Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 gap-1 text-muted-foreground hover:text-foreground"
-                >
-                  <Zap className="size-3.5" />
-                  <ChevronDown className="size-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52">
-                <DropdownMenuItem onClick={loadDemoData}>
-                  <Eye className="mr-2 size-4" />
-                  Try Demo
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => {}} disabled={!activeConnectionId}>
-                  <FileText className="mr-2 size-4" />
-                  Export RLS Report
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setShowShortcutsDialog(true)}>
-                  <Keyboard className="mr-2 size-4" />
-                  Keyboard Shortcuts
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setActivePanel('settings')}>
-                  <HeartPulse className="mr-2 size-4" />
-                  Health Check
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleSidebar}
-              className={`h-8 w-8 p-0 hover:text-foreground ${sidebarOpen ? 'text-foreground bg-accent' : 'text-muted-foreground'}`}
-              title="AI Agent"
-            >
-              <Bot className="size-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowShortcutsDialog(true)}
-              className="hidden sm:inline-flex h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-              title="Keyboard shortcuts (Ctrl+/)"
-            >
-              <Keyboard className="size-3.5" />
-            </Button>
-            <a
-              href="https://github.com/JesseVent/supabasehire.me"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden sm:inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-              title="GitHub"
-            >
-              <span className="sr-only">GitHub</span>
-              <svg viewBox="0 0 24 24" className="size-3.5" fill="currentColor" aria-hidden="true">
-                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
-              </svg>
-            </a>
-            <a
-              href="https://www.linkedin.com/in/jessevent/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden sm:inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-              title="LinkedIn"
-            >
-              <span className="sr-only">LinkedIn</span>
-              <svg viewBox="0 0 24 24" className="size-3.5" fill="currentColor" aria-hidden="true">
-                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-              </svg>
-            </a>
-            <a
-              href="https://agenticlab.com.au"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden md:inline-flex h-8 items-center justify-center rounded-md px-2 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-              title="AgenticLab"
-            >
-              agenticlab.com.au
-            </a>
-            {activeConnection ? (
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="gap-1 px-2 py-1">
-                  <CheckCircle2 className="size-3 text-emerald-500" />
-                  <span className="font-mono text-xs">{activeConnection.name}</span>
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => deleteConnection(activeConnection.id)}
-                  className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="size-3.5" />
-                </Button>
+  // Top navigation bar — rendered inside the sidebar inset when connected.
+  const topBar = (
+    <header
+      className="bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 header-gradient"
+      style={{
+        background: 'var(--surface-1)',
+        backdropFilter: 'var(--background-blur)',
+        WebkitBackdropFilter: 'var(--background-blur)',
+      }}
+    >
+      <div className="container mx-auto flex h-14 items-center justify-between px-4">
+        <div className="flex items-center gap-3">
+          {/* Connected: the rail carries the brand, so the bar leads with its toggle. */}
+          {activeConnectionId ? (
+            <SidebarTrigger className="-ml-1" />
+          ) : (
+            <>
+              <div className="size-8 rounded-lg bg-muted flex items-center justify-center overflow-hidden p-1">
+                <AppLogo className="w-full h-full" />
               </div>
-            ) : connections.length > 0 ? (
-              <Select value={activeConnectionId || ''} onValueChange={setActiveConnectionId}>
-                <SelectTrigger className="w-[140px] sm:w-[200px] h-8">
-                  <SelectValue placeholder="Select connection" />
-                </SelectTrigger>
-                <SelectContent>
-                  {connections.map((c) => {
-                    const status = connectionHealthMap[c.id] ?? 'checking'
-                    return (
-                      <SelectItem key={c.id} value={c.id}>
-                        <span className="flex items-center justify-between w-full gap-2">
-                          <span>{c.name}</span>
-                          <span
-                            className={`text-[9px] uppercase font-mono px-1 rounded ${
-                              status === 'healthy'
-                                ? 'text-emerald-500 bg-emerald-500/10'
-                                : status === 'degraded'
-                                  ? 'text-amber-500 bg-amber-500/10'
-                                  : status === 'unhealthy'
-                                    ? 'text-rose-500 bg-rose-500/10'
-                                    : 'text-zinc-500 bg-zinc-500/10'
-                            }`}
-                          >
-                            {status}
-                          </span>
-                        </span>
-                      </SelectItem>
-                    )
-                  })}
-                </SelectContent>
-              </Select>
-            ) : null}
+              <h1
+                className="font-sans text-[22px] leading-none tracking-tight text-foreground"
+                style={{ fontWeight: 800 }}
+              >
+                supabasehire.me
+              </h1>
+            </>
+          )}
+        </div>
 
-            {/* Export Report button (when connected) */}
-            {activeConnectionId && <ExportReport />}
+        {/* Connection selector + Status + Theme toggle */}
+        <div className="flex items-center gap-2">
+          {/* Quick Actions Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1 text-muted-foreground hover:text-foreground"
+              >
+                <Zap className="size-3.5" />
+                <ChevronDown className="size-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem onClick={loadDemoData}>
+                <Eye className="mr-2 size-4" />
+                Try Demo
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {}} disabled={!activeConnectionId}>
+                <FileText className="mr-2 size-4" />
+                Export RLS Report
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setShowShortcutsDialog(true)}>
+                <Keyboard className="mr-2 size-4" />
+                Keyboard Shortcuts
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setActivePanel('settings')}>
+                <HeartPulse className="mr-2 size-4" />
+                Health Check
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-            <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
-              <DialogTrigger asChild>
-                <button className="flex items-center" aria-label="Connect to Supabase">
-                  <img
-                    src="/connect-supabase-dark.svg"
-                    alt="Connect with Supabase"
-                    className="h-8 hidden dark:block"
-                  />
-                  <img
-                    src="/connect-supabase-light.svg"
-                    alt="Connect with Supabase"
-                    className="h-8 block dark:hidden"
-                  />
-                </button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
-                  <div className="flex items-center justify-between">
-                    <DialogTitle>Connect to Supabase</DialogTitle>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={prefillFromEnv}
-                      disabled={isPrefilling}
-                      className="gap-1.5 text-xs h-7"
-                    >
-                      {isPrefilling ? (
-                        <Loader2 className="size-3 animate-spin" />
-                      ) : (
-                        <FileText className="size-3" />
-                      )}
-                      Prefill from .env
-                    </Button>
-                  </div>
-                  <DialogDescription>
-                    Enter your Supabase project credentials to get started
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="flex flex-col gap-4 py-4">
-                  {createError && (
-                    <Alert variant="destructive">
-                      <AlertDescription>{createError}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  {/* OAuth project picker — shown after successful auth with multiple projects */}
-                  {oauthProjects ? (
-                    <div className="flex flex-col gap-2">
-                      <p className="text-xs text-muted-foreground">Select a project to connect:</p>
-                      {oauthProjects.map((p) => (
-                        <Button
-                          key={p.ref}
-                          variant="outline"
-                          className="justify-start gap-2 h-auto py-2.5"
-                          disabled={isOAuthConnecting}
-                          onClick={() =>
-                            applyOAuthProject(
-                              p,
-                              oauthAccessToken ?? '',
-                              oauthRefreshToken ?? undefined
-                            )
-                          }
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleSidebar}
+            className={`h-8 w-8 p-0 hover:text-foreground ${sidebarOpen ? 'text-foreground bg-accent' : 'text-muted-foreground'}`}
+            title="AI Agent"
+          >
+            <Bot className="size-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowShortcutsDialog(true)}
+            className="hidden sm:inline-flex h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+            title="Keyboard shortcuts (Ctrl+/)"
+          >
+            <Keyboard className="size-3.5" />
+          </Button>
+          <a
+            href="https://github.com/JesseVent/supabasehire.me"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden sm:inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            title="GitHub"
+          >
+            <span className="sr-only">GitHub</span>
+            <svg viewBox="0 0 24 24" className="size-3.5" fill="currentColor" aria-hidden="true">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
+            </svg>
+          </a>
+          <a
+            href="https://www.linkedin.com/in/jessevent/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden sm:inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            title="LinkedIn"
+          >
+            <span className="sr-only">LinkedIn</span>
+            <svg viewBox="0 0 24 24" className="size-3.5" fill="currentColor" aria-hidden="true">
+              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+            </svg>
+          </a>
+          <a
+            href="https://agenticlab.com.au"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden md:inline-flex h-8 items-center justify-center rounded-md px-2 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            title="AgenticLab"
+          >
+            agenticlab.com.au
+          </a>
+          {activeConnection ? (
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="gap-1 px-2 py-1">
+                <CheckCircle2 className="size-3 text-emerald-500" />
+                <span className="font-mono text-xs">{activeConnection.name}</span>
+              </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => deleteConnection(activeConnection.id)}
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </div>
+          ) : connections.length > 0 ? (
+            <Select value={activeConnectionId || ''} onValueChange={setActiveConnectionId}>
+              <SelectTrigger className="w-[140px] sm:w-[200px] h-8">
+                <SelectValue placeholder="Select connection" />
+              </SelectTrigger>
+              <SelectContent>
+                {connections.map((c) => {
+                  const status = connectionHealthMap[c.id] ?? 'checking'
+                  return (
+                    <SelectItem key={c.id} value={c.id}>
+                      <span className="flex items-center justify-between w-full gap-2">
+                        <span>{c.name}</span>
+                        <span
+                          className={`text-[9px] uppercase font-mono px-1 rounded ${
+                            status === 'healthy'
+                              ? 'text-emerald-500 bg-emerald-500/10'
+                              : status === 'degraded'
+                                ? 'text-amber-500 bg-amber-500/10'
+                                : status === 'unhealthy'
+                                  ? 'text-rose-500 bg-rose-500/10'
+                                  : 'text-zinc-500 bg-zinc-500/10'
+                          }`}
                         >
-                          {isOAuthConnecting ? (
-                            <Loader2 className="size-3.5 shrink-0 animate-spin" />
-                          ) : (
-                            <Database className="size-3.5 shrink-0" />
-                          )}
-                          <div className="text-left">
-                            <div className="text-sm font-medium">{p.name}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {p.ref} · {p.region}
-                            </div>
-                          </div>
-                        </Button>
-                      ))}
+                          {status}
+                        </span>
+                      </span>
+                    </SelectItem>
+                  )
+                })}
+              </SelectContent>
+            </Select>
+          ) : null}
+
+          {/* Export Report button (when connected) */}
+          {activeConnectionId && <ExportReport />}
+
+          <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
+            <DialogTrigger asChild>
+              <button className="flex items-center" aria-label="Connect to Supabase">
+                <img
+                  src="/connect-supabase-dark.svg"
+                  alt="Connect with Supabase"
+                  className="h-8 hidden dark:block"
+                />
+                <img
+                  src="/connect-supabase-light.svg"
+                  alt="Connect with Supabase"
+                  className="h-8 block dark:hidden"
+                />
+              </button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <div className="flex items-center justify-between">
+                  <DialogTitle>Connect to Supabase</DialogTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={prefillFromEnv}
+                    disabled={isPrefilling}
+                    className="gap-1.5 text-xs h-7"
+                  >
+                    {isPrefilling ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <FileText className="size-3" />
+                    )}
+                    Prefill from .env
+                  </Button>
+                </div>
+                <DialogDescription>
+                  Enter your Supabase project credentials to get started
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col gap-4 py-4">
+                {createError && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{createError}</AlertDescription>
+                  </Alert>
+                )}
+
+                {/* OAuth project picker — shown after successful auth with multiple projects */}
+                {oauthProjects ? (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-xs text-muted-foreground">Select a project to connect:</p>
+                    {oauthProjects.map((p) => (
                       <Button
-                        variant="ghost"
-                        size="sm"
-                        className="mt-1"
-                        onClick={() => {
-                          setOauthProjects(null)
-                          setOauthAccessToken(null)
-                        }}
-                      >
-                        ← Back
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Primary: OAuth */}
-                      <button
-                        onClick={connectWithOAuth}
+                        key={p.ref}
+                        variant="outline"
+                        className="justify-start gap-2 h-auto py-2.5"
                         disabled={isOAuthConnecting}
-                        className="flex items-center justify-center w-full disabled:opacity-50 disabled:cursor-not-allowed"
-                        aria-label="Connect with Supabase"
+                        onClick={() =>
+                          applyOAuthProject(
+                            p,
+                            oauthAccessToken ?? '',
+                            oauthRefreshToken ?? undefined
+                          )
+                        }
                       >
                         {isOAuthConnecting ? (
-                          <div className="flex items-center gap-2 h-10 px-4 rounded-md border border-border text-sm text-muted-foreground">
-                            <Loader2 className="size-4 animate-spin" />
-                            Connecting…
+                          <Loader2 className="size-3.5 shrink-0 animate-spin" />
+                        ) : (
+                          <Database className="size-3.5 shrink-0" />
+                        )}
+                        <div className="text-left">
+                          <div className="text-sm font-medium">{p.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {p.ref} · {p.region}
                           </div>
-                        ) : (
-                          <>
-                            <img
-                              src="/connect-supabase-dark.svg"
-                              alt="Connect with Supabase"
-                              className="h-10 hidden dark:block"
-                            />
-                            <img
-                              src="/connect-supabase-light.svg"
-                              alt="Connect with Supabase"
-                              className="h-10 block dark:hidden"
-                            />
-                          </>
-                        )}
-                      </button>
-
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 h-px bg-border" />
-                        <span className="text-xs text-muted-foreground">or enter manually</span>
-                        <div className="flex-1 h-px bg-border" />
-                      </div>
-
-                      {/* Fallback: manual form */}
-                      <div className="flex flex-col gap-1.5">
-                        <Label>Connection Name</Label>
-                        <Input
-                          value={newName}
-                          onChange={(e) => setNewName(e.target.value)}
-                          placeholder="My Project"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <Label>Supabase URL</Label>
-                        <Input
-                          value={newUrl}
-                          onChange={(e) => setNewUrl(e.target.value)}
-                          placeholder="https://yourproject.supabase.co"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <Label>Publishable Key</Label>
-                        <Input
-                          value={newAnonKey}
-                          onChange={(e) => setNewAnonKey(e.target.value)}
-                          placeholder="sb_publishable_..."
-                          type="password"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex items-center gap-2">
-                          <Label>Secret Key</Label>
-                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-                            Local only
-                          </span>
                         </div>
-                        <AlertDialog open={serviceRoleKeyWarningOpen} onOpenChange={setServiceRoleKeyWarningOpen}>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle className="flex items-center gap-2">
-                                <ShieldAlert className="size-5 text-amber-500" />
-                                Service Role Key — High Risk
-                              </AlertDialogTitle>
-                              <AlertDialogDescription className="space-y-2 text-sm">
-                                <p>
-                                  The <strong>service role key</strong> bypasses all Row Level Security policies and grants unrestricted access to your database.
-                                </p>
-                                <p>
-                                  Only enter this key on a <strong>local development instance</strong> of this tool. Never paste it into a hosted or shared environment.
-                                </p>
-                                <p className="text-amber-600 dark:text-amber-400 font-medium">
-                                  If you are using the hosted version at supabasehire.me, close this dialog and use an anon key or OAuth instead.
-                                </p>
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                className="bg-amber-600 hover:bg-amber-700 text-white"
-                                onClick={() => {
-                                  setNewServiceRoleKeyAccepted(true)
-                                  setTimeout(() => newServiceRoleKeyRef.current?.focus(), 50)
-                                }}
-                              >
-                                I understand — proceed
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                          <Input
-                            ref={newServiceRoleKeyRef}
-                            value={newServiceRoleKey}
-                            onChange={(e) => setNewServiceRoleKey(e.target.value)}
-                            placeholder="Bypasses RLS — use with caution"
-                            type="password"
-                            onFocus={() => {
-                              if (!newServiceRoleKeyAccepted) {
-                                setServiceRoleKeyWarningOpen(true)
-                                newServiceRoleKeyRef.current?.blur()
-                              }
-                            }}
-                          />
-                        </AlertDialog>
-                      </div>
-                      <Button onClick={createConnection} disabled={isCreating}>
-                        {isCreating ? (
-                          <Loader2 className="mr-2 size-4 animate-spin" />
-                        ) : (
-                          <Plug className="mr-2 size-4" />
-                        )}
-                        Connect
                       </Button>
-                    </>
-                  )}
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </div>
-      </header>
+                    ))}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mt-1"
+                      onClick={() => {
+                        setOauthProjects(null)
+                        setOauthAccessToken(null)
+                      }}
+                    >
+                      ← Back
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    {/* Primary: OAuth */}
+                    <button
+                      onClick={connectWithOAuth}
+                      disabled={isOAuthConnecting}
+                      className="flex items-center justify-center w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                      aria-label="Connect with Supabase"
+                    >
+                      {isOAuthConnecting ? (
+                        <div className="flex items-center gap-2 h-10 px-4 rounded-md border border-border text-sm text-muted-foreground">
+                          <Loader2 className="size-4 animate-spin" />
+                          Connecting…
+                        </div>
+                      ) : (
+                        <>
+                          <img
+                            src="/connect-supabase-dark.svg"
+                            alt="Connect with Supabase"
+                            className="h-10 hidden dark:block"
+                          />
+                          <img
+                            src="/connect-supabase-light.svg"
+                            alt="Connect with Supabase"
+                            className="h-10 block dark:hidden"
+                          />
+                        </>
+                      )}
+                    </button>
 
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-px bg-border" />
+                      <span className="text-xs text-muted-foreground">or enter manually</span>
+                      <div className="flex-1 h-px bg-border" />
+                    </div>
+
+                    {/* Fallback: manual form */}
+                    <div className="flex flex-col gap-1.5">
+                      <Label>Connection Name</Label>
+                      <Input
+                        value={newName}
+                        onChange={(e) => setNewName(e.target.value)}
+                        placeholder="My Project"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label>Supabase URL</Label>
+                      <Input
+                        value={newUrl}
+                        onChange={(e) => setNewUrl(e.target.value)}
+                        placeholder="https://yourproject.supabase.co"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label>Publishable Key</Label>
+                      <Input
+                        value={newAnonKey}
+                        onChange={(e) => setNewAnonKey(e.target.value)}
+                        placeholder="sb_publishable_..."
+                        type="password"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <Label>Secret Key</Label>
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                          Local only
+                        </span>
+                      </div>
+                      <AlertDialog
+                        open={serviceRoleKeyWarningOpen}
+                        onOpenChange={setServiceRoleKeyWarningOpen}
+                      >
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="flex items-center gap-2">
+                              <ShieldAlert className="size-5 text-amber-500" />
+                              Service Role Key — High Risk
+                            </AlertDialogTitle>
+                            <AlertDialogDescription className="space-y-2 text-sm">
+                              <p>
+                                The <strong>service role key</strong> bypasses all Row Level
+                                Security policies and grants unrestricted access to your database.
+                              </p>
+                              <p>
+                                Only enter this key on a <strong>local development instance</strong>{' '}
+                                of this tool. Never paste it into a hosted or shared environment.
+                              </p>
+                              <p className="text-amber-600 dark:text-amber-400 font-medium">
+                                If you are using the hosted version at supabasehire.me, close this
+                                dialog and use an anon key or OAuth instead.
+                              </p>
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-amber-600 hover:bg-amber-700 text-white"
+                              onClick={() => {
+                                setNewServiceRoleKeyAccepted(true)
+                                setTimeout(() => newServiceRoleKeyRef.current?.focus(), 50)
+                              }}
+                            >
+                              I understand — proceed
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                        <Input
+                          ref={newServiceRoleKeyRef}
+                          value={newServiceRoleKey}
+                          onChange={(e) => setNewServiceRoleKey(e.target.value)}
+                          placeholder="Bypasses RLS — use with caution"
+                          type="password"
+                          onFocus={() => {
+                            if (!newServiceRoleKeyAccepted) {
+                              setServiceRoleKeyWarningOpen(true)
+                              newServiceRoleKeyRef.current?.blur()
+                            }
+                          }}
+                        />
+                      </AlertDialog>
+                    </div>
+                    <Button onClick={createConnection} disabled={isCreating}>
+                      {isCreating ? (
+                        <Loader2 className="mr-2 size-4 animate-spin" />
+                      ) : (
+                        <Plug className="mr-2 size-4" />
+                      )}
+                      Connect
+                    </Button>
+                  </>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+    </header>
+  )
+
+  const banners = (
+    <>
       {/* Onboarding tip banner */}
       {showTipBanner && !activeConnectionId && connections.length === 0 && (
         <div className="bg-muted/40 border-b">
@@ -1364,987 +1324,1131 @@ export default function Home() {
           </div>
         </div>
       )}
+    </>
+  )
 
-      {/* Main content area */}
-      <main className="flex-1 overflow-y-auto min-h-0 container mx-auto px-4 py-4">
-        {!activeConnectionId ? (
-          /* Welcome / empty state with animated gradient background */
-          <div className="relative flex flex-col items-center justify-center py-12 sm:py-20 text-center overflow-hidden animated-gradient-bg">
-            {/* Grid pattern overlay */}
-            <div className="absolute inset-0 -z-10 grid-pattern opacity-50" />
+  return (
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
+      {/* DB-paused overlay */}
+      {dbPaused && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 cursor-pointer"
+          style={{ opacity: dbPausedVisible ? 1 : 0, transition: 'opacity 1.2s ease' }}
+          onClick={() => {
+            setDbPaused(false)
+            setDbPausedVisible(false)
+            setActiveConnectionId('')
+          }}
+        >
+          <video
+            autoPlay
+            playsInline
+            src="https://kdwgvyczmsrvuuddsgwi.supabase.co/storage/v1/object/public/public-files/AQN1MvCWJWWSZsWMfeFREoyaYTgkbZ1MNxCCGJq_X8XyLZdOqE7BmwT33_gDAtOg2N697K-S2YLPWzBZQ7SBtNIkV41ydD7sriU.mp4"
+            className="max-w-2xl w-full rounded-xl shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+            onEnded={() => {
+              setDbPaused(false)
+              setDbPausedVisible(false)
+              setActiveConnectionId('')
+            }}
+          />
+        </div>
+      )}
 
-            {/* Decorative gradient blobs */}
-            <div className="absolute inset-0 -z-10 overflow-hidden">
-              <div className="absolute top-1/4 left-1/4 size-96 rounded-full bg-primary/5 blur-3xl" />
-              <div className="absolute bottom-1/4 right-1/4 size-96 rounded-full bg-red-500/5 blur-3xl" />
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-[600px] rounded-full bg-emerald-500/3 blur-3xl" />
-            </div>
+      {!activeConnectionId ? (
+        <>
+          {topBar}
+          {banners}
+          <main className="flex-1 overflow-y-auto min-h-0 container mx-auto px-4 py-4">
+            <div className="relative flex flex-col items-center justify-center py-12 sm:py-20 text-center overflow-hidden animated-gradient-bg">
+              {/* Grid pattern overlay */}
 
-            {/* Floating decorative elements */}
-            <div className="absolute inset-0 -z-5 overflow-hidden pointer-events-none">
-              <div className="absolute top-[15%] left-[8%] float-animation opacity-[0.07] dark:opacity-[0.05]">
-                <Shield className="size-8 text-foreground" />
-              </div>
-              <div className="absolute top-[25%] right-[12%] float-animation-delay-1 opacity-[0.07] dark:opacity-[0.05]">
-                <Database className="size-10 text-foreground" />
-              </div>
-              <div className="absolute bottom-[20%] left-[15%] float-animation-delay-2 opacity-[0.07] dark:opacity-[0.05]">
-                <Key className="size-7 text-foreground" />
-              </div>
-              <div className="absolute bottom-[30%] right-[8%] float-animation-delay-3 opacity-[0.07] dark:opacity-[0.05]">
-                <Server className="size-9 text-foreground" />
-              </div>
-              <div className="absolute top-[50%] left-[5%] float-animation-delay-1 opacity-[0.05] dark:opacity-[0.04]">
-                <GitFork className="size-6 text-foreground" />
-              </div>
-              <div className="absolute top-[10%] right-[30%] float-animation-delay-2 opacity-[0.05] dark:opacity-[0.04]">
-                <ShieldAlert className="size-7 text-red-500" />
-              </div>
-            </div>
+              <div className="absolute inset-0 -z-10 grid-pattern opacity-50" />
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="relative mb-6"
-            >
-              <div className="size-20 rounded-2xl bg-muted flex items-center justify-center ring-1 ring-border shadow-lg overflow-hidden p-3">
-                <AppLogo className="w-full h-full" />
+              {/* Decorative gradient blobs */}
+
+              <div className="absolute inset-0 -z-10 overflow-hidden">
+                <div className="absolute top-1/4 left-1/4 size-96 rounded-full bg-primary/5 blur-3xl" />
+
+                <div className="absolute bottom-1/4 right-1/4 size-96 rounded-full bg-red-500/5 blur-3xl" />
+
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-[600px] rounded-full bg-emerald-500/3 blur-3xl" />
               </div>
+
+              {/* Floating decorative elements */}
+
+              <div className="absolute inset-0 -z-5 overflow-hidden pointer-events-none">
+                <div className="absolute top-[15%] left-[8%] float-animation opacity-[0.07] dark:opacity-[0.05]">
+                  <Shield className="size-8 text-foreground" />
+                </div>
+
+                <div className="absolute top-[25%] right-[12%] float-animation-delay-1 opacity-[0.07] dark:opacity-[0.05]">
+                  <Database className="size-10 text-foreground" />
+                </div>
+
+                <div className="absolute bottom-[20%] left-[15%] float-animation-delay-2 opacity-[0.07] dark:opacity-[0.05]">
+                  <Key className="size-7 text-foreground" />
+                </div>
+
+                <div className="absolute bottom-[30%] right-[8%] float-animation-delay-3 opacity-[0.07] dark:opacity-[0.05]">
+                  <Server className="size-9 text-foreground" />
+                </div>
+
+                <div className="absolute top-[50%] left-[5%] float-animation-delay-1 opacity-[0.05] dark:opacity-[0.04]">
+                  <GitFork className="size-6 text-foreground" />
+                </div>
+
+                <div className="absolute top-[10%] right-[30%] float-animation-delay-2 opacity-[0.05] dark:opacity-[0.04]">
+                  <ShieldAlert className="size-7 text-red-500" />
+                </div>
+              </div>
+
               <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.3, type: 'spring', stiffness: 300, damping: 20 }}
-                className="absolute -bottom-1 -right-1 size-7 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/40"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="relative mb-6"
               >
-                <Zap className="size-3.5 text-primary-foreground" />
+                <div className="size-20 rounded-2xl bg-muted flex items-center justify-center ring-1 ring-border shadow-lg overflow-hidden p-3">
+                  <AppLogo className="w-full h-full" />
+                </div>
+
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.3, type: 'spring', stiffness: 300, damping: 20 }}
+                  className="absolute -bottom-1 -right-1 size-7 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/40"
+                >
+                  <Zap className="size-3.5 text-primary-foreground" />
+                </motion.div>
               </motion.div>
-            </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15, duration: 0.4 }}
-              className="mb-3"
-            >
-              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight font-display">
-                Supabase devtools,
-                <br />
-                in your browser.
-              </h2>
-            </motion.div>
-            <motion.p
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.28, duration: 0.4 }}
-              className="text-sm sm:text-base text-muted-foreground mb-8 max-w-sm leading-relaxed px-2"
-            >
-              Schema maps, RLS audits, edge function testing, AI SQL functions, and Realtime
-              trace observability. Connect your project or try the demo.
-            </motion.p>
-
-            {connections.length > 0 ? (
               <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.45, duration: 0.3 }}
-                className="w-full max-w-lg"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15, duration: 0.4 }}
+                className="mb-3"
               >
-                <div className="flex items-center justify-between mb-3 w-full">
-                  <p className="text-sm font-semibold text-foreground">Your connections</p>
-                  {connections.some((c) => connectionHealthMap[c.id] === 'unhealthy') && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        const unhealthyConns = connections.filter(
-                          (c) => connectionHealthMap[c.id] === 'unhealthy'
-                        )
-                        if (unhealthyConns.length === 0) return
-                        if (
-                          window.confirm(
-                            `Are you sure you want to delete all ${unhealthyConns.length} broken/unauthorized connections?`
-                          )
-                        ) {
-                          unhealthyConns.forEach((c) => {
-                            deleteConnection(c.id)
-                          })
-                        }
-                      }}
-                      className="h-7 px-2 text-xs text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 gap-1 animate-fade-in"
-                    >
-                      <Trash2 className="size-3" />
-                      Prune broken connections
-                    </Button>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-3 justify-center mb-6">
-                  {connections.map((c, i) => {
-                    const status = connectionHealthMap[c.id] ?? 'checking'
-                    return (
-                      /* biome-ignore lint/a11y/useSemanticElements: entity-card is a complex styled interactive block element */
-                      <div
-                        key={c.id}
-                        className="entity-card"
-                        style={
-                          {
-                            '--card-accent': `var(--accent-${['cyan', 'blue', 'purple', 'green', 'orange', 'coral'][i % 6]})`,
-                            position: 'relative',
-                          } as React.CSSProperties
-                        }
-                        onClick={() => setActiveConnectionId(c.id)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => e.key === 'Enter' && setActiveConnectionId(c.id)}
-                      >
-                        {getHealthDot(c.id)}
-                        <div className="entity-card__tags">
-                          <span className="tag--solid">{c.name}</span>
-                          <span
-                            className={`tag--solid uppercase text-[9px] px-1.5 py-0.5 rounded ${
-                              status === 'healthy'
-                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                : status === 'degraded'
-                                  ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                                  : status === 'unhealthy'
-                                    ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                                    : 'bg-zinc-500/10 text-zinc-400'
-                            }`}
-                          >
-                            {status}
-                          </span>
-                        </div>
-                        <div className="entity-card__icon">
-                          <Database size={28} />
-                        </div>
-                        <div className="entity-card__details">
-                          <div className="entity-card__title">{c.name}</div>
-                          <div className="entity-card__meta">
-                            <span className="host">{c.supabaseUrl.replace('https://', '')}</span>
-                          </div>
-                        </div>
-                        {c.id !== DEMO_CONNECTION_ID && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              if (
-                                window.confirm(
-                                  `Are you sure you want to delete connection "${c.name}"?`
-                                )
-                              ) {
-                                deleteConnection(c.id)
-                              }
-                            }}
-                            className="absolute bottom-3 right-3 p-1 rounded hover:bg-white/10 text-muted-foreground hover:text-rose-400 transition-colors z-10"
-                            title="Delete connection"
-                          >
-                            <Trash2 className="size-4" />
-                          </button>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-                <div className="flex items-center justify-center gap-3">
-                  <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
-                    <DialogTrigger asChild>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight font-display">
+                  Supabase devtools,
+                  <br />
+                  in your browser.
+                </h2>
+              </motion.div>
+
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.28, duration: 0.4 }}
+                className="text-sm sm:text-base text-muted-foreground mb-8 max-w-sm leading-relaxed px-2"
+              >
+                Schema maps, RLS audits, edge function testing, AI SQL functions, and Realtime trace
+                observability. Connect your project or try the demo.
+              </motion.p>
+
+              {connections.length > 0 ? (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.45, duration: 0.3 }}
+                  className="w-full max-w-lg"
+                >
+                  <div className="flex items-center justify-between mb-3 w-full">
+                    <p className="text-sm font-semibold text-foreground">Your connections</p>
+
+                    {connections.some((c) => connectionHealthMap[c.id] === 'unhealthy') && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="gap-1.5 text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                          const unhealthyConns = connections.filter(
+                            (c) => connectionHealthMap[c.id] === 'unhealthy'
+                          )
+
+                          if (unhealthyConns.length === 0) return
+
+                          if (
+                            window.confirm(
+                              `Are you sure you want to delete all ${unhealthyConns.length} broken/unauthorized connections?`
+                            )
+                          ) {
+                            unhealthyConns.forEach((c) => {
+                              deleteConnection(c.id)
+                            })
+                          }
+                        }}
+                        className="h-7 px-2 text-xs text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 gap-1 animate-fade-in"
                       >
-                        <Plus className="size-4" />
-                        Add new connection
+                        <Trash2 className="size-3" />
+                        Prune broken connections
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-3 justify-center mb-6">
+                    {connections.map((c, i) => {
+                      const status = connectionHealthMap[c.id] ?? 'checking'
+
+                      return (
+                        /* biome-ignore lint/a11y/useSemanticElements: entity-card is a complex styled interactive block element */
+
+                        <div
+                          key={c.id}
+                          className="entity-card"
+                          style={
+                            {
+                              '--card-accent': `var(--accent-${['cyan', 'blue', 'purple', 'green', 'orange', 'coral'][i % 6]})`,
+
+                              position: 'relative',
+                            } as React.CSSProperties
+                          }
+                          onClick={() => setActiveConnectionId(c.id)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => e.key === 'Enter' && setActiveConnectionId(c.id)}
+                        >
+                          {getHealthDot(c.id)}
+
+                          <div className="entity-card__tags">
+                            <span className="tag--solid">{c.name}</span>
+
+                            <span
+                              className={`tag--solid uppercase text-[9px] px-1.5 py-0.5 rounded ${
+                                status === 'healthy'
+                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                  : status === 'degraded'
+                                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                    : status === 'unhealthy'
+                                      ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                      : 'bg-zinc-500/10 text-zinc-400'
+                              }`}
+                            >
+                              {status}
+                            </span>
+                          </div>
+
+                          <div className="entity-card__icon">
+                            <Database size={28} />
+                          </div>
+
+                          <div className="entity-card__details">
+                            <div className="entity-card__title">{c.name}</div>
+
+                            <div className="entity-card__meta">
+                              <span className="host">{c.supabaseUrl.replace('https://', '')}</span>
+                            </div>
+                          </div>
+
+                          {c.id !== DEMO_CONNECTION_ID && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+
+                                if (
+                                  window.confirm(
+                                    `Are you sure you want to delete connection "${c.name}"?`
+                                  )
+                                ) {
+                                  deleteConnection(c.id)
+                                }
+                              }}
+                              className="absolute bottom-3 right-3 p-1 rounded hover:bg-white/10 text-muted-foreground hover:text-rose-400 transition-colors z-10"
+                              title="Delete connection"
+                            >
+                              <Trash2 className="size-4" />
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <div className="flex items-center justify-center gap-3">
+                    <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gap-1.5 text-muted-foreground hover:text-foreground"
+                        >
+                          <Plus className="size-4" />
+                          Add new connection
+                        </Button>
+                      </DialogTrigger>
+                    </Dialog>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={loadDemoData}
+                      className="gap-1.5 text-muted-foreground hover:text-foreground"
+                    >
+                      <Eye className="size-4" />
+                      Try Demo
+                    </Button>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.45, duration: 0.3 }}
+                  className="flex flex-col sm:flex-row items-center gap-3"
+                >
+                  <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
+                    <DialogTrigger asChild>
+                      <Button
+                        size="lg"
+                        className="gap-2 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow"
+                      >
+                        <Plus className="size-5" />
+                        Connect to Supabase
                       </Button>
                     </DialogTrigger>
                   </Dialog>
+
                   <Button
-                    variant="ghost"
-                    size="sm"
+                    size="lg"
+                    variant="outline"
                     onClick={loadDemoData}
-                    className="gap-1.5 text-muted-foreground hover:text-foreground"
+                    className="gap-2 transition-all hover:shadow-md hover:border-primary/50"
                   >
-                    <Eye className="size-4" />
+                    <Eye className="size-5" />
                     Try Demo
                   </Button>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.45, duration: 0.3 }}
-                className="flex flex-col sm:flex-row items-center gap-3"
-              >
-                <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
-                  <DialogTrigger asChild>
-                    <Button
-                      size="lg"
-                      className="gap-2 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow"
-                    >
-                      <Plus className="size-5" />
-                      Connect to Supabase
-                    </Button>
-                  </DialogTrigger>
-                </Dialog>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  onClick={loadDemoData}
-                  className="gap-2 transition-all hover:shadow-md hover:border-primary/50"
-                >
-                  <Eye className="size-5" />
-                  Try Demo
-                </Button>
-              </motion.div>
-            )}
+                </motion.div>
+              )}
 
-            {/* Feature cards with staggered entrance */}
-            <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-5xl w-full">
-              <FeatureCard
-                icon={<LayoutDashboard className="size-4.5" />}
-                title="Project Dashboard"
-                description="Live overview with latency heatmaps, security scoring, and index analysis — all pulled from Management API and PostgREST in real time."
-                delay={0.55}
-                index={0}
-              />
-              <FeatureCard
-                icon={<GitFork className="size-4.5" />}
-                title="Schema Visualizer"
-                description="Interactive ER diagrams built with React Flow and dagre auto-layout. Click any table to trace foreign key relationships across the graph."
-                delay={0.55}
-                index={1}
-              />
-              <FeatureCard
-                icon={<ShieldAlert className="size-4.5" />}
-                title="RLS Inspector"
-                description="Full security audit with at-a-glance RLS status. Spot unprotected tables instantly and review every policy definition inline."
-                delay={0.55}
-                index={2}
-              />
-              <FeatureCard
-                icon={<Terminal className="size-4.5" />}
-                title="SQL Runner"
-                description="In-browser SQL editor with syntax highlighting, query history, and CSV/JSON export. Runs directly against PostgREST with service-role bypass."
-                delay={0.55}
-                index={3}
-              />
-              <FeatureCard
-                icon={<Zap className="size-4.5" />}
-                title="Edge Functions"
-                description="Browse, invoke, and debug Supabase Edge Functions from the UI with live request/response logs and custom payload editing."
-                delay={0.55}
-                index={4}
-              />
-              <FeatureCard
-                icon={<HardDrive className="size-4.5" />}
-                title="Storage Browser"
-                description="Navigate buckets, folders, and files. Preview Parquet files using DuckDB compiled to WASM — zero server round-trips."
-                delay={0.55}
-                index={5}
-              />
-              <FeatureCard
-                icon={<BookOpen className="size-4.5" />}
-                title="Data Catalog"
-                description="Auto-profile every table and generate human-readable documentation via LLM. Stores descriptions back to your project catalog."
-                delay={0.55}
-                index={6}
-              />
-              <FeatureCard
-                icon={<Layers className="size-4.5" />}
-                title="Iceberg"
-                description="Query Apache Iceberg tables entirely in the browser via DuckDB WASM. Connects to S3-compatible storage with no backend required."
-                delay={0.55}
-                index={7}
-              />
-              <FeatureCard
-                icon={<Activity className="size-4.5" />}
-                title="Realtime Traces"
-                description="Live trace monitoring with OpenTelemetry integration. Watch agent execution steps, latency breakdowns, and skill coverage in real time."
-                delay={0.55}
-                index={8}
-              />
-              <FeatureCard
-                icon={<ScrollText className="size-4.5" />}
-                title="Database Logs"
-                description="Fetch and triage Supabase service logs. Spot RLS errors, missing relations, function boot failures, and auth issues in seconds."
-                delay={0.55}
-                index={9}
-              />
+              {/* Feature cards with staggered entrance */}
+
+              <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-5xl w-full">
+                <FeatureCard
+                  icon={<LayoutDashboard className="size-4.5" />}
+                  title="Project Dashboard"
+                  description="Live overview with latency heatmaps, security scoring, and index analysis — all pulled from Management API and PostgREST in real time."
+                  delay={0.55}
+                  index={0}
+                />
+
+                <FeatureCard
+                  icon={<GitFork className="size-4.5" />}
+                  title="Schema Visualizer"
+                  description="Interactive ER diagrams built with React Flow and dagre auto-layout. Click any table to trace foreign key relationships across the graph."
+                  delay={0.55}
+                  index={1}
+                />
+
+                <FeatureCard
+                  icon={<ShieldAlert className="size-4.5" />}
+                  title="RLS Inspector"
+                  description="Full security audit with at-a-glance RLS status. Spot unprotected tables instantly and review every policy definition inline."
+                  delay={0.55}
+                  index={2}
+                />
+
+                <FeatureCard
+                  icon={<Terminal className="size-4.5" />}
+                  title="SQL Runner"
+                  description="In-browser SQL editor with syntax highlighting, query history, and CSV/JSON export. Runs directly against PostgREST with service-role bypass."
+                  delay={0.55}
+                  index={3}
+                />
+
+                <FeatureCard
+                  icon={<Zap className="size-4.5" />}
+                  title="Edge Functions"
+                  description="Browse, invoke, and debug Supabase Edge Functions from the UI with live request/response logs and custom payload editing."
+                  delay={0.55}
+                  index={4}
+                />
+
+                <FeatureCard
+                  icon={<HardDrive className="size-4.5" />}
+                  title="Storage Browser"
+                  description="Navigate buckets, folders, and files. Preview Parquet files using DuckDB compiled to WASM — zero server round-trips."
+                  delay={0.55}
+                  index={5}
+                />
+
+                <FeatureCard
+                  icon={<BookOpen className="size-4.5" />}
+                  title="Data Catalog"
+                  description="Auto-profile every table and generate human-readable documentation via LLM. Stores descriptions back to your project catalog."
+                  delay={0.55}
+                  index={6}
+                />
+
+                <FeatureCard
+                  icon={<Layers className="size-4.5" />}
+                  title="Iceberg"
+                  description="Query Apache Iceberg tables entirely in the browser via DuckDB WASM. Connects to S3-compatible storage with no backend required."
+                  delay={0.55}
+                  index={7}
+                />
+
+                <FeatureCard
+                  icon={<Activity className="size-4.5" />}
+                  title="Realtime Traces"
+                  description="Live trace monitoring with OpenTelemetry integration. Watch agent execution steps, latency breakdowns, and skill coverage in real time."
+                  delay={0.55}
+                  index={8}
+                />
+
+                <FeatureCard
+                  icon={<ScrollText className="size-4.5" />}
+                  title="Database Logs"
+                  description="Fetch and triage Supabase service logs. Spot RLS errors, missing relations, function boot failures, and auth issues in seconds."
+                  delay={0.55}
+                  index={9}
+                />
+              </div>
             </div>
-          </div>
-        ) : (
-          /* Connected: show tabs layout */
-          <Tabs
-            value={activePanel}
-            onValueChange={(val) => {
-              setActivePanel(val as ActivePanel)
-              track('feature_viewed', { feature: val })
+          </main>
+        </>
+      ) : (
+        <SidebarProvider className="min-h-0 flex-1">
+          <AppSidebar
+            activePanel={activePanel}
+            onSelect={(panel) => {
+              setActivePanel(panel)
+              track('feature_viewed', { feature: panel })
             }}
-            className="flex w-full flex-row items-start gap-6"
-          >
-            {/* Left nav — grouped by workflow, sticky within the scrollable main. Hidden below lg; the Select below takes over. */}
-            <aside className="sticky top-0 hidden w-56 shrink-0 lg:block">
-              <nav className="space-y-3 py-1">
-                {NAV_GROUPS.map((group) => (
-                  <Collapsible key={group.label} defaultOpen>
-                    <CollapsibleTrigger className="group flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase hover:text-foreground">
-                      <ChevronDown className="size-3 transition-transform group-data-[state=closed]:-rotate-90" />
-                      {group.label}
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="mt-1 mb-2 space-y-0.5 border-l border-border/60 pl-2">
-                      {group.items.map((item) => {
-                        const Icon = item.icon
-                        const active = activePanel === item.value
-                        return (
-                          <button
-                            key={item.value}
-                            type="button"
-                            title={item.title}
-                            onClick={() => {
-                              setActivePanel(item.value)
-                              track('feature_viewed', { feature: item.value })
-                            }}
-                            className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
-                              active
-                                ? 'bg-accent font-medium text-accent-foreground'
-                                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
-                            }`}
-                          >
-                            <Icon className="size-3.5 shrink-0" />
-                            <span className="truncate">{item.label}</span>
-                          </button>
-                        )
-                      })}
-                    </CollapsibleContent>
-                  </Collapsible>
-                ))}
-              </nav>
-            </aside>
+          />
+          <SidebarInset className="flex min-w-0 flex-col overflow-hidden">
+            {topBar}
+            {banners}
+            <main className="flex-1 overflow-y-auto min-h-0">
+              <div className="container mx-auto px-4 py-4">
+                <Tabs
+                  value={activePanel}
+                  onValueChange={(val) => {
+                    setActivePanel(val as ActivePanel)
 
-            <div className="min-w-0 flex-1">
-              {/* Mobile/tablet panel switcher — sidebar is lg-and-up only */}
-              <Select
-                value={activePanel}
-                onValueChange={(v) => {
-                  setActivePanel(v as ActivePanel)
-                  track('feature_viewed', { feature: v })
-                }}
-              >
-                <SelectTrigger className="mb-3 h-9 w-full lg:hidden">
-                  <SelectValue placeholder="Panel" />
-                </SelectTrigger>
-                <SelectContent>
-                  {NAV_GROUPS.map((group) => (
-                    <SelectGroup key={group.label}>
-                      <SelectLabel>{group.label}</SelectLabel>
-                      {group.items.map((item) => (
-                        <SelectItem key={item.value} value={item.value}>
-                          {item.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  ))}
-                </SelectContent>
-              </Select>
+                    track('feature_viewed', { feature: val })
+                  }}
+                  className="w-full"
+                >
+                  <div className="min-w-0 flex-1">
+                    {/* Schema tab actions */}
 
-              {/* Schema tab actions */}
-              {activePanel === 'schema' && (
-                <div className="mb-3 flex items-center justify-end gap-2">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
+                    {activePanel === 'schema' && (
+                      <div className="mb-3 flex items-center justify-end gap-2">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setActivePanel('settings')}
+                                disabled={!activeConnectionId || tables.length === 0}
+                                className="gap-1.5"
+                              >
+                                <Camera className="size-3.5" />
+
+                                <span className="inline">Snapshot</span>
+                              </Button>
+                            </TooltipTrigger>
+
+                            <TooltipContent>Take a schema snapshot</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setActivePanel('settings')}
-                          disabled={!activeConnectionId || tables.length === 0}
+                          onClick={fetchSchemaAndRLS}
+                          disabled={isLoadingSchema}
                           className="gap-1.5"
                         >
-                          <Camera className="size-3.5" />
-                          <span className="inline">Snapshot</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Take a schema snapshot</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={fetchSchemaAndRLS}
-                    disabled={isLoadingSchema}
-                    className="gap-1.5"
-                  >
-                    {isLoadingSchema ? (
-                      <Loader2 className="size-3.5 animate-spin" />
-                    ) : (
-                      <RefreshCw className="size-3.5" />
-                    )}
-                    Refresh
-                  </Button>
-                </div>
-              )}
-
-            {/* Dashboard Tab */}
-            <TabsContent
-              value="dashboard"
-              className="mt-0"
-              forceMount={activePanel === 'dashboard' ? true : undefined}
-            >
-              <AnimatePresence mode="wait">
-                {activePanel === 'dashboard' && (
-                  <motion.div
-                    key="dashboard"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  >
-                    <ProjectDashboard />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </TabsContent>
-
-            {/* Schema Tab */}
-            <TabsContent
-              value="schema"
-              className="mt-0"
-              forceMount={activePanel === 'schema' ? true : undefined}
-            >
-              <AnimatePresence mode="wait">
-                {activePanel === 'schema' && (
-                  <motion.div
-                    key="schema"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  >
-                    {schemaError && (
-                      <Alert variant="destructive" className="mb-4">
-                        <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-                          <span>{schemaError}</span>
-                          <div className="flex gap-2 shrink-0">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setShowNewDialog(true)
-                                void connectWithOAuth()
-                              }}
-                              disabled={isOAuthConnecting}
-                              className="gap-1.5 border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/30"
-                            >
-                              {isOAuthConnecting ? (
-                                <Loader2 className="size-3.5 animate-spin" />
-                              ) : (
-                                <Plug className="size-3.5" />
-                              )}
-                              {extensionOffline ? 'Connect via OAuth' : 'Reconnect via OAuth'}
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={loadDemoData} className="gap-1.5">
-                              View Demo
-                            </Button>
-                          </div>
-                        </AlertDescription>
-                      </Alert>
-                    )}
-
-                    {/* Limited mode banner when RLS status is unknown */}
-                    {rlsStatuses.some((r) => r.rlsUnknown) && (
-                      <Alert className="mb-4 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
-                        <Info className="size-4 text-amber-600 dark:text-amber-400" />
-                        <AlertDescription className="text-amber-700 dark:text-amber-300">
-                          <span className="font-medium">Limited schema info:</span> RLS status could
-                          not be determined without a management API token. Tables are shown with
-                          amber <span className="font-semibold">RLS ?</span> badges. Add a Supabase
-                          management API token in Settings for full RLS policy information.
-                        </AlertDescription>
-                      </Alert>
-                    )}
-
-                    {isLoadingSchema ? (
-                      <div className="flex flex-col gap-4">
-                        <div className="flex flex-wrap items-center gap-3">
-                          <Skeleton className="h-6 w-24" />
-                          <Skeleton className="h-6 w-28" />
-                          <Skeleton className="h-6 w-20" />
-                        </div>
-                        <div className="flex gap-4 min-h-[600px]">
-                          <Skeleton className="flex-1 rounded-lg" />
-                        </div>
-                      </div>
-                    ) : tables.length === 0 ? (
-                      /* Enhanced empty state when connected but no data */
-                      <Card>
-                        <CardContent className="py-16">
-                          <div className="flex flex-col items-center justify-center text-center space-y-5">
-                            {/* Visual illustration */}
-                            <div className="relative">
-                              <div className="size-20 rounded-2xl bg-muted flex items-center justify-center ring-4 ring-border/40">
-                                <GitFork className="size-10 text-muted-foreground/50" />
-                              </div>
-                              <div className="absolute -bottom-1 -right-1 size-7 rounded-full bg-muted flex items-center justify-center border">
-                                <Database className="size-3.5 text-muted-foreground" />
-                              </div>
-                            </div>
-                            <div className="space-y-2 max-w-md">
-                              <p className="text-lg font-medium">Your schema will appear here</p>
-                              <p className="text-sm text-muted-foreground">
-                                {activeConnection
-                                  ? `Connected to "${activeConnection.name}" but no tables were found. This could mean the public schema is empty or there was a connection issue.`
-                                  : 'Connect to a Supabase project and fetch the schema to visualize your database.'}
-                              </p>
-                            </div>
-                            {activeConnectionId && (
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  onClick={fetchSchemaAndRLS}
-                                  disabled={isLoadingSchema}
-                                  className="gap-2"
-                                >
-                                  {isLoadingSchema ? (
-                                    <Loader2 className="size-4 animate-spin" />
-                                  ) : (
-                                    <RefreshCw className="size-4" />
-                                  )}
-                                  Retry
-                                </Button>
-                                <Button variant="outline" onClick={loadDemoData} className="gap-2">
-                                  <Eye className="size-4" />
-                                  Try Demo
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      <div className="flex flex-col gap-4">
-                        {/* Stats bar - badges are clickable */}
-                        <div className="flex flex-wrap items-center gap-3">
-                          <Badge
-                            variant="outline"
-                            className="gap-1 cursor-pointer hover:bg-accent transition-colors"
-                            onClick={() => {
-                              setFilterType('all')
-                              setSearchQuery('')
-                            }}
-                          >
-                            <Database className="size-3" />
-                            {tableCount} table{tableCount !== 1 ? 's' : ''}
-                          </Badge>
-                          <Badge
-                            variant="outline"
-                            className="gap-1 text-emerald-600 border-emerald-200 cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
-                            onClick={() =>
-                              setFilterType(filterType === 'rls-enabled' ? 'all' : 'rls-enabled')
-                            }
-                          >
-                            <ShieldCheck className="size-3" />
-                            {rlsEnabledCount} RLS enabled
-                          </Badge>
-                          {rlsDisabledCount > 0 && (
-                            <Badge
-                              variant="destructive"
-                              className="gap-1 cursor-pointer hover:bg-destructive/90 transition-colors"
-                              onClick={() =>
-                                setFilterType(filterType === 'no-rls' ? 'all' : 'no-rls')
-                              }
-                            >
-                              <ShieldAlert className="size-3" />
-                              {rlsDisabledCount} no RLS
-                            </Badge>
+                          {isLoadingSchema ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <RefreshCw className="size-3.5" />
                           )}
-                          <Badge
-                            variant="secondary"
-                            className="gap-1 cursor-pointer hover:bg-secondary/80 transition-colors"
-                            onClick={() =>
-                              setFilterType(
-                                filterType === 'with-policies' ? 'all' : 'with-policies'
-                              )
-                            }
+                          Refresh
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Dashboard Tab */}
+
+                    <TabsContent
+                      value="dashboard"
+                      className="mt-0"
+                      forceMount={activePanel === 'dashboard' ? true : undefined}
+                    >
+                      <AnimatePresence mode="wait">
+                        {activePanel === 'dashboard' && (
+                          <motion.div
+                            key="dashboard"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
                           >
-                            {totalPolicies} polic{totalPolicies !== 1 ? 'ies' : 'y'}
-                          </Badge>
-                        </div>
+                            <ProjectDashboard />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </TabsContent>
 
-                        {/* Search & Filter bar */}
-                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                          <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                            <Input
-                              value={searchQuery}
-                              onChange={(e) => setSearchQuery(e.target.value)}
-                              placeholder="Search tables..."
-                              className="pl-9 h-9"
-                            />
-                          </div>
-                          <Select value={filterType} onValueChange={setFilterType}>
-                            <SelectTrigger className="w-full sm:w-[180px] h-9">
-                              <Filter className="size-3.5 mr-1.5 text-muted-foreground" />
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All Tables</SelectItem>
-                              <SelectItem value="rls-enabled">RLS Enabled</SelectItem>
-                              <SelectItem value="no-rls">No RLS</SelectItem>
-                              <SelectItem value="with-policies">With Policies</SelectItem>
-                              <SelectItem value="without-policies">Without Policies</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <span className="text-xs text-muted-foreground whitespace-nowrap self-center">
-                            {filteredCount} of {tableCount} table{tableCount !== 1 ? 's' : ''}
-                          </span>
-                        </div>
+                    {/* Schema Tab */}
 
-                        {/* Diagram + side panel */}
-                        <div className="flex flex-col lg:flex-row gap-4 min-h-[400px]" style={{ height: 'calc(100vh - 250px)' }}>
-                          {/* Diagram area */}
-                          <div className="flex-1 border border-border rounded-xl overflow-hidden bg-card shadow-sm relative h-full">
-                            {filteredTables.length > 0 ? (
-                              <SchemaDiagram
-                                tables={filteredTables}
-                                rlsStatuses={filteredRlsStatuses}
-                                selectedTable={selectedTable}
-                                onSelectTable={setSelectedTable}
-                              />
+                    <TabsContent
+                      value="schema"
+                      className="mt-0"
+                      forceMount={activePanel === 'schema' ? true : undefined}
+                    >
+                      <AnimatePresence mode="wait">
+                        {activePanel === 'schema' && (
+                          <motion.div
+                            key="schema"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                          >
+                            {schemaError && (
+                              <Alert
+                                variant={needsOAuth ? 'default' : 'destructive'}
+                                className="mb-4"
+                              >
+                                <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                                  <span>{schemaError}</span>
+
+                                  <div className="flex gap-2 shrink-0">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        setShowNewDialog(true)
+
+                                        void connectWithOAuth()
+                                      }}
+                                      disabled={isOAuthConnecting}
+                                      className={
+                                        needsOAuth
+                                          ? 'gap-1.5'
+                                          : 'gap-1.5 border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/30'
+                                      }
+                                    >
+                                      {isOAuthConnecting ? (
+                                        <Loader2 className="size-3.5 animate-spin" />
+                                      ) : (
+                                        <Plug className="size-3.5" />
+                                      )}
+
+                                      {extensionOffline || needsOAuth
+                                        ? 'Connect via OAuth'
+                                        : 'Reconnect via OAuth'}
+                                    </Button>
+
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={loadDemoData}
+                                      className="gap-1.5"
+                                    >
+                                      View Demo
+                                    </Button>
+                                  </div>
+                                </AlertDescription>
+                              </Alert>
+                            )}
+
+                            {/* Limited mode banner when RLS status is unknown */}
+
+                            {rlsStatuses.some((r) => r.rlsUnknown) && (
+                              <Alert className="mb-4 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
+                                <Info className="size-4 text-amber-600 dark:text-amber-400" />
+
+                                <AlertDescription className="text-amber-700 dark:text-amber-300">
+                                  <span className="font-medium">Limited schema info:</span> RLS
+                                  status could not be determined without a management API token.
+                                  Tables are shown with amber{' '}
+                                  <span className="font-semibold">RLS ?</span> badges. Add a
+                                  Supabase management API token in Settings for full RLS policy
+                                  information.
+                                </AlertDescription>
+                              </Alert>
+                            )}
+
+                            {isLoadingSchema ? (
+                              <div className="flex flex-col gap-4">
+                                <div className="flex flex-wrap items-center gap-3">
+                                  <Skeleton className="h-6 w-24" />
+
+                                  <Skeleton className="h-6 w-28" />
+
+                                  <Skeleton className="h-6 w-20" />
+                                </div>
+
+                                <div className="flex gap-4 min-h-[600px]">
+                                  <Skeleton className="flex-1 rounded-lg" />
+                                </div>
+                              </div>
+                            ) : tables.length === 0 ? (
+                              /* Enhanced empty state when connected but no data */
+
+                              <Card>
+                                <CardContent className="py-16">
+                                  <div className="flex flex-col items-center justify-center text-center space-y-5">
+                                    {/* Visual illustration */}
+
+                                    <div className="relative">
+                                      <div className="size-20 rounded-2xl bg-muted flex items-center justify-center ring-4 ring-border/40">
+                                        <GitFork className="size-10 text-muted-foreground/50" />
+                                      </div>
+
+                                      <div className="absolute -bottom-1 -right-1 size-7 rounded-full bg-muted flex items-center justify-center border">
+                                        <Database className="size-3.5 text-muted-foreground" />
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-2 max-w-md">
+                                      <p className="text-lg font-medium">
+                                        Your schema will appear here
+                                      </p>
+
+                                      <p className="text-sm text-muted-foreground">
+                                        {needsOAuth && activeConnection
+                                          ? `"${activeConnection.name}" has no Management API token, so its schema can't be read yet. Connect via OAuth above.`
+                                          : activeConnection
+                                            ? `Connected to "${activeConnection.name}" but no tables were found. This could mean the public schema is empty or there was a connection issue.`
+                                            : 'Connect to a Supabase project and fetch the schema to visualize your database.'}
+                                      </p>
+                                    </div>
+
+                                    {activeConnectionId && (
+                                      <div className="flex items-center gap-2">
+                                        <Button
+                                          onClick={fetchSchemaAndRLS}
+                                          disabled={isLoadingSchema}
+                                          className="gap-2"
+                                        >
+                                          {isLoadingSchema ? (
+                                            <Loader2 className="size-4 animate-spin" />
+                                          ) : (
+                                            <RefreshCw className="size-4" />
+                                          )}
+                                          Retry
+                                        </Button>
+
+                                        <Button
+                                          variant="outline"
+                                          onClick={loadDemoData}
+                                          className="gap-2"
+                                        >
+                                          <Eye className="size-4" />
+                                          Try Demo
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </CardContent>
+                              </Card>
                             ) : (
-                              <div className="flex items-center justify-center h-full min-h-[400px] text-muted-foreground">
-                                <div className="text-center space-y-3">
-                                  <Search className="size-10 mx-auto text-muted-foreground/40" />
-                                  <p className="text-sm font-medium">No tables match your filter</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    Try adjusting the search or filter criteria
-                                  </p>
-                                  <Button
+                              <div className="flex flex-col gap-4">
+                                {/* Stats bar - badges are clickable */}
+
+                                <div className="flex flex-wrap items-center gap-3">
+                                  <Badge
                                     variant="outline"
-                                    size="sm"
+                                    className="gap-1 cursor-pointer hover:bg-accent transition-colors"
                                     onClick={() => {
-                                      setSearchQuery('')
                                       setFilterType('all')
+
+                                      setSearchQuery('')
                                     }}
                                   >
-                                    Clear Filters
-                                  </Button>
+                                    <Database className="size-3" />
+                                    {tableCount} table{tableCount !== 1 ? 's' : ''}
+                                  </Badge>
+
+                                  <Badge
+                                    variant="outline"
+                                    className="gap-1 text-emerald-600 border-emerald-200 cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
+                                    onClick={() =>
+                                      setFilterType(
+                                        filterType === 'rls-enabled' ? 'all' : 'rls-enabled'
+                                      )
+                                    }
+                                  >
+                                    <ShieldCheck className="size-3" />
+                                    {rlsEnabledCount} RLS enabled
+                                  </Badge>
+
+                                  {rlsDisabledCount > 0 && (
+                                    <Badge
+                                      variant="destructive"
+                                      className="gap-1 cursor-pointer hover:bg-destructive/90 transition-colors"
+                                      onClick={() =>
+                                        setFilterType(filterType === 'no-rls' ? 'all' : 'no-rls')
+                                      }
+                                    >
+                                      <ShieldAlert className="size-3" />
+                                      {rlsDisabledCount} no RLS
+                                    </Badge>
+                                  )}
+
+                                  <Badge
+                                    variant="secondary"
+                                    className="gap-1 cursor-pointer hover:bg-secondary/80 transition-colors"
+                                    onClick={() =>
+                                      setFilterType(
+                                        filterType === 'with-policies' ? 'all' : 'with-policies'
+                                      )
+                                    }
+                                  >
+                                    {totalPolicies} polic{totalPolicies !== 1 ? 'ies' : 'y'}
+                                  </Badge>
+                                </div>
+
+                                {/* Search & Filter bar */}
+
+                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                  <div className="relative flex-1">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+
+                                    <Input
+                                      value={searchQuery}
+                                      onChange={(e) => setSearchQuery(e.target.value)}
+                                      placeholder="Search tables..."
+                                      className="pl-9 h-9"
+                                    />
+                                  </div>
+
+                                  <Select value={filterType} onValueChange={setFilterType}>
+                                    <SelectTrigger className="w-full sm:w-[180px] h-9">
+                                      <Filter className="size-3.5 mr-1.5 text-muted-foreground" />
+
+                                      <SelectValue />
+                                    </SelectTrigger>
+
+                                    <SelectContent>
+                                      <SelectItem value="all">All Tables</SelectItem>
+
+                                      <SelectItem value="rls-enabled">RLS Enabled</SelectItem>
+
+                                      <SelectItem value="no-rls">No RLS</SelectItem>
+
+                                      <SelectItem value="with-policies">With Policies</SelectItem>
+
+                                      <SelectItem value="without-policies">
+                                        Without Policies
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+
+                                  <span className="text-xs text-muted-foreground whitespace-nowrap self-center">
+                                    {filteredCount} of {tableCount} table
+                                    {tableCount !== 1 ? 's' : ''}
+                                  </span>
+                                </div>
+
+                                {/* Diagram + side panel */}
+
+                                <div
+                                  className="flex flex-col lg:flex-row gap-4 min-h-[400px]"
+                                  style={{ height: 'calc(100vh - 250px)' }}
+                                >
+                                  {/* Diagram area */}
+
+                                  <div className="flex-1 border border-border rounded-xl overflow-hidden bg-card shadow-sm relative h-full">
+                                    {filteredTables.length > 0 ? (
+                                      <SchemaDiagram
+                                        tables={filteredTables}
+                                        rlsStatuses={filteredRlsStatuses}
+                                        selectedTable={selectedTable}
+                                        onSelectTable={setSelectedTable}
+                                      />
+                                    ) : (
+                                      <div className="flex items-center justify-center h-full min-h-[400px] text-muted-foreground">
+                                        <div className="text-center space-y-3">
+                                          <Search className="size-10 mx-auto text-muted-foreground/40" />
+
+                                          <p className="text-sm font-medium">
+                                            No tables match your filter
+                                          </p>
+
+                                          <p className="text-xs text-muted-foreground">
+                                            Try adjusting the search or filter criteria
+                                          </p>
+
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => {
+                                              setSearchQuery('')
+
+                                              setFilterType('all')
+                                            }}
+                                          >
+                                            Clear Filters
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Legend overlay */}
+
+                                    <div className="absolute bottom-3 left-3 bg-background/90 dark:bg-background/80 backdrop-blur-sm border rounded-lg p-3 shadow-lg z-10 text-xs space-y-2">
+                                      <div className="flex items-center gap-1.5 font-medium text-muted-foreground uppercase tracking-wide text-[10px] mb-1.5">
+                                        <Info className="size-3" />
+                                        Legend
+                                      </div>
+
+                                      <div className="flex items-center gap-2">
+                                        <span className="size-4 rounded border border-brand/30 shadow-sm shadow-emerald-200/60 dark:shadow-emerald-900/40 bg-background shrink-0" />
+
+                                        <span>RLS on + policies</span>
+                                      </div>
+
+                                      <div className="flex items-center gap-2">
+                                        <span className="size-4 rounded border border-amber-400/30 shadow-sm shadow-amber-200/60 dark:shadow-amber-900/40 bg-amber-50/40 dark:bg-amber-950/10 shrink-0" />
+
+                                        <span>
+                                          RLS on,{' '}
+                                          <span className="text-amber-500">no policies</span>
+                                        </span>
+                                      </div>
+
+                                      <div className="flex items-center gap-2">
+                                        <span className="size-4 rounded border border-red-400/30 shadow-sm shadow-red-200/60 dark:shadow-red-900/40 bg-red-50/40 dark:bg-red-950/10 shrink-0" />
+
+                                        <span>
+                                          No RLS{' '}
+                                          <span className="text-red-500">(Security Risk)</span>
+                                        </span>
+                                      </div>
+
+                                      <div className="flex items-center gap-2">
+                                        <span className="w-4 h-0.5 bg-emerald-500 shrink-0" />
+
+                                        <span>FK from RLS table</span>
+                                      </div>
+
+                                      <div className="flex items-center gap-2">
+                                        <span className="w-4 h-0.5 bg-red-500 shrink-0 relative">
+                                          <span className="absolute inset-0 animate-pulse bg-red-400" />
+                                        </span>
+
+                                        <span>FK from no-RLS table</span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Side panel - table details */}
+
+                                  {selectedTable && selectedTableInfo && (
+                                    <motion.div
+                                      initial={{ opacity: 0, x: 20 }}
+                                      animate={{ opacity: 1, x: 0 }}
+                                      transition={{ duration: 0.2 }}
+                                      className="w-full lg:w-[420px] shrink-0 border rounded-lg overflow-hidden h-full"
+                                    >
+                                      <ScrollArea className="h-full">
+                                        <TableDetailPanel
+                                          tableName={selectedTable}
+                                          schema={selectedTableInfo.schema}
+                                          rlsInfo={selectedTableInfo.rls}
+                                          onClose={() => setSelectedTable(null)}
+                                          onViewData={() => {
+                                            setDataViewerTable(selectedTable)
+
+                                            setDataViewerOpen(true)
+                                          }}
+                                          onTestRLS={() => {
+                                            setActivePanel('rls')
+                                          }}
+                                          onGeneratePolicy={() => {
+                                            setActivePanel('rls')
+                                          }}
+                                          onNavigateToTable={(targetTable: string) => {
+                                            setSelectedTable(targetTable)
+                                          }}
+                                        />
+                                      </ScrollArea>
+                                    </motion.div>
+                                  )}
                                 </div>
                               </div>
                             )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </TabsContent>
 
-                            {/* Legend overlay */}
-                            <div className="absolute bottom-3 left-3 bg-background/90 dark:bg-background/80 backdrop-blur-sm border rounded-lg p-3 shadow-lg z-10 text-xs space-y-2">
-                              <div className="flex items-center gap-1.5 font-medium text-muted-foreground uppercase tracking-wide text-[10px] mb-1.5">
-                                <Info className="size-3" />
-                                Legend
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="size-4 rounded border border-brand/30 shadow-sm shadow-emerald-200/60 dark:shadow-emerald-900/40 bg-background shrink-0" />
-                                <span>RLS on + policies</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="size-4 rounded border border-amber-400/30 shadow-sm shadow-amber-200/60 dark:shadow-amber-900/40 bg-amber-50/40 dark:bg-amber-950/10 shrink-0" />
-                                <span>
-                                  RLS on, <span className="text-amber-500">no policies</span>
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="size-4 rounded border border-red-400/30 shadow-sm shadow-red-200/60 dark:shadow-red-900/40 bg-red-50/40 dark:bg-red-950/10 shrink-0" />
-                                <span>
-                                  No RLS <span className="text-red-500">(Security Risk)</span>
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="w-4 h-0.5 bg-emerald-500 shrink-0" />
-                                <span>FK from RLS table</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="w-4 h-0.5 bg-red-500 shrink-0 relative">
-                                  <span className="absolute inset-0 animate-pulse bg-red-400" />
-                                </span>
-                                <span>FK from no-RLS table</span>
-                              </div>
-                            </div>
-                          </div>
+                    <TabsContent
+                      value="rls"
+                      className="mt-0"
+                      forceMount={activePanel === 'rls' ? true : undefined}
+                    >
+                      <AnimatePresence mode="wait">
+                        {activePanel === 'rls' && (
+                          <motion.div
+                            key="rls"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                          >
+                            <RLSPanel initialTable={selectedTable ?? undefined} />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </TabsContent>
 
-                          {/* Side panel - table details */}
-                          {selectedTable && selectedTableInfo && (
-                            <motion.div
-                              initial={{ opacity: 0, x: 20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ duration: 0.2 }}
-                              className="w-full lg:w-[420px] shrink-0 border rounded-lg overflow-hidden h-full"
-                            >
-                              <ScrollArea className="h-full">
-                                <TableDetailPanel
-                                  tableName={selectedTable}
-                                  schema={selectedTableInfo.schema}
-                                  rlsInfo={selectedTableInfo.rls}
-                                  onClose={() => setSelectedTable(null)}
-                                  onViewData={() => {
-                                    setDataViewerTable(selectedTable)
-                                    setDataViewerOpen(true)
-                                  }}
-                                  onTestRLS={() => {
-                                    setActivePanel('rls')
-                                  }}
-                                  onGeneratePolicy={() => {
-                                    setActivePanel('rls')
-                                  }}
-                                  onNavigateToTable={(targetTable: string) => {
-                                    setSelectedTable(targetTable)
-                                  }}
-                                />
-                              </ScrollArea>
-                            </motion.div>
-                          )}
-                        </div>
+                    <TabsContent
+                      value="edge-functions"
+                      className="mt-0"
+                      forceMount={activePanel === 'edge-functions' ? true : undefined}
+                    >
+                      <AnimatePresence mode="wait">
+                        {activePanel === 'edge-functions' && (
+                          <motion.div
+                            key="edge-functions"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                          >
+                            <EdgeFunctionsPanel />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </TabsContent>
+
+                    <TabsContent
+                      value="sql"
+                      className="mt-0"
+                      forceMount={activePanel === 'sql' ? true : undefined}
+                    >
+                      <AnimatePresence mode="wait">
+                        {activePanel === 'sql' && (
+                          <motion.div
+                            key="sql"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                          >
+                            <SQLPanel />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </TabsContent>
+
+                    <TabsContent
+                      value="storage"
+                      className="mt-0"
+                      forceMount={activePanel === 'storage' ? true : undefined}
+                    >
+                      <AnimatePresence mode="wait">
+                        {activePanel === 'storage' && (
+                          <motion.div
+                            key="storage"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                          >
+                            <StorageBrowser
+                              connection={activeConnection || null}
+                              isDemoMode={isDemoMode}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </TabsContent>
+
+                    {/* Data Catalog Tab */}
+
+                    <TabsContent
+                      value="catalog"
+                      className="mt-0"
+                      forceMount={activePanel === 'catalog' ? true : undefined}
+                    >
+                      <AnimatePresence mode="wait">
+                        {activePanel === 'catalog' && (
+                          <motion.div
+                            key="catalog"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                          >
+                            <DataCatalogPanel
+                              connection={activeConnection || null}
+                              isDemoMode={isDemoMode}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </TabsContent>
+
+                    <TabsContent
+                      value="logs"
+                      className="mt-0"
+                      forceMount={activePanel === 'logs' ? true : undefined}
+                    >
+                      <AnimatePresence mode="wait">
+                        {activePanel === 'logs' && (
+                          <motion.div
+                            key="logs"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                          >
+                            <LogsPanel
+                              connection={activeConnection || null}
+                              isDemoMode={isDemoMode}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </TabsContent>
+
+                    <TabsContent
+                      value="resource-warnings"
+                      className="mt-0"
+                      forceMount={activePanel === 'resource-warnings' ? true : undefined}
+                    >
+                      <AnimatePresence mode="wait">
+                        {activePanel === 'resource-warnings' && (
+                          <motion.div
+                            key="resource-warnings"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                          >
+                            <ResourceWarningsPanel
+                              connection={activeConnection || null}
+                              isDemoMode={isDemoMode}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </TabsContent>
+
+                    <TabsContent
+                      value="backup"
+                      className="mt-0"
+                      forceMount={activePanel === 'backup' ? true : undefined}
+                    >
+                      <AnimatePresence mode="wait">
+                        {activePanel === 'backup' && (
+                          <motion.div
+                            key="backup"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                          >
+                            <BackupPanel
+                              connection={activeConnection || null}
+                              isDemoMode={isDemoMode}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </TabsContent>
+
+                    <TabsContent
+                      value="iceberg"
+                      className="mt-0 h-[calc(100vh-120px)]"
+                      // Always mounted so the DuckDB WASM connection survives panel switches — but
+
+                      // hidden on the TabsContent itself, or its height still displaces the panels
+
+                      // rendered after it (Traces, Settings).
+
+                      forceMount
+                      style={{ display: activePanel === 'iceberg' ? undefined : 'none' }}
+                    >
+                      <div className="h-full">
+                        <AnalyticsPanel
+                          connection={activeConnection || null}
+                          isDemoMode={isDemoMode}
+                        />
                       </div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </TabsContent>
+                    </TabsContent>
 
-            <TabsContent
-              value="rls"
-              className="mt-0"
-              forceMount={activePanel === 'rls' ? true : undefined}
-            >
-              <AnimatePresence mode="wait">
-                {activePanel === 'rls' && (
-                  <motion.div
-                    key="rls"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  >
-                    <RLSPanel initialTable={selectedTable ?? undefined} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </TabsContent>
+                    <TabsContent
+                      value="traces"
+                      className="mt-0"
+                      forceMount={activePanel === 'traces' ? true : undefined}
+                    >
+                      <AnimatePresence mode="wait">
+                        {activePanel === 'traces' && (
+                          <motion.div
+                            key="traces"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                          >
+                            <TracePanel
+                              connection={activeConnection || null}
+                              isDemoMode={isDemoMode}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </TabsContent>
 
-            <TabsContent
-              value="edge-functions"
-              className="mt-0"
-              forceMount={activePanel === 'edge-functions' ? true : undefined}
-            >
-              <AnimatePresence mode="wait">
-                {activePanel === 'edge-functions' && (
-                  <motion.div
-                    key="edge-functions"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  >
-                    <EdgeFunctionsPanel />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </TabsContent>
+                    <TabsContent
+                      value="settings"
+                      className="mt-0"
+                      forceMount={activePanel === 'settings' ? true : undefined}
+                    >
+                      <AnimatePresence mode="wait">
+                        {activePanel === 'settings' && (
+                          <motion.div
+                            key="settings"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                          >
+                            {activeConnection ? (
+                              <SettingsPanel
+                                connection={activeConnection}
+                                isDemoMode={isDemoMode}
+                                onDelete={() => {
+                                  deleteConnection(activeConnection.id)
+                                }}
+                                onReset={reset}
+                              />
+                            ) : (
+                              <Card>
+                                <CardContent className="py-16">
+                                  <div className="flex flex-col items-center justify-center text-center space-y-3">
+                                    <Settings className="size-10 text-muted-foreground/40" />
 
-            <TabsContent
-              value="sql"
-              className="mt-0"
-              forceMount={activePanel === 'sql' ? true : undefined}
-            >
-              <AnimatePresence mode="wait">
-                {activePanel === 'sql' && (
-                  <motion.div
-                    key="sql"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  >
-                    <SQLPanel />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </TabsContent>
+                                    <p className="text-lg font-medium">No connection selected</p>
 
-            <TabsContent
-              value="storage"
-              className="mt-0"
-              forceMount={activePanel === 'storage' ? true : undefined}
-            >
-              <AnimatePresence mode="wait">
-                {activePanel === 'storage' && (
-                  <motion.div
-                    key="storage"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  >
-                    <StorageBrowser connection={activeConnection || null} isDemoMode={isDemoMode} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </TabsContent>
-
-            {/* Data Catalog Tab */}
-            <TabsContent
-              value="catalog"
-              className="mt-0"
-              forceMount={activePanel === 'catalog' ? true : undefined}
-            >
-              <AnimatePresence mode="wait">
-                {activePanel === 'catalog' && (
-                  <motion.div
-                    key="catalog"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  >
-                    <DataCatalogPanel
-                      connection={activeConnection || null}
-                      isDemoMode={isDemoMode}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </TabsContent>
-
-            <TabsContent
-              value="logs"
-              className="mt-0"
-              forceMount={activePanel === 'logs' ? true : undefined}
-            >
-              <AnimatePresence mode="wait">
-                {activePanel === 'logs' && (
-                  <motion.div
-                    key="logs"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  >
-                    <LogsPanel connection={activeConnection || null} isDemoMode={isDemoMode} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </TabsContent>
-
-            <TabsContent
-              value="resource-warnings"
-              className="mt-0"
-              forceMount={activePanel === 'resource-warnings' ? true : undefined}
-            >
-              <AnimatePresence mode="wait">
-                {activePanel === 'resource-warnings' && (
-                  <motion.div
-                    key="resource-warnings"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  >
-                    <ResourceWarningsPanel connection={activeConnection || null} isDemoMode={isDemoMode} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </TabsContent>
-
-            <TabsContent
-              value="backup"
-              className="mt-0"
-              forceMount={activePanel === 'backup' ? true : undefined}
-            >
-              <AnimatePresence mode="wait">
-                {activePanel === 'backup' && (
-                  <motion.div
-                    key="backup"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  >
-                    <BackupPanel connection={activeConnection || null} isDemoMode={isDemoMode} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </TabsContent>
-
-            <TabsContent
-              value="iceberg"
-              className="mt-0 h-[calc(100vh-120px)]"
-              forceMount
-            >
-              <div className="h-full" style={{ display: activePanel === 'iceberg' ? undefined : 'none' }}>
-                <AnalyticsPanel connection={activeConnection || null} isDemoMode={isDemoMode} />
+                                    <p className="text-sm text-muted-foreground">
+                                      Select or create a connection to view settings.
+                                    </p>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </TabsContent>
+                  </div>
+                </Tabs>
               </div>
-            </TabsContent>
-
-            <TabsContent
-              value="traces"
-              className="mt-0"
-              forceMount={activePanel === 'traces' ? true : undefined}
-            >
-              <AnimatePresence mode="wait">
-                {activePanel === 'traces' && (
-                  <motion.div
-                    key="traces"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  >
-                    <TracePanel connection={activeConnection || null} isDemoMode={isDemoMode} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </TabsContent>
-
-            <TabsContent
-              value="settings"
-              className="mt-0"
-              forceMount={activePanel === 'settings' ? true : undefined}
-            >
-              <AnimatePresence mode="wait">
-                {activePanel === 'settings' && (
-                  <motion.div
-                    key="settings"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  >
-                    {activeConnection ? (
-                      <SettingsPanel
-                        connection={activeConnection}
-                        isDemoMode={isDemoMode}
-                        onDelete={() => {
-                          deleteConnection(activeConnection.id)
-                        }}
-                        onReset={reset}
-                      />
-                    ) : (
-                      <Card>
-                        <CardContent className="py-16">
-                          <div className="flex flex-col items-center justify-center text-center space-y-3">
-                            <Settings className="size-10 text-muted-foreground/40" />
-                            <p className="text-lg font-medium">No connection selected</p>
-                            <p className="text-sm text-muted-foreground">
-                              Select or create a connection to view settings.
-                            </p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </TabsContent>
-            </div>
-          </Tabs>
-        )}
-      </main>
+            </main>
+          </SidebarInset>
+        </SidebarProvider>
+      )}
 
       {/* Data Viewer Sheet */}
       <Sheet open={dataViewerOpen} onOpenChange={setDataViewerOpen}>
@@ -2918,13 +3022,16 @@ function SettingsPanel({
                     </AlertDialogTitle>
                     <AlertDialogDescription className="space-y-2 text-sm">
                       <p>
-                        The <strong>service role key</strong> bypasses all Row Level Security policies and grants unrestricted access to your database.
+                        The <strong>service role key</strong> bypasses all Row Level Security
+                        policies and grants unrestricted access to your database.
                       </p>
                       <p>
-                        Only enter this key on a <strong>local development instance</strong> of this tool. Never paste it into a hosted or shared environment.
+                        Only enter this key on a <strong>local development instance</strong> of this
+                        tool. Never paste it into a hosted or shared environment.
                       </p>
                       <p className="text-amber-600 dark:text-amber-400 font-medium">
-                        If you are using the hosted version at supabasehire.me, close this dialog and use an anon key or OAuth instead.
+                        If you are using the hosted version at supabasehire.me, close this dialog
+                        and use an anon key or OAuth instead.
                       </p>
                     </AlertDialogDescription>
                   </AlertDialogHeader>

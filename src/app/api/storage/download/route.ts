@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
-import { getConnectionFromHeaders } from '@/lib/api-auth'
+import { forwardableTraceHeaders, getConnectionFromHeaders } from '@/lib/api-auth'
 import { parseMcpSqlRows } from '@/lib/mcp-response-parser'
 import { projectRefFromUrl, SupabaseMcpClient } from '@/lib/supabase-mcp-client'
 import type { SupabaseConnection } from '@/lib/supabase-types'
@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
       headers: {
         Authorization: `Bearer ${serviceRoleKey}`,
         apikey: serviceRoleKey,
+        ...forwardableTraceHeaders(request),
       },
     })
 

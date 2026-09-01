@@ -78,7 +78,11 @@ export default {
     const client = new Client(dbUrl)
     await client.connect()
 
-    const traceId = hex(16)
+    // Honor the caller's W3C trace-context id when present (propagated by the
+    // invoking gateway request) so the OTLP trace, the API-gateway log row, and
+    // the edge-function log rows all join by trace_id.
+    const tpTraceId = req.headers.get('traceparent')?.split('-')?.[1] ?? ''
+    const traceId = /^[0-9a-f]{32}$/.test(tpTraceId) ? tpTraceId : hex(16)
     const rootId = hex(8)
     const otlpSpans: OTLPSpan[] = []
     const steps: { name: string; durationMs: number; result: unknown }[] = []

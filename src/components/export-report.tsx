@@ -3,6 +3,7 @@
 import { Check, Copy, FileDown, FileText } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import { calculateScore, type ScoreBreakdown } from '@/components/security-score'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -15,16 +16,16 @@ import {
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { DEMO_CONNECTION_ID } from '@/lib/demo-data'
-import type { TableRLSInfo, TableSchema } from '@/lib/supabase-types'
+import type { TableRLSInfo } from '@/lib/supabase-types'
 import { useSupabaseStore } from '@/store/supabase-store'
 
 function generateMarkdownReport(
   rlsStatuses: TableRLSInfo[],
-  tables: TableSchema[],
   projectName: string,
   projectUrl: string,
-  securityScore: number
+  breakdown: ScoreBreakdown
 ): string {
+  const securityScore = breakdown.score
   const lines: string[] = []
 
   lines.push('# Supabase RLS Security Report')
@@ -46,6 +47,25 @@ function generateMarkdownReport(
           ? 'Poor'
           : 'Critical'
   lines.push(`**Score: ${securityScore}/100** (${scoreLabel})`)
+  lines.push('')
+  lines.push(
+    `Policy coverage: **${breakdown.policyCoverage}%** of table operations (SELECT / INSERT / UPDATE / DELETE) are covered by at least one policy.`
+  )
+  lines.push('')
+  lines.push('| Deduction | Count | Points |')
+  lines.push('|-----------|-------|--------|')
+  lines.push(
+    `| Table without RLS | ${breakdown.tablesWithoutRLS.length} | −${breakdown.tablesWithoutRLS.length * 20} |`
+  )
+  lines.push(
+    `| RLS on, no policies | ${breakdown.tablesWithRLSNoPolicies.length} | −${breakdown.tablesWithRLSNoPolicies.length * 5} |`
+  )
+  lines.push(
+    `| RESTRICTIVE policy | ${breakdown.restrictivePolicies} | −${breakdown.restrictivePolicies * 3} |`
+  )
+  lines.push(
+    `| SELECT-only table | ${breakdown.tablesOnlySelect.length} | −${breakdown.tablesOnlySelect.length * 2} |`
+  )
   lines.push('')
 
   // Tables Summary
@@ -100,6 +120,32 @@ function generateMarkdownReport(
   lines.push('## Recommendations')
   lines.push('')
 
+  if (breakdown.criticalTables.length > 0) {
+    lines.push('### Unprotected tables with foreign keys into protected data (Highest priority)')
+    lines.push('')
+    lines.push(
+      'These tables have no RLS but reference tables that do — they leak the protected rows by association:'
+    )
+    lines.push('')
+    for (const t of breakdown.criticalTables) {
+      lines.push(`- \`${t.tableName}\``)
+    }
+    lines.push('')
+  }
+
+  if (breakdown.tablesOnlySelect.length > 0) {
+    lines.push('### Read-only policy coverage (Warning)')
+    lines.push('')
+    lines.push(
+      'These tables define SELECT policies but nothing for INSERT / UPDATE / DELETE, so writes are silently denied:'
+    )
+    lines.push('')
+    for (const t of breakdown.tablesOnlySelect) {
+      lines.push(`- \`${t.tableName}\``)
+    }
+    lines.push('')
+  }
+
   if (rlsDisabled.length > 0) {
     lines.push('### Tables without RLS (Critical)')
     lines.push('')
@@ -107,8 +153,9 @@ function generateMarkdownReport(
       'The following tables have no row-level security enabled. All rows are accessible to all users:'
     )
     lines.push('')
+    const criticalNames = new Set(breakdown.criticalTables.map((t) => t.tableName))
     for (const t of rlsDisabled) {
-      lines.push(`- \`${t.tableName}\``)
+      lines.push(`- \`${t.tableName}\`${criticalNames.has(t.tableName) ? ' (listed above)' : ''}`)
     }
     lines.push('')
   }
@@ -134,14 +181,25 @@ function generateMarkdownReport(
   }
 
   // Generated SQL
-  if (rlsDisabled.length > 0) {
-    lines.push('## Generated SQL to Enable RLS')
-    lines.push('')
-    lines.push('Run the following SQL statements to enable RLS on unprotected tables:')
+  if (rlsDisabled.length > 0 || noPolicies.length > 0) {
+    lines.push('## Generated SQL')
     lines.push('')
     lines.push('```sql')
-    for (const t of rlsDisabled) {
-      lines.push(`ALTER TABLE ${t.tableName} ENABLE ROW LEVEL SECURITY;`)
+    if (rlsDisabled.length > 0) {
+      lines.push('-- Enable RLS on unprotected tables')
+      for (const t of rlsDisabled) {
+        lines.push(`ALTER TABLE ${t.tableName} ENABLE ROW LEVEL SECURITY;`)
+      }
+    }
+    if (noPolicies.length > 0) {
+      if (rlsDisabled.length > 0) lines.push('')
+      lines.push('-- RLS is on but nothing is allowed through. Replace the USING clause with')
+      lines.push('-- the real ownership condition for each table before running.')
+      for (const t of noPolicies) {
+        lines.push(
+          `CREATE POLICY "${t.tableName}_owner_access" ON ${t.tableName} FOR ALL TO authenticated USING (auth.uid() = user_id);`
+        )
+      }
     }
     lines.push('```')
     lines.push('')
@@ -163,24 +221,18 @@ export function ExportReport() {
   const activeConnection = connections.find((c) => c.id === activeConnectionId)
   const isDemoMode = activeConnectionId === DEMO_CONNECTION_ID
 
-  const securityScore = useMemo(() => {
-    if (rlsStatuses.length === 0) return 0
-    let score = 100
-    score -= rlsStatuses.filter((r) => !r.rlsEnabled).length * 20
-    score -= rlsStatuses.filter((r) => r.rlsEnabled && r.policies.length === 0).length * 5
-    return Math.max(0, score)
-  }, [rlsStatuses])
+  const breakdown = useMemo(() => calculateScore(rlsStatuses, tables), [rlsStatuses, tables])
+  const securityScore = breakdown.score
 
   const report = useMemo(
     () =>
       generateMarkdownReport(
         rlsStatuses,
-        tables,
         activeConnection?.name || (isDemoMode ? 'Demo Project' : 'Unknown'),
         activeConnection?.supabaseUrl || '',
-        securityScore
+        breakdown
       ),
-    [rlsStatuses, tables, activeConnection, isDemoMode, securityScore]
+    [rlsStatuses, activeConnection, isDemoMode, breakdown]
   )
 
   const copyToClipboard = useCallback(() => {
@@ -219,7 +271,7 @@ export function ExportReport() {
           <span className="hidden sm:inline">Export</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[640px] max-h-[80vh] flex flex-col">
+      <DialogContent className="sm:max-w-[680px] max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileDown className="size-5 text-primary" />
@@ -239,12 +291,15 @@ export function ExportReport() {
               Score: {securityScore}/100
             </Badge>
             <Badge variant="outline" className="text-xs">
-              {rlsStatuses.filter((r) => !r.rlsEnabled).length} without RLS
+              {breakdown.tablesWithoutRLS.length} without RLS
+            </Badge>
+            <Badge variant="outline" className="text-xs">
+              {breakdown.policyCoverage}% policy coverage
             </Badge>
           </div>
 
           {/* Report preview */}
-          <ScrollArea className="flex-1 min-h-0 max-h-[400px] rounded-lg border bg-muted/30">
+          <ScrollArea className="h-[min(55vh,420px)] rounded-lg border bg-muted/30">
             <pre className="p-4 text-xs font-mono whitespace-pre-wrap text-foreground/90 leading-relaxed">
               {report}
             </pre>

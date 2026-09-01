@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
-import { getConnectionFromHeaders } from '@/lib/api-auth'
+import { getConnectionFromHeaders, traceIdFromTraceparent, traceparentHeader } from '@/lib/api-auth'
 import { getValidApiKey } from '@/lib/supabase-helpers'
 import { parseMcpSqlRows } from '@/lib/mcp-response-parser'
 import { projectRefFromUrl, SupabaseMcpClient } from '@/lib/supabase-mcp-client'
@@ -92,10 +92,21 @@ export async function POST(request: NextRequest) {
 
     const url = `${connection.supabaseUrl}/functions/v1/${functionName}`
 
+    // Propagate-or-mint a W3C trace id: the edge runtime stamps its logs with it
+    // and agent-query echoes it in its OTLP spans, so the trace and the server
+    // logs join by trace_id. A caller's own traceparent (request header, or one
+    // passed in customHeaders) wins — the traceId returned below is always the
+    // one actually sent, so the caller can query logs by it.
+    const traceId =
+      traceIdFromTraceparent(request.headers.get('traceparent')) ??
+      traceIdFromTraceparent(customHeaders?.traceparent ?? null) ??
+      crypto.randomUUID().replaceAll('-', '')
+
     const requestHeaders: Record<string, string> = {
       apikey: rawKey,
       'Content-Type': 'application/json',
       ...customHeaders,
+      traceparent: traceparentHeader(traceId),
     }
 
     // Only send Authorization for functions that verify JWT.
@@ -135,6 +146,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       data,
       status: response.status,
+      traceId,
     })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to invoke edge function' }, { status: 500 })

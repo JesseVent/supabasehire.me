@@ -1,3 +1,0 @@
-comment = 'AI inference SQL functions for Supabase. Self-deploys its own edge function via ai.deploy().'
-default_version = '1.0.0'
-relocatable = false

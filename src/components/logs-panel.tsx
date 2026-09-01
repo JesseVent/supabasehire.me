@@ -27,7 +27,9 @@ import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
   SelectContent,
@@ -35,17 +37,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible'
+import { track } from '@/lib/analytics'
 import { apiFetch } from '@/lib/api-auth'
 import { DEMO_LOGS } from '@/lib/demo-data'
 import type { LogEntry, LogService, SupabaseConnection } from '@/lib/supabase-types'
 import { useSupabaseStore } from '@/store/supabase-store'
-import { track } from '@/lib/analytics'
 
 // ─── Types ───
 
@@ -65,6 +61,7 @@ interface PatternGroup {
 // ─── Constants ───
 
 const SERVICES: { value: LogService; label: string }[] = [
+  { value: 'all', label: 'All services' },
   { value: 'postgres', label: 'Postgres' },
   { value: 'api', label: 'API' },
   { value: 'auth', label: 'Auth' },
@@ -211,6 +208,188 @@ function sanitizeFilename(name: string): string {
     .slice(0, 60)
 }
 
+// ─── Log detail ───
+
+/**
+ * The fields worth reading first, in priority order. The unified log stream carries a different
+ * attribute set per source, so each row lists every key that could carry that fact and the first
+ * one present wins — no per-source branching.
+ */
+const HIGHLIGHTS: { label: string; keys: string[]; format?: (v: string) => string }[] = [
+  { label: 'Method', keys: ['request.method', 'method'] },
+  { label: 'Status', keys: ['response.status_code', 'status_code', 'status'] },
+  { label: 'Path', keys: ['request.path', 'path', 'request.url', 'url'] },
+  {
+    label: 'Duration',
+    keys: ['response.origin_time', 'execution_time_ms', 'duration_ms'],
+    format: ms,
+  },
+  { label: 'Event', keys: ['event_type', 'action', 'command_tag', 'parsed.command_tag'] },
+  { label: 'Reason', keys: ['reason', 'error', 'msg'] },
+  { label: 'CPU time', keys: ['cpu_time_used'], format: ms },
+  { label: 'Memory', keys: ['memory_used.total', 'memory_used.heap'], format: bytes },
+  { label: 'Severity', keys: ['parsed.error_severity', 'level'] },
+  { label: 'User', keys: ['parsed.user_name', 'user_name'] },
+  { label: 'Database', keys: ['parsed.database_name', 'database_name'] },
+  { label: 'Region', keys: ['region', 'request.cf.country', 'request.cf.city'] },
+  { label: 'Function', keys: ['function_id', 'deployment_id'] },
+  { label: 'Trace', keys: ['trace_id', 'traceId', 'req.traceId'] },
+]
+
+const MAX_HIGHLIGHTS = 6
+const COLLAPSED_FIELD_COUNT = 8
+
+function ms(value: string): string {
+  const n = Number(value)
+  return Number.isFinite(n) ? `${n.toLocaleString()} ms` : value
+}
+
+function bytes(value: string): string {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return value
+  if (n < 1024) return `${n} B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function statusTone(label: string, value: string): string {
+  if (label !== 'Status') return ''
+  const code = Number(value)
+  if (code >= 500) return 'text-destructive'
+  if (code >= 400) return 'text-amber-500'
+  if (code >= 200 && code < 300) return 'text-primary'
+  return ''
+}
+
+function stringify(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  return typeof value === 'object' ? JSON.stringify(value) : String(value)
+}
+
+function LogEntryDetail({ entry }: { entry: LogEntry }) {
+  const [showAllFields, setShowAllFields] = useState(false)
+  const [showRaw, setShowRaw] = useState(false)
+
+  const fields = useMemo(
+    () =>
+      Object.entries(entry.metadata)
+        .map(([key, value]) => [key, stringify(value)] as const)
+        .filter(([, value]) => value !== '')
+        .sort(([a], [b]) => a.localeCompare(b)),
+    [entry.metadata]
+  )
+
+  const highlights = useMemo(() => {
+    const lookup = new Map(fields)
+    const picked: { label: string; value: string }[] = []
+    for (const spec of HIGHLIGHTS) {
+      const key = spec.keys.find((k) => lookup.get(k))
+      if (!key) continue
+      const raw = lookup.get(key) as string
+      picked.push({ label: spec.label, value: spec.format ? spec.format(raw) : raw })
+      if (picked.length === MAX_HIGHLIGHTS) break
+    }
+    return picked
+  }, [fields])
+
+  const visibleFields = showAllFields ? fields : fields.slice(0, COLLAPSED_FIELD_COUNT)
+  const rawJson = useMemo(() => JSON.stringify(entry.raw, null, 2), [entry.raw])
+
+  return (
+    <div className="px-4 pb-4 pl-11 sm:pl-12 space-y-3 min-w-0">
+      {/* Full message — the header truncates it, and edge log lines carry the whole URL. */}
+      <p className="text-xs font-mono leading-relaxed whitespace-pre-wrap break-all text-foreground/90 border-l-2 border-border pl-3">
+        {entry.message}
+      </p>
+
+      {highlights.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-px rounded-lg overflow-hidden border bg-border">
+          {highlights.map((h) => (
+            <div key={h.label} className="bg-card px-3 py-2 min-w-0">
+              <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                {h.label}
+              </p>
+              <p
+                className={`text-xs font-mono mt-0.5 truncate ${statusTone(h.label, h.value)}`}
+                title={h.value}
+              >
+                {h.value}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <Calendar className="size-3" />
+          {formatTimestamp(entry.timestamp)}
+        </span>
+        <span className="size-1 rounded-full bg-muted-foreground/30" />
+        <span className="font-mono">{entry.service}</span>
+        <span className="size-1 rounded-full bg-muted-foreground/30" />
+        <span className="font-mono truncate max-w-[280px]" title={entry.id}>
+          {entry.id}
+        </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-1.5 ml-auto gap-1 text-[11px]"
+          onClick={() => {
+            navigator.clipboard.writeText(rawJson)
+            toast.success('Log entry copied as JSON')
+          }}
+        >
+          <Copy className="size-3" />
+          Copy JSON
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-1.5 gap-1 text-[11px]"
+          onClick={() => setShowRaw((v) => !v)}
+        >
+          {showRaw ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+          Raw JSON
+        </Button>
+      </div>
+
+      {fields.length > 0 && (
+        <div className="rounded-lg border divide-y">
+          {visibleFields.map(([key, value]) => (
+            <div
+              key={key}
+              className="grid grid-cols-[minmax(0,10rem)_1fr] gap-3 px-3 py-1.5 text-xs items-baseline"
+            >
+              <span className="font-mono text-[11px] text-muted-foreground truncate" title={key}>
+                {key}
+              </span>
+              <span className="font-mono break-all text-foreground/90">{value}</span>
+            </div>
+          ))}
+          {fields.length > COLLAPSED_FIELD_COUNT && (
+            <button
+              type="button"
+              className="w-full px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors text-left"
+              onClick={() => setShowAllFields((v) => !v)}
+            >
+              {showAllFields
+                ? 'Show fewer fields'
+                : `Show all ${fields.length} fields (${fields.length - COLLAPSED_FIELD_COUNT} more)`}
+            </button>
+          )}
+        </div>
+      )}
+
+      {showRaw && (
+        <pre className="p-3 rounded-lg bg-muted/50 text-[10px] font-mono overflow-x-auto max-h-72 overflow-y-auto">
+          {rawJson}
+        </pre>
+      )}
+    </div>
+  )
+}
+
 export function LogsPanel({ connection, isDemoMode }: LogsPanelProps) {
   const {
     logs,
@@ -251,12 +430,9 @@ export function LogsPanel({ connection, isDemoMode }: LogsPanelProps) {
 
     if (isDemoMode) {
       setLogs(
-        DEMO_LOGS.filter(
-          (entry) => !logsService || entry.service === logsService
-        ).map((entry) => ({
-          ...entry,
-          service: logsService,
-        }))
+        logsService === 'all'
+          ? DEMO_LOGS
+          : DEMO_LOGS.filter((entry) => entry.service === logsService)
       )
       setLogsLoading(false)
       return
@@ -305,9 +481,12 @@ export function LogsPanel({ connection, isDemoMode }: LogsPanelProps) {
   // Fetch on filter changes (debounce search)
   useEffect(() => {
     if (!logsStartTime || !logsEndTime) return
-    const timer = setTimeout(() => {
-      fetchLogs()
-    }, logsSearch ? 400 : 0)
+    const timer = setTimeout(
+      () => {
+        fetchLogs()
+      },
+      logsSearch ? 400 : 0
+    )
     return () => clearTimeout(timer)
   }, [fetchLogs, logsSearch, logsStartTime, logsEndTime])
 
@@ -422,7 +601,9 @@ export function LogsPanel({ connection, isDemoMode }: LogsPanelProps) {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     const safeService = sanitizeFilename(logsService)
-    const safeStart = logsStartTime ? new Date(logsStartTime).toISOString().split('T')[0] : 'unknown'
+    const safeStart = logsStartTime
+      ? new Date(logsStartTime).toISOString().split('T')[0]
+      : 'unknown'
     a.href = url
     a.download = `supabasehire-logs-${safeService}-${safeStart}.json`
     document.body.appendChild(a)
@@ -488,7 +669,11 @@ export function LogsPanel({ connection, isDemoMode }: LogsPanelProps) {
             onClick={fetchLogs}
             disabled={logsLoading || (!connection && !isDemoMode)}
           >
-            {logsLoading ? <RefreshCw className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+            {logsLoading ? (
+              <RefreshCw className="size-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="size-3.5" />
+            )}
             Refresh
           </Button>
         </div>
@@ -515,7 +700,10 @@ export function LogsPanel({ connection, isDemoMode }: LogsPanelProps) {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={timeRange} onValueChange={(value) => updateTimeRange(value as TimeRange)}>
+              <Select
+                value={timeRange}
+                onValueChange={(value) => updateTimeRange(value as TimeRange)}
+              >
                 <SelectTrigger className="w-[140px]">
                   <Clock className="size-3.5 mr-2 text-muted-foreground" />
                   <SelectValue placeholder="Time range" />
@@ -622,7 +810,13 @@ export function LogsPanel({ connection, isDemoMode }: LogsPanelProps) {
 
       {/* Logs list */}
       {filteredLogs.length > 0 && (
-        <ScrollArea className="h-[calc(100vh-420px)] min-h-[300px]" ref={listRef}>
+        // Radix wraps viewport children in a display:table div that shrink-wraps to content — a wide
+        // log line then widens the whole list past the panel and gets clipped. Force it to a block so
+        // rows stay inside the viewport width.
+        <ScrollArea
+          className="h-[calc(100vh-420px)] min-h-[300px] [&>[data-radix-scroll-area-viewport]>div]:!block"
+          ref={listRef}
+        >
           <div className="space-y-2 pr-4">
             <AnimatePresence initial={false}>
               {filteredLogs.map((entry) => (
@@ -655,6 +849,14 @@ export function LogsPanel({ connection, isDemoMode }: LogsPanelProps) {
                               <span className="text-[10px] text-muted-foreground font-mono">
                                 {formatRelativeTime(entry.timestamp)}
                               </span>
+                              {logsService === 'all' && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] px-1.5 py-0 font-mono"
+                                >
+                                  {String(entry.metadata?.source ?? entry.service)}
+                                </Badge>
+                              )}
                               {getPattern(entry) && (
                                 <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                                   {getPattern(entry)?.label}
@@ -675,45 +877,7 @@ export function LogsPanel({ connection, isDemoMode }: LogsPanelProps) {
                         </button>
                       </CollapsibleTrigger>
                       <CollapsibleContent>
-                        <div className="px-4 pb-4 pl-11 sm:pl-12 space-y-3">
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="size-3" />
-                              {formatTimestamp(entry.timestamp)}
-                            </span>
-                            <span className="size-1 rounded-full bg-muted-foreground/30" />
-                            <span className="font-mono">ID: {entry.id}</span>
-                            <span className="size-1 rounded-full bg-muted-foreground/30" />
-                            <span className="font-mono">Service: {entry.service}</span>
-                          </div>
-
-                          {Object.keys(entry.metadata).length > 0 && (
-                            <div className="space-y-1">
-                              <p className="text-[10px] font-mono font-medium text-muted-foreground uppercase tracking-wider">
-                                Metadata
-                              </p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {Object.entries(entry.metadata).map(([key, value]) => (
-                                  <Badge key={key} variant="outline" className="text-[10px] gap-1">
-                                    <span className="font-mono text-muted-foreground">{key}:</span>
-                                    <span className="font-mono truncate max-w-[200px]">
-                                      {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                                    </span>
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="space-y-1">
-                            <p className="text-[10px] font-mono font-medium text-muted-foreground uppercase tracking-wider">
-                              Raw JSON
-                            </p>
-                            <pre className="p-3 rounded-lg bg-muted/50 text-[10px] font-mono overflow-x-auto">
-                              {JSON.stringify(entry.raw, null, 2)}
-                            </pre>
-                          </div>
-                        </div>
+                        <LogEntryDetail entry={entry} />
                       </CollapsibleContent>
                     </Card>
                   </Collapsible>

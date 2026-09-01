@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import { createJSONStorage, persist } from 'zustand/middleware'
 import type { StateStorage } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
 import type {
   ActivePanel,
   EdgeFunction,
@@ -149,7 +149,9 @@ interface SupabaseStore {
   setLogsLoading: (loading: boolean) => void
   setLogsError: (error: string | null) => void
   setLogsFilter: (
-    filter: Partial<Pick<SupabaseStore, 'logsService' | 'logsStartTime' | 'logsEndTime' | 'logsSearch'>>
+    filter: Partial<
+      Pick<SupabaseStore, 'logsService' | 'logsStartTime' | 'logsEndTime' | 'logsSearch'>
+    >
   ) => void
   clearLogs: () => void
   reset: () => void
@@ -179,7 +181,7 @@ const initialState = {
   logs: [] as LogEntry[],
   logsLoading: false,
   logsError: null as string | null,
-  logsService: 'postgres' as LogService,
+  logsService: 'all' as LogService,
   logsStartTime: '',
   logsEndTime: '',
   logsSearch: '',
