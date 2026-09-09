@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.10.6-nightly.202609070633.3d1b73ff2",
+  "checkpoint_id": "01M22B57E87VC9WYPDRCKYQRR3",
+  "strategy": "manual-commit",
+  "branch": "fix/jam-sql-ai-demos-and-trace-errors",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/components/sql-panel.tsx",
+    "src/components/trace-panel.tsx",
+    "src/lib/realtime-trace-source.ts",
+    "src/lib/sql-error-messages.test.ts",
+    "src/lib/sql-error-messages.ts",
+    "src/lib/supabase-mcp-client.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 172,
+    "cache_creation_tokens": 144485,
+    "cache_read_tokens": 11728421,
+    "output_tokens": 25178,
+    "api_call_count": 86
+  }
+}
