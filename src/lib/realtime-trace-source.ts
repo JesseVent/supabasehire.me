@@ -93,6 +93,7 @@ export class RealtimeTraceSource {
     if (this.connectKey === key && this.status !== 'error' && this.status !== 'disconnected') return
     await this.disconnect()
     this.connectKey = key
+    this.lastError = null
     this.setStatus('connecting')
 
     try {
@@ -263,13 +264,22 @@ export class RealtimeTraceSource {
 
   private async mintToken(opts: RealtimeTraceConnectOptions): Promise<MintedToken> {
     const base = opts.supabaseUrl.replace(/\/$/, '')
-    const res = await fetch(`${base}/functions/v1/${AGENT_TRACE_TOKEN_FUNCTION}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${opts.accessToken}`,
-        apikey: opts.anonKey,
-      },
-    })
+    // An unknown function slug 404s the preflight without CORS headers, so the fetch
+    // rejects before we ever see a status — report it as "not installed", not "network".
+    let res: Response
+    try {
+      res = await fetch(`${base}/functions/v1/${AGENT_TRACE_TOKEN_FUNCTION}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${opts.accessToken}`,
+          apikey: opts.anonKey,
+        },
+      })
+    } catch {
+      throw new Error(
+        'agent-trace-token function is not reachable — install supa_agent_trace on this project, or check that it is deployed.'
+      )
+    }
     if (!res.ok) {
       const body = await res.text().catch(() => '')
       throw new Error(

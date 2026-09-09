@@ -112,7 +112,7 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
   const [allBridgeTraces, setAllBridgeTraces] = useState<LiveTrace[]>([])
   const liveLogRef = useRef<HTMLDivElement>(null)
   // Remote pairing over Supabase Realtime (in addition to tab-local postMessage)
-  const { status: realtimeStatus, agentOnline } = useRealtimeTrace()
+  const { status: realtimeStatus, agentOnline, lastError: realtimeError } = useRealtimeTrace()
 
   // Correlated server logs (W3C trace id propagation)
   const [staticTraceId, setStaticTraceId] = useState<string | null>(null)
@@ -571,6 +571,9 @@ export function TracePanel({ connection, isDemoMode }: TracePanelProps) {
                     ? 'Start the agent from the sidebar to see a live trace stream.'
                     : 'Connect a project with the supa_agent_trace extension installed. Recent traces appear automatically; click "Run agent" to generate a new one.'}
                 </p>
+                {realtimeError && (
+                  <p className="max-w-md text-xs text-destructive">{realtimeError}</p>
+                )}
               </div>
             )}
           </div>
