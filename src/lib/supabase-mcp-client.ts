@@ -1,5 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
+import { unwrapMcpError } from '@/lib/sql-error-messages'
 
 const MCP_BASE_URL = 'https://mcp.supabase.com/mcp'
 
@@ -132,11 +133,13 @@ export class SupabaseMcpClient {
     const content = result.content as { type: string; text?: string }[]
 
     if (result.isError) {
-      const text = sanitizeTokens(
-        content
-          .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
-          .map((c) => c.text)
-          .join('\n')
+      const text = unwrapMcpError(
+        sanitizeTokens(
+          content
+            .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
+            .map((c) => c.text)
+            .join('\n')
+        )
       )
       throw new Error(text || `Tool "${name}" returned an error`)
     }

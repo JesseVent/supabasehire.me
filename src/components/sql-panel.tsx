@@ -48,6 +48,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { track } from '@/lib/analytics'
 import { apiFetch } from '@/lib/api-auth'
 import { DEMO_CONNECTION_ID } from '@/lib/demo-data'
+import { firstLine, withAiInstallHint } from '@/lib/sql-error-messages'
 import type { SQLQueryResult } from '@/lib/supabase-types'
 import { cn } from '@/lib/utils'
 import { useSupabaseStore } from '@/store/supabase-store'
@@ -379,7 +380,6 @@ export function supportsLocalInference(supabaseUrl: string | undefined | null): 
 function getAiDemoButtons(provider: AiProvider): AiDemoButton[] {
   // provider arg is only emitted when non-default (openai is the SQL default)
   const p = provider === 'supabase' ? `, provider => 'supabase'` : ''
-  const pInline = provider === 'supabase' ? `, null, null, 'supabase'` : ''
 
   return [
     {
@@ -394,20 +394,21 @@ function getAiDemoButtons(provider: AiProvider): AiDemoButton[] {
     },
     {
       label: 'AI: Summarize text',
-      description: 'Summarize a paragraph with ai_summary()',
-      sql: `select public.ai_summary(
+      description: 'Summarize a paragraph with ai_complete()',
+      sql: `select public.ai_complete(
   'Jesse Davies is a full-stack developer based in Adelaide, Australia. ' ||
   'He built this Supabase DevTool from scratch using Next.js, TypeScript, Tailwind, ' ||
   'and shadcn/ui as a live job application to Supabase. The tool connects to real ' ||
   'Supabase projects and surfaces schema, RLS policies, edge functions, SQL history, ' ||
   'storage, and more. He added an AI agent with multi-step tool use, an OpenTelemetry ' ||
   'trace viewer called AgentPrism, and now Postgres functions that call LLMs inline ' ||
-  'from a SELECT statement — demonstrating end-to-end platform depth.'${pInline}
+  'from a SELECT statement — demonstrating end-to-end platform depth.',
+  system_text => 'Summarize the following in one sentence.'${p}
 ) as summary;`,
     },
     {
       label: 'AI: Summarize rows',
-      description: 'Summarize rows with ai_summary(), one model call per row',
+      description: 'Summarize rows with ai_complete(), one model call per row',
       sql: `with reasons (id, content) as (
   values
     (1, 'Jesse Davies built an entire Supabase developer tool as his job application. Not a cover letter. Not a portfolio link. A fully functional devtool. With dark mode. Who does that?'),
@@ -416,7 +417,12 @@ function getAiDemoButtons(provider: AiProvider): AiDemoButton[] {
     (4, 'He hit undocumented Supabase API edge cases — new key formats, opaque JWT exchange flows, Management API quirks — debugged them without filing a single angry GitHub issue, and shipped anyway. Saint-level patience.'),
     (5, 'Jesse built the tool he wished existed. Then he used the tool to apply for the job that would let him build more tools. This is either the most unhinged thing anyone has done or exactly the kind of person Supabase needs. Probably both.')
 )
-select id, public.ai_summary(content${pInline}) as why_hire_jesse
+select
+  id,
+  public.ai_complete(
+    content,
+    system_text => 'Summarize this in one punchy sentence.'${p}
+  ) as why_hire_jesse
 from reasons
 order by id;`,
     },
@@ -909,7 +915,9 @@ export function SQLPanel() {
 
       const data = await res.json()
       setElapsedMs(Math.round(performance.now() - startedAt))
-      const sqlResult: SQLQueryResult = data.error ? { success: false, error: data.error } : data
+      const sqlResult: SQLQueryResult = withAiInstallHint(
+        data.error ? { success: false, error: data.error } : data
+      )
       setResult(sqlResult)
       addSqlResult(sqlResult)
       addSqlToHistory(query.trim())
@@ -927,7 +935,7 @@ export function SQLPanel() {
           : 0
         toast.success('Query executed', { description: `${rowCount} rows returned` })
       } else {
-        toast.error('Query failed', { description: sqlResult.error || 'Unknown error' })
+        toast.error('Query failed', { description: firstLine(sqlResult.error) })
       }
     } catch {
       const errResult: SQLQueryResult = {
@@ -991,7 +999,9 @@ export function SQLPanel() {
         const res = await apiFetch('/api/sql', activeConnection, { query: demo.sql.trim() })
         const data = await res.json()
         setElapsedMs(Math.round(performance.now() - startedAt))
-        const sqlResult: SQLQueryResult = data.error ? { success: false, error: data.error } : data
+        const sqlResult: SQLQueryResult = withAiInstallHint(
+          data.error ? { success: false, error: data.error } : data
+        )
         setResult(sqlResult)
         addSqlResult(sqlResult)
         addSqlToHistory(demo.sql.trim())
@@ -1010,7 +1020,7 @@ export function SQLPanel() {
             description: `${rowCount} row${rowCount !== 1 ? 's' : ''} returned`,
           })
         } else {
-          toast.error(`${demo.label} failed`, { description: sqlResult.error || 'Unknown error' })
+          toast.error(`${demo.label} failed`, { description: firstLine(sqlResult.error) })
         }
       } catch {
         const errResult: SQLQueryResult = { success: false, error: 'Network error occurred' }
@@ -1215,7 +1225,7 @@ export function SQLPanel() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="end"
-                  // Twelve demos overflow a short viewport — cap to the space Radix reports.
+                  // The demo list overflows a short viewport — cap to the space Radix reports.
                   className="max-h-[var(--radix-dropdown-menu-content-available-height)] w-64 overflow-y-auto"
                 >
                   <DropdownMenuLabel className="flex items-center justify-between gap-2 font-normal">
